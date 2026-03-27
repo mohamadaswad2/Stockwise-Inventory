@@ -77,7 +77,7 @@ export default function ItemForm({ initialData = {}, categories = [], onSubmit, 
             {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
           </select>
         </div>
-        {field('Price ($) *', 'price', { type: 'number', min: 0, step: '0.01', placeholder: '0.00' })}
+        {field('Price (RM) *', 'price', { type: 'number', min: 0, step: '0.01', placeholder: '0.00' })}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
