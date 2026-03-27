@@ -1,35 +1,210 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  * { box-sizing: border-box; }
-  body {
-    font-family: 'Inter', system-ui, sans-serif;
-    background: #f8fafc;
-    color: #0f172a;
-    -webkit-font-smoothing: antialiased;
+  :root {
+    --ios-bg:         #f2f2f7;
+    --ios-surface:    #ffffff;
+    --ios-surface2:   #f2f2f7;
+    --ios-border:     rgba(60,60,67,0.12);
+    --ios-text:       #000000;
+    --ios-text2:      rgba(60,60,67,0.6);
+    --ios-text3:      rgba(60,60,67,0.3);
+    --ios-blue:       #007aff;
+    --ios-green:      #34c759;
+    --ios-red:        #ff3b30;
+    --ios-orange:     #ff9500;
+    --ios-purple:     #af52de;
+    --ios-teal:       #5ac8fa;
+    --ios-separator:  rgba(60,60,67,0.12);
   }
+  .dark {
+    --ios-bg:         #000000;
+    --ios-surface:    #1c1c1e;
+    --ios-surface2:   #2c2c2e;
+    --ios-border:     rgba(255,255,255,0.1);
+    --ios-text:       #ffffff;
+    --ios-text2:      rgba(235,235,245,0.6);
+    --ios-text3:      rgba(235,235,245,0.3);
+    --ios-blue:       #0a84ff;
+    --ios-green:      #30d158;
+    --ios-red:        #ff453a;
+    --ios-orange:     #ff9f0a;
+    --ios-purple:     #bf5af2;
+    --ios-teal:       #5ac8fa;
+    --ios-separator:  rgba(84,84,88,0.6);
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html { font-size: 16px; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+    background: var(--ios-bg);
+    color: var(--ios-text);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background 0.3s ease, color 0.3s ease;
+    overflow-x: hidden;
+  }
+
+  ::selection { background: rgba(0,122,255,0.2); }
+
+  /* iOS-style scrollbar */
+  ::-webkit-scrollbar { width: 0px; }
+
+  /* Focus visible only for keyboard nav */
+  :focus:not(:focus-visible) { outline: none; }
+  :focus-visible { outline: 2px solid var(--ios-blue); outline-offset: 2px; border-radius: 6px; }
 }
 
 @layer components {
+
+  /* ── iOS Buttons ───────────────────────────────────────── */
   .btn {
-    @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer;
+    @apply inline-flex items-center justify-center gap-2 font-semibold
+           transition-all duration-150 select-none cursor-pointer
+           disabled:opacity-40 disabled:cursor-not-allowed;
+    -webkit-tap-highlight-color: transparent;
   }
-  .btn-primary   { @apply btn bg-sky-500 text-white hover:bg-sky-600 focus:ring-sky-500; }
-  .btn-secondary { @apply btn bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 focus:ring-slate-300; }
-  .btn-danger    { @apply btn bg-red-500 text-white hover:bg-red-600 focus:ring-red-500; }
-  .btn-ghost     { @apply btn text-slate-600 hover:bg-slate-100 focus:ring-slate-300; }
+  .btn:active:not(:disabled) { transform: scale(0.97); }
+
+  .btn-primary {
+    @apply btn px-5 py-2.5 rounded-2xl text-sm text-white;
+    background: var(--ios-blue);
+  }
+  .btn-primary:hover:not(:disabled) { filter: brightness(1.08); }
+
+  .btn-secondary {
+    @apply btn px-5 py-2.5 rounded-2xl text-sm;
+    background: var(--ios-surface2);
+    color: var(--ios-blue);
+  }
+
+  .btn-danger {
+    @apply btn px-5 py-2.5 rounded-2xl text-sm text-white;
+    background: var(--ios-red);
+  }
+
+  .btn-ghost {
+    @apply btn px-3 py-2 rounded-xl text-sm;
+    color: var(--ios-text2);
+  }
+  .btn-ghost:hover { background: var(--ios-surface2); }
+
+  .btn-icon {
+    @apply btn w-9 h-9 rounded-2xl;
+    background: var(--ios-surface2);
+    color: var(--ios-blue);
+  }
+
+  /* ── iOS Inputs ────────────────────────────────────────── */
   .input {
-    @apply w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all duration-150;
+    @apply w-full px-4 py-3 text-sm rounded-2xl transition-all duration-200 outline-none;
+    background: var(--ios-surface2);
+    color: var(--ios-text);
+    border: 1.5px solid transparent;
+    font-family: inherit;
   }
-  .label  { @apply block text-sm font-medium text-slate-700 mb-1; }
-  .card   { @apply bg-white rounded-xl border border-slate-200 shadow-sm; }
-  .badge  { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium; }
-  .badge-green  { @apply badge bg-green-100 text-green-700; }
-  .badge-yellow { @apply badge bg-amber-100 text-amber-700; }
-  .badge-red    { @apply badge bg-red-100 text-red-700; }
-  .badge-blue   { @apply badge bg-sky-100 text-sky-700; }
+  .input::placeholder { color: var(--ios-text3); }
+  .input:focus {
+    border-color: var(--ios-blue);
+    background: var(--ios-surface);
+    box-shadow: 0 0 0 4px rgba(0,122,255,0.12);
+  }
+  .dark .input:focus { box-shadow: 0 0 0 4px rgba(10,132,255,0.2); }
+
+  .label {
+    @apply block text-xs font-semibold uppercase tracking-wider mb-2;
+    color: var(--ios-text2);
+  }
+
+  /* ── iOS Cards ─────────────────────────────────────────── */
+  .card {
+    @apply rounded-2xl overflow-hidden;
+    background: var(--ios-surface);
+    border: 1px solid var(--ios-border);
+  }
+
+  .card-inset {
+    @apply rounded-2xl p-4;
+    background: var(--ios-surface2);
+  }
+
+  /* ── iOS List rows ─────────────────────────────────────── */
+  .list-row {
+    @apply flex items-center px-4 py-3.5 gap-3 transition-all duration-150 cursor-pointer;
+    border-bottom: 1px solid var(--ios-separator);
+  }
+  .list-row:last-child { border-bottom: none; }
+  .list-row:active { background: var(--ios-surface2); }
+
+  /* ── iOS Badges ────────────────────────────────────────── */
+  .badge { @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold; }
+  .badge-green  { background: rgba(52,199,89,0.15);  color: var(--ios-green); }
+  .badge-red    { background: rgba(255,59,48,0.12);  color: var(--ios-red); }
+  .badge-yellow { background: rgba(255,149,0,0.15);  color: var(--ios-orange); }
+  .badge-blue   { background: rgba(0,122,255,0.12);  color: var(--ios-blue); }
+  .badge-purple { background: rgba(175,82,222,0.12); color: var(--ios-purple); }
+
+  /* ── iOS Section headers ───────────────────────────────── */
+  .section-title {
+    @apply text-xs font-semibold uppercase tracking-wider px-1 mb-2;
+    color: var(--ios-text2);
+  }
+
+  /* ── Blur glass (iOS frosted) ──────────────────────────── */
+  .glass {
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    background: rgba(255,255,255,0.72);
+    border-bottom: 1px solid var(--ios-separator);
+  }
+  .dark .glass {
+    background: rgba(28,28,30,0.85);
+  }
+
+  /* ── Animations ────────────────────────────────────────── */
+  .animate-ios-in {
+    animation: iosIn 0.35s cubic-bezier(0.32,0.72,0,1) forwards;
+  }
+  @keyframes iosIn {
+    from { opacity: 0; transform: translateY(12px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0)   scale(1); }
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.25s ease forwards;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.35s cubic-bezier(0.32,0.72,0,1) forwards;
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── iOS segmented control ─────────────────────────────── */
+  .segment-control {
+    @apply flex rounded-xl p-1 gap-1;
+    background: var(--ios-surface2);
+  }
+  .segment-btn {
+    @apply flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200;
+    color: var(--ios-text2);
+  }
+  .segment-btn.active {
+    @apply shadow-sm;
+    background: var(--ios-surface);
+    color: var(--ios-text);
+  }
 }

@@ -1,15 +1,13 @@
-/**
- * /inventory — Full inventory management page with CRUD modals.
- */
 import { useState } from 'react';
 import Head from 'next/head';
 import toast from 'react-hot-toast';
-import { Plus } from 'lucide-react';
+import { Plus, ArrowLeftRight } from 'lucide-react';
 import ProtectedRoute from '../../components/layout/ProtectedRoute';
 import AppLayout from '../../components/layout/AppLayout';
 import ItemTable from '../../components/inventory/ItemTable';
 import ItemForm from '../../components/inventory/ItemForm';
 import InventoryFilters from '../../components/inventory/InventoryFilters';
+import TransactionModal from '../../components/inventory/TransactionModal';
 import Modal from '../../components/ui/Modal';
 import { useInventory } from '../../hooks/useInventory';
 import { useCategories } from '../../hooks/useCategories';
@@ -21,6 +19,7 @@ export default function InventoryPage() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editItem,   setEditItem]   = useState(null);
+  const [txItem,     setTxItem]     = useState(null); // item for transaction
   const [saving,     setSaving]     = useState(false);
 
   const handleCreate = async (data) => {
@@ -32,9 +31,7 @@ export default function InventoryPage() {
       refetch();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to create item.');
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   };
 
   const handleUpdate = async (data) => {
@@ -45,10 +42,8 @@ export default function InventoryPage() {
       setEditItem(null);
       refetch();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to update item.');
-    } finally {
-      setSaving(false);
-    }
+      toast.error(err.response?.data?.message || 'Failed to update.');
+    } finally { setSaving(false); }
   };
 
   return (
@@ -56,33 +51,26 @@ export default function InventoryPage() {
       <AppLayout>
         <Head><title>Inventory — StockWise</title></Head>
 
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6 gap-4">
+        <div className="flex items-center justify-between mb-5 gap-4">
           <div>
-            <h1 className="text-xl font-bold text-slate-800">Inventory</h1>
-            <p className="text-sm text-slate-500 mt-0.5">
-              {total} item{total !== 1 ? 's' : ''} total
-            </p>
+            <h1 className="text-xl font-bold" style={{ color: 'var(--ios-text)' }}>Inventory</h1>
+            <p className="text-sm mt-0.5" style={{ color: 'var(--ios-text2)' }}>{total} item{total !== 1 ? 's' : ''}</p>
           </div>
-          <button className="btn-primary flex-shrink-0" onClick={() => setCreateOpen(true)}>
+          <button className="btn-primary" onClick={() => setCreateOpen(true)}>
             <Plus size={16} /> Add Item
           </button>
         </div>
 
-        {/* Filters */}
         <div className="mb-4">
           <InventoryFilters filters={filters} setFilters={setFilters} categories={categories} />
         </div>
 
-        {/* Table */}
         <ItemTable
-          items={items}
-          total={total}
-          loading={loading}
-          filters={filters}
-          setFilters={setFilters}
+          items={items} total={total} loading={loading}
+          filters={filters} setFilters={setFilters}
           onEdit={setEditItem}
           onDelete={deleteItem}
+          onTransaction={setTxItem}
         />
 
         {/* Create modal */}
@@ -96,10 +84,11 @@ export default function InventoryPage() {
             <ItemForm
               initialData={{
                 ...editItem,
-                quantity: String(editItem.quantity),
-                price:    String(editItem.price),
+                quantity:            String(editItem.quantity),
+                price:               String(editItem.price),
+                cost_price:          String(editItem.cost_price || 0),
                 low_stock_threshold: String(editItem.low_stock_threshold),
-                category_id: editItem.category_id || '',
+                category_id:         editItem.category_id || '',
               }}
               categories={categories}
               onSubmit={handleUpdate}
@@ -107,6 +96,15 @@ export default function InventoryPage() {
             />
           )}
         </Modal>
+
+        {/* Transaction modal */}
+        {txItem && (
+          <TransactionModal
+            item={txItem}
+            onClose={() => setTxItem(null)}
+            onSuccess={refetch}
+          />
+        )}
       </AppLayout>
     </ProtectedRoute>
   );

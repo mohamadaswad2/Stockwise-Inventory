@@ -1,44 +1,32 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   darkMode: 'class',
-  content: [
-    './pages/**/*.{js,jsx}',
-    './components/**/*.{js,jsx}',
-  ],
+  content: ['./pages/**/*.{js,jsx}', './components/**/*.{js,jsx}'],
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter var', 'Inter', 'system-ui', 'sans-serif'],
-        mono: ['JetBrains Mono', 'monospace'],
+        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'SF Pro Display', 'sans-serif'],
       },
       colors: {
-        brand: {
-          50:  '#f0f9ff',
-          100: '#e0f2fe',
-          400: '#38bdf8',
-          500: '#0ea5e9',
-          600: '#0284c7',
-          700: '#0369a1',
+        ios: {
+          blue:   '#007aff',
+          green:  '#34c759',
+          red:    '#ff3b30',
+          orange: '#ff9500',
+          purple: '#af52de',
+          teal:   '#5ac8fa',
+          'blue-dark':   '#0a84ff',
+          'green-dark':  '#30d158',
+          'red-dark':    '#ff453a',
+          'orange-dark': '#ff9f0a',
         },
       },
-      borderRadius: {
-        '2xl': '1rem',
-        '3xl': '1.5rem',
-        '4xl': '2rem',
-      },
+      borderRadius: { '2xl': '1rem', '3xl': '1.5rem', '4xl': '2rem' },
       boxShadow: {
-        'glass': '0 8px 32px rgba(0,0,0,0.08)',
-        'glass-dark': '0 8px 32px rgba(0,0,0,0.4)',
-        'glow': '0 0 24px rgba(14,165,233,0.3)',
-      },
-      animation: {
-        'fade-in':    'fadeIn 0.4s ease forwards',
-        'slide-up':   'slideUp 0.4s ease forwards',
-        'pulse-slow': 'pulse 3s ease-in-out infinite',
-      },
-      keyframes: {
-        fadeIn:  { from: { opacity: 0 }, to: { opacity: 1 } },
-        slideUp: { from: { opacity: 0, transform: 'translateY(16px)' }, to: { opacity: 1, transform: 'translateY(0)' } },
+        'ios':      '0 2px 16px rgba(0,0,0,0.08)',
+        'ios-md':   '0 4px 24px rgba(0,0,0,0.12)',
+        'ios-lg':   '0 8px 40px rgba(0,0,0,0.16)',
+        'ios-glow': '0 0 20px rgba(0,122,255,0.3)',
       },
     },
   },
