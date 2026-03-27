@@ -1,29 +1,24 @@
-/**
- * ItemTable — paginated table of inventory items with edit/delete actions.
- */
 import { useState } from 'react';
 import clsx from 'clsx';
-import { Pencil, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Pencil, Trash2, ArrowLeftRight, ChevronLeft, ChevronRight, Package } from 'lucide-react';
 import ConfirmDialog from '../ui/ConfirmDialog';
 import Spinner from '../ui/Spinner';
-import EmptyState from '../ui/EmptyState';
 
-function stockBadge(qty, threshold) {
-  if (qty === 0)           return <span className="badge-red">Out of stock</span>;
-  if (qty <= threshold)    return <span className="badge-yellow">Low stock</span>;
-  return <span className="badge-green">In stock</span>;
+function StockBadge({ qty, threshold }) {
+  if (qty === 0)        return <span className="badge badge-red">Out of stock</span>;
+  if (qty <= threshold) return <span className="badge badge-yellow">Low stock</span>;
+  return <span className="badge badge-green">In stock</span>;
 }
 
-export default function ItemTable({ items, total, loading, filters, setFilters, onEdit, onDelete }) {
-  const [deletingItem, setDeletingItem] = useState(null);
-  const [deleteLoading, setDeleteLoading] = useState(false);
-
-  const totalPages = Math.ceil(total / filters.limit);
+export default function ItemTable({ items, total, loading, filters, setFilters, onEdit, onDelete, onTransaction }) {
+  const [delItem,    setDelItem]    = useState(null);
+  const [delLoading, setDelLoading] = useState(false);
+  const totalPages = Math.ceil(total / (filters.limit || 20));
 
   const confirmDelete = async () => {
-    setDeleteLoading(true);
-    try { await onDelete(deletingItem.id); }
-    finally { setDeleteLoading(false); setDeletingItem(null); }
+    setDelLoading(true);
+    try { await onDelete(delItem.id); }
+    finally { setDelLoading(false); setDelItem(null); }
   };
 
   if (loading) return (
@@ -33,11 +28,13 @@ export default function ItemTable({ items, total, loading, filters, setFilters, 
   );
 
   if (!items.length) return (
-    <div className="card">
-      <EmptyState
-        title="No items found"
-        description="Add your first inventory item to get started."
-      />
+    <div className="card flex flex-col items-center justify-center py-16 text-center px-6">
+      <div className="w-16 h-16 rounded-3xl flex items-center justify-center mb-4"
+        style={{ background: 'var(--ios-surface2)' }}>
+        <Package size={28} style={{ color: 'var(--ios-text3)' }} />
+      </div>
+      <p className="text-sm font-semibold mb-1" style={{ color: 'var(--ios-text)' }}>No items found</p>
+      <p className="text-sm" style={{ color: 'var(--ios-text2)' }}>Add your first inventory item to get started.</p>
     </div>
   );
 
@@ -47,47 +44,68 @@ export default function ItemTable({ items, total, loading, filters, setFilters, 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50">
-                {['Name', 'SKU', 'Category', 'Qty', 'Price', 'Status', ''].map(h => (
-                  <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">
+              <tr style={{ borderBottom: '1px solid var(--ios-separator)', background: 'var(--ios-surface2)' }}>
+                {['Item','SKU','Category','Stock','Price','Status','Actions'].map(h => (
+                  <th key={h} className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide whitespace-nowrap"
+                    style={{ color: 'var(--ios-text2)' }}>
                     {h}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody>
               {items.map(item => (
-                <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-4 py-3 font-medium text-slate-800 max-w-[200px]">
-                    <p className="truncate">{item.name}</p>
-                    {item.description && (
-                      <p className="text-xs text-slate-400 truncate">{item.description}</p>
-                    )}
+                <tr key={item.id} className="transition-colors duration-100"
+                  style={{ borderBottom: '1px solid var(--ios-separator)' }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--ios-surface2)'}
+                  onMouseLeave={e => e.currentTarget.style.background = ''}>
+                  <td className="px-4 py-3 max-w-[180px]">
+                    <p className="text-sm font-semibold truncate" style={{ color: 'var(--ios-text)' }}>{item.name}</p>
+                    {item.description && <p className="text-xs truncate" style={{ color: 'var(--ios-text2)' }}>{item.description}</p>}
                   </td>
-                  <td className="px-4 py-3 text-slate-500 font-mono text-xs whitespace-nowrap">
-                    {item.sku || '—'}
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className="text-xs font-mono px-2 py-0.5 rounded-lg"
+                      style={{ background: 'var(--ios-surface2)', color: 'var(--ios-text2)' }}>
+                      {item.sku || '—'}
+                    </span>
                   </td>
-                  <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
+                  <td className="px-4 py-3 whitespace-nowrap text-sm" style={{ color: 'var(--ios-text2)' }}>
                     {item.category_name || '—'}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
-                    <span className="font-semibold text-slate-800">{item.quantity}</span>
-                    <span className="text-slate-400 text-xs ml-1">{item.unit}</span>
+                    <span className="font-bold" style={{ color: 'var(--ios-text)' }}>{item.quantity}</span>
+                    <span className="text-xs ml-1" style={{ color: 'var(--ios-text2)' }}>{item.unit}</span>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-slate-700">
-                    ${Number(item.price).toFixed(2)}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    {stockBadge(item.quantity, item.low_stock_threshold)}
+                  <td className="px-4 py-3 whitespace-nowrap font-semibold" style={{ color: 'var(--ios-text)' }}>
+                    RM {Number(item.price).toFixed(2)}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="flex items-center gap-1 justify-end">
+                    <StockBadge qty={item.quantity} threshold={item.low_stock_threshold} />
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => onTransaction?.(item)}
+                        className="w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-150"
+                        style={{ color: 'var(--ios-blue)' }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,122,255,0.1)'}
+                        onMouseLeave={e => e.currentTarget.style.background = ''}
+                        title="Record transaction">
+                        <ArrowLeftRight size={14} />
+                      </button>
                       <button onClick={() => onEdit(item)}
-                        className="btn-ghost p-1.5 rounded-lg" title="Edit">
+                        className="w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-150"
+                        style={{ color: 'var(--ios-text2)' }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'var(--ios-surface2)'}
+                        onMouseLeave={e => e.currentTarget.style.background = ''}
+                        title="Edit">
                         <Pencil size={14} />
                       </button>
-                      <button onClick={() => setDeletingItem(item)}
-                        className="btn-ghost p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600" title="Delete">
+                      <button onClick={() => setDelItem(item)}
+                        className="w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-150"
+                        style={{ color: 'var(--ios-red)' }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,59,48,0.1)'}
+                        onMouseLeave={e => e.currentTarget.style.background = ''}
+                        title="Delete">
                         <Trash2 size={14} />
                       </button>
                     </div>
@@ -100,20 +118,17 @@ export default function ItemTable({ items, total, loading, filters, setFilters, 
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100">
-            <p className="text-xs text-slate-400">
-              Showing {(filters.page - 1) * filters.limit + 1}–{Math.min(filters.page * filters.limit, total)} of {total}
+          <div className="flex items-center justify-between px-4 py-3"
+            style={{ borderTop: '1px solid var(--ios-separator)' }}>
+            <p className="text-xs" style={{ color: 'var(--ios-text2)' }}>
+              {(filters.page - 1) * filters.limit + 1}–{Math.min(filters.page * filters.limit, total)} of {total}
             </p>
             <div className="flex gap-1">
-              <button
-                className="btn-secondary py-1 px-2 text-xs"
-                disabled={filters.page <= 1}
+              <button className="btn-icon w-8 h-8 rounded-xl" disabled={filters.page <= 1}
                 onClick={() => setFilters(f => ({ ...f, page: f.page - 1 }))}>
                 <ChevronLeft size={14} />
               </button>
-              <button
-                className="btn-secondary py-1 px-2 text-xs"
-                disabled={filters.page >= totalPages}
+              <button className="btn-icon w-8 h-8 rounded-xl" disabled={filters.page >= totalPages}
                 onClick={() => setFilters(f => ({ ...f, page: f.page + 1 }))}>
                 <ChevronRight size={14} />
               </button>
@@ -123,12 +138,10 @@ export default function ItemTable({ items, total, loading, filters, setFilters, 
       </div>
 
       <ConfirmDialog
-        open={!!deletingItem}
-        onClose={() => setDeletingItem(null)}
-        onConfirm={confirmDelete}
-        loading={deleteLoading}
+        open={!!delItem} onClose={() => setDelItem(null)}
+        onConfirm={confirmDelete} loading={delLoading}
         title="Delete item?"
-        description={`"${deletingItem?.name}" will be removed from your inventory. This action cannot be undone.`}
+        description={`"${delItem?.name}" will be removed from your inventory.`}
       />
     </>
   );

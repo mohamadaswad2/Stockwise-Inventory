@@ -1,6 +1,7 @@
 export default function Spinner({ size = 'md', className = '' }) {
-  const sizes = { sm: 'h-4 w-4', md: 'h-6 w-6', lg: 'h-10 w-10' };
+  const s = { sm: 'w-4 h-4 border-2', md: 'w-6 h-6 border-2', lg: 'w-10 h-10 border-3' };
   return (
-    <div className={`animate-spin rounded-full border-2 border-slate-200 border-t-sky-500 ${sizes[size]} ${className}`} />
+    <div className={`animate-spin rounded-full ${s[size]} ${className}`}
+      style={{ borderColor: 'var(--ios-separator)', borderTopColor: 'var(--ios-blue)' }} />
   );
 }

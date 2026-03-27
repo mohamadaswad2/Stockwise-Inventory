@@ -1,7 +1,3 @@
-/**
- * Entry point for the Express server.
- * Loads environment variables, initializes the app, and starts listening.
- */
 require('dotenv').config();
 const app = require('./app');
 const { testConnection } = require('./config/database');

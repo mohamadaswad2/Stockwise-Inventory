@@ -1,6 +1,6 @@
 import Head from 'next/head';
 import Link from 'next/link';
-import { Plus, TrendingUp, TrendingDown } from 'lucide-react';
+import { Plus, TrendingUp, ArrowRight } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend,
@@ -14,13 +14,13 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import Spinner from '../../components/ui/Spinner';
 
-const COLORS = ['#0ea5e9','#8b5cf6','#22c55e','#f59e0b'];
+const PIE_COLORS = ['#007aff','#af52de','#34c759','#ff9500'];
 
-function CustomTooltip({ active, payload, label }) {
+function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="card px-3 py-2 text-xs shadow-lg">
-      <p className="font-semibold text-slate-700 dark:text-slate-200 mb-1">{label}</p>
+    <div className="card px-3 py-2 text-xs shadow-ios-md">
+      <p className="font-semibold mb-1" style={{ color: 'var(--ios-text)' }}>{label}</p>
       {payload.map(p => (
         <p key={p.name} style={{ color: p.color }}>{p.name}: <strong>{p.value}</strong></p>
       ))}
@@ -33,25 +33,18 @@ export default function DashboardPage() {
   const { isDark }        = useTheme();
   const { stats, loading } = useDashboard();
 
-  const axisColor  = isDark ? '#475569' : '#cbd5e1';
-  const gridColor  = isDark ? '#1e293b' : '#f1f5f9';
-  const textColor  = isDark ? '#94a3b8' : '#64748b';
+  const axisColor = isDark ? '#27272a' : '#f4f4f5';
+  const tickColor = isDark ? '#71717a' : '#a1a1aa';
 
-  // Mock trend data (replace with real API data in Sprint 2)
   const stockTrend = [
-    { month: 'Oct', value: 240 },
-    { month: 'Nov', value: 290 },
-    { month: 'Dec', value: 180 },
-    { month: 'Jan', value: 320 },
-    { month: 'Feb', value: 270 },
-    { month: 'Mar', value: stats?.total_quantity ?? 300 },
+    { month: 'Oct', value: 240 }, { month: 'Nov', value: 290 },
+    { month: 'Dec', value: 180 }, { month: 'Jan', value: 320 },
+    { month: 'Feb', value: 270 }, { month: 'Mar', value: stats?.total_quantity ?? 300 },
   ];
 
-  const categoryData = [
-    { name: 'Electronics', value: 35 },
-    { name: 'Clothing',    value: 25 },
-    { name: 'Food',        value: 20 },
-    { name: 'Others',      value: 20 },
+  const catData = [
+    { name: 'Electronics', value: 35 }, { name: 'Clothing', value: 25 },
+    { name: 'Food', value: 20 },        { name: 'Others', value: 20 },
   ];
 
   return (
@@ -60,16 +53,16 @@ export default function DashboardPage() {
         <Head><title>Dashboard — StockWise</title></Head>
 
         {/* Header */}
-        <div className="flex items-start justify-between mb-6 gap-4">
+        <div className="flex items-start justify-between mb-5 gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-slate-800 dark:text-white">
-              Good day, {user?.name?.split(' ')[0]} 👋
+            <h1 className="text-xl font-bold" style={{ color: 'var(--ios-text)' }}>
+              Hi, {user?.name?.split(' ')[0]} 👋
             </h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+            <p className="text-sm mt-0.5" style={{ color: 'var(--ios-text2)' }}>
               Here's your inventory overview
             </p>
           </div>
-          <Link href="/inventory" className="btn-primary flex-shrink-0">
+          <Link href="/inventory" className="btn-primary">
             <Plus size={16} /> Add Item
           </Link>
         </div>
@@ -77,67 +70,88 @@ export default function DashboardPage() {
         {/* Stats */}
         <StatsGrid stats={stats} loading={loading} />
 
-        {/* Charts row */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mt-6">
-          {/* Stock trend — 2/3 width */}
+        {/* Charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
+          {/* Area chart */}
           <div className="lg:col-span-2 card p-5">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="font-semibold text-slate-800 dark:text-white text-sm">Stock Level Trend</h3>
-                <p className="text-xs text-slate-400 mt-0.5">Total units over last 6 months</p>
+                <h3 className="text-sm font-bold" style={{ color: 'var(--ios-text)' }}>Stock Trend</h3>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--ios-text2)' }}>Last 6 months</p>
               </div>
-              <span className="badge-green flex items-center gap-1">
-                <TrendingUp size={11} /> +12%
+              <span className="badge badge-green flex items-center gap-1">
+                <TrendingUp size={10} /> +12%
               </span>
             </div>
             {loading ? (
               <div className="flex items-center justify-center h-48"><Spinner /></div>
             ) : (
               <ResponsiveContainer width="100%" height={200}>
-                <AreaChart data={stockTrend} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                <AreaChart data={stockTrend} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
                   <defs>
-                    <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%"  stopColor="#0ea5e9" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
+                    <linearGradient id="stockGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor="#007aff" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#007aff" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid stroke={gridColor} strokeDasharray="3 3" />
-                  <XAxis dataKey="month" tick={{ fill: textColor, fontSize: 11 }} axisLine={{ stroke: axisColor }} />
-                  <YAxis tick={{ fill: textColor, fontSize: 11 }} axisLine={{ stroke: axisColor }} />
-                  <Tooltip content={<CustomTooltip />} />
+                  <CartesianGrid stroke={axisColor} strokeDasharray="3 3" />
+                  <XAxis dataKey="month" tick={{ fill: tickColor, fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: tickColor, fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <Tooltip content={<ChartTooltip />} />
                   <Area type="monotone" dataKey="value" name="Units"
-                    stroke="#0ea5e9" strokeWidth={2} fill="url(#grad)" dot={{ fill: '#0ea5e9', r: 3 }} />
+                    stroke="#007aff" strokeWidth={2.5} fill="url(#stockGrad)"
+                    dot={{ fill: '#007aff', r: 3, strokeWidth: 0 }} activeDot={{ r: 5 }} />
                 </AreaChart>
               </ResponsiveContainer>
             )}
           </div>
 
-          {/* Category breakdown — 1/3 width */}
+          {/* Pie chart */}
           <div className="card p-5">
-            <h3 className="font-semibold text-slate-800 dark:text-white text-sm mb-1">By Category</h3>
-            <p className="text-xs text-slate-400 mb-4">Stock distribution</p>
+            <h3 className="text-sm font-bold mb-1" style={{ color: 'var(--ios-text)' }}>By Category</h3>
+            <p className="text-xs mb-3" style={{ color: 'var(--ios-text2)' }}>Distribution</p>
             {loading ? (
               <div className="flex items-center justify-center h-48"><Spinner /></div>
             ) : (
-              <ResponsiveContainer width="100%" height={200}>
+              <ResponsiveContainer width="100%" height={210}>
                 <PieChart>
-                  <Pie data={categoryData} cx="50%" cy="50%" innerRadius={50} outerRadius={75}
-                    paddingAngle={4} dataKey="value">
-                    {categoryData.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} strokeWidth={0} />
-                    ))}
+                  <Pie data={catData} cx="50%" cy="45%" innerRadius={48} outerRadius={72}
+                    paddingAngle={3} dataKey="value" strokeWidth={0}>
+                    {catData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                   </Pie>
-                  <Tooltip formatter={(v) => `${v}%`} />
-                  <Legend iconType="circle" iconSize={8}
-                    formatter={(v) => <span style={{ fontSize: 11, color: textColor }}>{v}</span>} />
+                  <Tooltip formatter={v => `${v}%`} />
+                  <Legend iconType="circle" iconSize={7}
+                    formatter={v => <span style={{ fontSize: 11, color: tickColor }}>{v}</span>} />
                 </PieChart>
               </ResponsiveContainer>
             )}
           </div>
         </div>
 
+        {/* Quick actions */}
+        <div className="grid grid-cols-2 gap-3 mt-4">
+          <Link href="/inventory" className="card p-4 flex items-center justify-between group transition-all duration-150"
+            onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--ios-blue)'}
+            onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--ios-border)'}>
+            <div>
+              <p className="text-sm font-bold" style={{ color: 'var(--ios-text)' }}>Manage Inventory</p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--ios-text2)' }}>Add, edit, remove items</p>
+            </div>
+            <ArrowRight size={16} style={{ color: 'var(--ios-blue)' }} />
+          </Link>
+          <Link href="/sales" className="card p-4 flex items-center justify-between transition-all duration-150"
+            onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--ios-green)'}
+            onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--ios-border)'}>
+            <div>
+              <p className="text-sm font-bold" style={{ color: 'var(--ios-text)' }}>View Sales</p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--ios-text2)' }}>Revenue & top items</p>
+            </div>
+            <ArrowRight size={16} style={{ color: 'var(--ios-green)' }} />
+          </Link>
+        </div>
+
         {/* Low stock */}
-        <div className="mt-6">
+        <div className="mt-4">
           <LowStockTable items={stats?.low_stock_items ?? []} />
         </div>
       </AppLayout>

@@ -1,53 +1,115 @@
 import Head from 'next/head';
 import Link from 'next/link';
-import { Boxes } from 'lucide-react';
-import LoginForm from '../../components/auth/LoginForm';
+import { useState } from 'react';
+import { useRouter } from 'next/router';
+import { Eye, EyeOff } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { useAuth } from '../../contexts/AuthContext';
+import OTPVerification from '../../components/auth/OTPVerification';
 
 export default function LoginPage() {
+  const { login } = useAuth();
+  const router    = useRouter();
+  const [form,    setForm]    = useState({ email:'', password:'' });
+  const [showPw,  setShowPw]  = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [needOtp, setNeedOtp] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await login(form);
+      router.push('/dashboard');
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Login failed.';
+      if (msg.toLowerCase().includes('verify')) setNeedOtp(true);
+      else toast.error(msg);
+    } finally { setLoading(false); }
+  };
+
   return (
     <>
       <Head><title>Sign In — StockWise</title></Head>
-      <div className="min-h-screen flex bg-slate-50 dark:bg-[#0a0f1e]">
-        {/* Left panel — branding */}
-        <div className="hidden lg:flex flex-col justify-between w-1/2 bg-gradient-to-br from-sky-600 to-blue-700 p-12 relative overflow-hidden">
-          <div className="absolute inset-0 opacity-10"
-            style={{backgroundImage:'radial-gradient(circle at 20% 50%, white 1px, transparent 1px)',backgroundSize:'40px 40px'}} />
-          <div className="relative flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center">
-              <Boxes size={20} className="text-white" />
+      <div className="min-h-screen flex" style={{ background: 'var(--ios-bg)' }}>
+        {/* Left — brand panel */}
+        <div className="hidden lg:flex flex-col justify-between w-[45%] p-12 relative overflow-hidden"
+          style={{ background: 'linear-gradient(145deg,#007aff 0%,#5856d6 100%)' }}>
+          <div className="absolute inset-0 opacity-[0.07]"
+            style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+          <div className="relative">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-white font-bold text-sm"
+                style={{ background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)' }}>
+                SW
+              </div>
+              <span className="text-white font-bold text-lg">StockWise</span>
             </div>
-            <span className="text-white font-bold text-lg tracking-tight">StockWise</span>
           </div>
           <div className="relative">
-            <h1 className="text-4xl font-bold text-white leading-tight mb-4">
-              Manage your inventory<br />like a pro.
+            <h1 className="text-4xl font-bold text-white leading-tight mb-3">
+              Manage inventory<br />like a pro.
             </h1>
-            <p className="text-sky-100 text-lg">Real-time tracking, smart alerts,<br />and powerful analytics.</p>
+            <p className="text-blue-100 text-lg">Real-time tracking, smart alerts,<br />powerful analytics.</p>
           </div>
-          <div className="relative flex gap-6">
-            {[['500+','Active Users'],['99.9%','Uptime'],['30-day','Free Trial']].map(([v,l]) => (
+          <div className="relative flex gap-8">
+            {[['500+','Users'],['99.9%','Uptime'],['30-day','Free Trial']].map(([v,l]) => (
               <div key={l}>
                 <p className="text-2xl font-bold text-white">{v}</p>
-                <p className="text-sky-200 text-sm">{l}</p>
+                <p className="text-blue-200 text-sm">{l}</p>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Right panel — form */}
+        {/* Right — form */}
         <div className="flex-1 flex items-center justify-center p-6">
-          <div className="w-full max-w-sm animate-slide-up">
+          <div className="w-full max-w-sm animate-ios-in">
             <div className="lg:hidden flex items-center gap-2 mb-8">
-              <div className="w-8 h-8 rounded-xl bg-sky-500 flex items-center justify-center">
-                <Boxes size={16} className="text-white" />
+              <div className="w-9 h-9 rounded-2xl flex items-center justify-center text-white font-bold text-sm"
+                style={{ background: 'linear-gradient(135deg,#007aff,#5856d6)' }}>SW</div>
+              <span className="font-bold" style={{ color: 'var(--ios-text)' }}>StockWise</span>
+            </div>
+            <h2 className="text-2xl font-bold mb-1" style={{ color: 'var(--ios-text)' }}>
+              {needOtp ? 'Verify Email' : 'Welcome back'}
+            </h2>
+            {!needOtp && <p className="text-sm mb-6" style={{ color: 'var(--ios-text2)' }}>Sign in to your account</p>}
+
+            {needOtp ? (
+              <OTPVerification email={form.email} onSuccess={() => router.push('/dashboard')} />
+            ) : (
+              <div className="card p-6">
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div>
+                    <label className="label">Email</label>
+                    <input type="email" className="input" placeholder="you@example.com"
+                      value={form.email} onChange={e => setForm(f=>({...f,email:e.target.value}))} required />
+                  </div>
+                  <div>
+                    <label className="label">Password</label>
+                    <div className="relative">
+                      <input type={showPw ? 'text' : 'password'} className="input pr-11"
+                        placeholder="••••••••"
+                        value={form.password} onChange={e => setForm(f=>({...f,password:e.target.value}))} required />
+                      <button type="button" onClick={() => setShowPw(v=>!v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-xl"
+                        style={{ color: 'var(--ios-text2)' }}>
+                        {showPw ? <EyeOff size={16}/> : <Eye size={16}/>}
+                      </button>
+                    </div>
+                  </div>
+                  <button type="submit" disabled={loading} className="btn-primary w-full">
+                    {loading ? 'Signing in…' : 'Sign In'}
+                  </button>
+                  <p className="text-center text-sm" style={{ color: 'var(--ios-text2)' }}>
+                    No account?{' '}
+                    <Link href="/auth/register" className="font-semibold" style={{ color: 'var(--ios-blue)' }}>
+                      Start free trial
+                    </Link>
+                  </p>
+                </form>
               </div>
-              <span className="font-bold text-slate-800 dark:text-white">StockWise</span>
-            </div>
-            <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-1">Welcome back</h2>
-            <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">Sign in to your account</p>
-            <div className="card p-6">
-              <LoginForm />
-            </div>
+            )}
           </div>
         </div>
       </div>
