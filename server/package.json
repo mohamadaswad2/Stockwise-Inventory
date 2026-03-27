@@ -1,18 +1,14 @@
 {
   "name": "inventory-saas-server",
-  "version": "1.0.0",
-  "description": "SaaS Inventory Management System - Backend",
+  "version": "2.0.0",
   "main": "src/index.js",
-  "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=9.0.0"
-  },
+  "engines": { "node": ">=18.0.0" },
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "db:migrate": "node src/config/migrate.js",
     "db:seed": "node src/config/seed.js",
-    "build": "echo 'No build step required for Node.js'"
+    "build": "echo 'No build step required'"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -24,10 +20,10 @@
     "joi": "^17.11.0",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
+    "nodemailer": "^6.9.13",
     "pg": "^8.11.3",
+    "stripe": "^14.21.0",
     "uuid": "^9.0.0"
   },
-  "devDependencies": {
-    "nodemon": "^3.0.2"
-  }
+  "devDependencies": { "nodemon": "^3.0.2" }
 }
