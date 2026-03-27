@@ -15,10 +15,10 @@ export default function StatsGrid({ stats, loading }) {
 
   return (
     <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-      <StatCard icon={Package}       label="Total Items"     value={stats?.total_items}              color="blue" />
+      <StatCard icon={Package}       label="Total Items"     value={stats?.total_items}               color="blue" />
       <StatCard icon={Layers}        label="Total Stock"     value={stats?.total_quantity}            color="green"  sub="units" />
       <StatCard icon={AlertTriangle} label="Low Stock"       value={stats?.low_stock_count}           color="orange" sub={`${stats?.out_of_stock_count ?? 0} out of stock`} />
-      <StatCard icon={DollarSign}    label="Inventory Value" value={`RM ${stats?.total_value ?? '0'}`} color="purple" />
+      <StatCard icon={Banknote}      label="Inventory Value" value={new Intl.NumberFormat('ms-MY', {style: 'currency',currency: 'MYR',}).format(stats?.total_value || 0)}         color="purple" />
     </div>
   );
 }
