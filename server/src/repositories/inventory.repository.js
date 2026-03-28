@@ -1,12 +1,5 @@
-/**
- * Inventory repository — all SQL for inventory_items table.
- * Enforces multi-tenancy by always scoping queries to user_id.
- */
 const db = require('../config/database');
 
-/**
- * Find paginated items for a tenant with optional filters.
- */
 const findAll = async ({ userId, page = 1, limit = 20, search = '', categoryId, lowStock }) => {
   const offset = (page - 1) * limit;
   const conditions = ['i.user_id = $1', 'i.is_active = TRUE'];
@@ -15,23 +8,15 @@ const findAll = async ({ userId, page = 1, limit = 20, search = '', categoryId, 
 
   if (search) {
     conditions.push(`(i.name ILIKE $${idx} OR i.sku ILIKE $${idx})`);
-    values.push(`%${search}%`);
-    idx++;
+    values.push(`%${search}%`); idx++;
   }
-  if (categoryId) {
-    conditions.push(`i.category_id = $${idx++}`);
-    values.push(categoryId);
-  }
-  if (lowStock === true) {
+  if (categoryId) { conditions.push(`i.category_id = $${idx++}`); values.push(categoryId); }
+  if (lowStock === true || lowStock === 'true') {
     conditions.push(`i.quantity <= i.low_stock_threshold`);
   }
 
   const where = conditions.join(' AND ');
-
-  const countResult = await db.query(
-    `SELECT COUNT(*) FROM inventory_items i WHERE ${where}`,
-    values
-  );
+  const countResult = await db.query(`SELECT COUNT(*) FROM inventory_items i WHERE ${where}`, values);
   const total = parseInt(countResult.rows[0].count);
 
   const itemResult = await db.query(
@@ -59,46 +44,37 @@ const findById = async (id, userId) => {
 };
 
 const create = async (userId, data) => {
-  const { name, sku, description, quantity, unit, price, low_stock_threshold, category_id } = data;
+  const { name, sku, description, quantity, unit, price, cost_price, low_stock_threshold, category_id } = data;
   const result = await db.query(
     `INSERT INTO inventory_items
-       (user_id, name, sku, description, quantity, unit, price, low_stock_threshold, category_id)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+       (user_id, name, sku, description, quantity, unit, price, cost_price, low_stock_threshold, category_id)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
      RETURNING *`,
-    [userId, name, sku || null, description || null, quantity, unit || 'unit',
-     price, low_stock_threshold ?? 5, category_id || null]
+    [userId, name, sku||null, description||null, quantity, unit||'unit',
+     price, cost_price||0, low_stock_threshold??5, category_id||null]
   );
   return result.rows[0];
 };
 
 const update = async (id, userId, data) => {
-  const allowed = ['name','sku','description','quantity','unit','price','low_stock_threshold','category_id','is_active'];
-  const updates = [];
-  const values  = [];
-  let   idx     = 1;
-
+  const allowed = ['name','sku','description','quantity','unit','price','cost_price',
+                   'low_stock_threshold','category_id','is_active'];
+  const updates = []; const values = []; let idx = 1;
   for (const [key, val] of Object.entries(data)) {
-    if (allowed.includes(key)) {
-      updates.push(`${key} = $${idx++}`);
-      values.push(val);
-    }
+    if (allowed.includes(key)) { updates.push(`${key} = $${idx++}`); values.push(val); }
   }
-  if (updates.length === 0) return null;
-
+  if (!updates.length) return null;
   updates.push(`updated_at = NOW()`);
   values.push(id, userId);
-
   const result = await db.query(
     `UPDATE inventory_items SET ${updates.join(', ')}
-     WHERE id = $${idx} AND user_id = $${idx + 1}
-     RETURNING *`,
+     WHERE id = $${idx} AND user_id = $${idx+1} RETURNING *`,
     values
   );
   return result.rows[0] || null;
 };
 
 const remove = async (id, userId) => {
-  // Soft delete
   const result = await db.query(
     `UPDATE inventory_items SET is_active = FALSE, updated_at = NOW()
      WHERE id = $1 AND user_id = $2 RETURNING id`,
@@ -127,11 +103,48 @@ const getLowStockItems = async (userId, limit = 5) => {
     `SELECT id, name, sku, quantity, low_stock_threshold, unit
      FROM inventory_items
      WHERE user_id = $1 AND is_active = TRUE AND quantity <= low_stock_threshold
-     ORDER BY quantity ASC
-     LIMIT $2`,
+     ORDER BY quantity ASC LIMIT $2`,
     [userId, limit]
   );
   return result.rows;
 };
 
-module.exports = { findAll, findById, create, update, remove, getDashboardStats, getLowStockItems };
+// Real stock trend — items added per day for last 30 days
+const getStockTrend = async (userId) => {
+  const result = await db.query(
+    `SELECT
+       DATE(created_at) AS date,
+       COUNT(*) AS items_added,
+       SUM(quantity) AS total_quantity
+     FROM inventory_items
+     WHERE user_id = $1 AND is_active = TRUE
+       AND created_at > NOW() - INTERVAL '30 days'
+     GROUP BY DATE(created_at)
+     ORDER BY date ASC`,
+    [userId]
+  );
+  return result.rows;
+};
+
+// Category breakdown — real data
+const getCategoryBreakdown = async (userId) => {
+  const result = await db.query(
+    `SELECT
+       COALESCE(c.name, 'Uncategorized') AS name,
+       COUNT(i.id) AS item_count,
+       COALESCE(SUM(i.quantity), 0) AS total_quantity
+     FROM inventory_items i
+     LEFT JOIN categories c ON c.id = i.category_id
+     WHERE i.user_id = $1 AND i.is_active = TRUE
+     GROUP BY c.name
+     ORDER BY total_quantity DESC
+     LIMIT 6`,
+    [userId]
+  );
+  return result.rows;
+};
+
+module.exports = {
+  findAll, findById, create, update, remove,
+  getDashboardStats, getLowStockItems, getStockTrend, getCategoryBreakdown
+};

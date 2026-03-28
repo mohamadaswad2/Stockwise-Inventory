@@ -1,7 +1,8 @@
 const bcrypt   = require('bcryptjs');
 const jwt      = require('jsonwebtoken');
+const crypto   = require('crypto');
 const userRepository = require('../repositories/user.repository');
-const { sendVerificationEmail } = require('../utils/email');
+const { sendVerificationEmail, sendPasswordResetEmail } = require('../utils/email');
 const AppError = require('../utils/AppError');
 
 const SALT_ROUNDS  = 12;
@@ -33,13 +34,11 @@ const register = async ({ name, email, password }) => {
     plan:               'deluxe',
   });
 
-  // Send OTP — await so we can catch and report error properly
   try {
     await sendVerificationEmail(email, name, otp);
     console.log('[Auth] OTP sent to:', email);
   } catch (err) {
     console.error('[Auth] Email send failed:', err.message);
-    // Don't fail registration if email fails — user can resend
   }
 
   return { user, requiresVerification: true };
@@ -79,7 +78,6 @@ const resendVerification = async (email) => {
   });
 
   await sendVerificationEmail(email, user.name, otp);
-  console.log('[Auth] OTP resent to:', email);
   return true;
 };
 
@@ -96,7 +94,6 @@ const login = async ({ email, password }) => {
 
   const { password: _, ...safeUser } = user;
 
-  // Auto-lock expired trials
   if (safeUser.trial_ends_at && new Date() > new Date(safeUser.trial_ends_at)
       && safeUser.plan === 'deluxe' && !safeUser.stripe_subscription_id) {
     await userRepository.updateById(user.id, { is_locked: true, plan: 'free' });
@@ -106,6 +103,51 @@ const login = async ({ email, password }) => {
 
   const token = signToken(safeUser);
   return { user: safeUser, token };
+};
+
+// ── Forgot Password ───────────────────────────────────────────────────────────
+const forgotPassword = async (email) => {
+  const user = await userRepository.findByEmail(email);
+  // Always return success to prevent email enumeration
+  if (!user) return true;
+
+  const resetToken   = crypto.randomBytes(32).toString('hex');
+  const resetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+  await userRepository.updateById(user.id, {
+    reset_password_token:   resetToken,
+    reset_password_expires: resetExpires,
+  });
+
+  const resetUrl = `${process.env.CLIENT_URL}/auth/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`;
+
+  try {
+    await sendPasswordResetEmail(email, user.name, resetUrl);
+    console.log('[Auth] Password reset email sent to:', email);
+  } catch (err) {
+    console.error('[Auth] Reset email failed:', err.message);
+  }
+
+  return true;
+};
+
+const resetPassword = async (email, token, newPassword) => {
+  const user = await userRepository.findByEmail(email);
+  if (!user) throw new AppError('Invalid or expired reset link.', 400);
+  if (!user.reset_password_token) throw new AppError('No password reset requested.', 400);
+  if (new Date() > new Date(user.reset_password_expires))
+    throw new AppError('Reset link has expired. Please request a new one.', 410);
+  if (user.reset_password_token !== token)
+    throw new AppError('Invalid reset link.', 400);
+
+  const hashed = await bcrypt.hash(newPassword, SALT_ROUNDS);
+  await userRepository.updateById(user.id, {
+    password:               hashed,
+    reset_password_token:   null,
+    reset_password_expires: null,
+  });
+
+  return true;
 };
 
 const changePassword = async (userId, { currentPassword, newPassword }) => {
@@ -125,4 +167,7 @@ const getProfile = async (userId) => {
   return user;
 };
 
-module.exports = { register, verifyEmail, resendVerification, login, changePassword, getProfile };
+module.exports = {
+  register, verifyEmail, resendVerification,
+  login, forgotPassword, resetPassword, changePassword, getProfile,
+};

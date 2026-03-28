@@ -16,6 +16,8 @@ const migrations = [
     is_email_verified      BOOLEAN      NOT NULL DEFAULT FALSE,
     email_verify_token     VARCHAR(255),
     email_verify_expires   TIMESTAMPTZ,
+    reset_password_token   VARCHAR(255),
+    reset_password_expires TIMESTAMPTZ,
     trial_ends_at          TIMESTAMPTZ,
     stripe_customer_id     VARCHAR(255),
     stripe_subscription_id VARCHAR(255),
@@ -23,7 +25,6 @@ const migrations = [
     updated_at             TIMESTAMPTZ  NOT NULL DEFAULT NOW()
   )`,
 
-  // FIXED: user_id is now nullable for global categories
   `CREATE TABLE IF NOT EXISTS categories (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id     UUID REFERENCES users(id) ON DELETE CASCADE,
@@ -83,22 +84,22 @@ const migrations = [
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`,
 
-  // Indexes
   `CREATE INDEX IF NOT EXISTS idx_inventory_user     ON inventory_items(user_id)`,
   `CREATE INDEX IF NOT EXISTS idx_categories_global  ON categories(name) WHERE user_id IS NULL`,
   `CREATE INDEX IF NOT EXISTS idx_transactions_user   ON transactions(user_id)`,
   `CREATE INDEX IF NOT EXISTS idx_transactions_date   ON transactions(user_id, created_at DESC)`,
 
-  // Safe column additions for existing DBs
+  // Safe ALTER for existing DBs
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_email_verified      BOOLEAN     NOT NULL DEFAULT FALSE`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verify_token     VARCHAR(255)`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verify_expires   TIMESTAMPTZ`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_password_token   VARCHAR(255)`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_password_expires TIMESTAMPTZ`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_ends_at          TIMESTAMPTZ`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_locked              BOOLEAN     NOT NULL DEFAULT FALSE`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id     VARCHAR(255)`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_subscription_id VARCHAR(255)`,
   `ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS cost_price   NUMERIC(12,2) NOT NULL DEFAULT 0`,
-  // Allow categories.user_id to be NULL (global categories)
   `ALTER TABLE categories ALTER COLUMN user_id DROP NOT NULL`,
 ];
 
@@ -108,11 +109,12 @@ async function run() {
   for (const sql of migrations) {
     try { await query(sql); }
     catch (e) {
-      if (!e.message.includes('already exists') && !e.message.includes('does not exist')) throw e;
+      if (!e.message.includes('already exists') &&
+          !e.message.includes('does not exist') &&
+          !e.message.includes('multiple primary keys')) throw e;
     }
   }
   console.log('[Migration] Done ✓');
   process.exit(0);
 }
-
 run().catch(e => { console.error('[Migration] FAILED:', e.message); process.exit(1); });
