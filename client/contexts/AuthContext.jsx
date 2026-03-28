@@ -34,13 +34,17 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = useCallback(async (credentials) => {
-    const res = await authService.login(credentials);
-    const { user: u, token: t } = res.data.data;
-    localStorage.setItem('token', t);
-    localStorage.setItem('user', JSON.stringify(u));
-    setToken(t);
-    setUser(u);
-    return u;
+    try {
+      const res = await authService.login(credentials);
+      const { user: u, token: t } = res.data.data;
+      localStorage.setItem('token', t);
+      localStorage.setItem('user', JSON.stringify(u));
+      setToken(t);
+      setUser(u);
+      return u;
+    } catch (err) {
+      throw err.response?.data || { message: 'Login failed' };
+    }
   }, []);
 
   const register = useCallback(async (data) => {
