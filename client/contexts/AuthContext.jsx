@@ -36,7 +36,7 @@ export function AuthProvider({ children }) {
   const login = useCallback(async (credentials) => {
     try {
       const res = await authService.login(credentials);
-      const { user: u, token: t } = res.data.data;
+      const { user: u, token: t } = res.data;
       localStorage.setItem('token', t);
       localStorage.setItem('user', JSON.stringify(u));
       setToken(t);
@@ -49,10 +49,7 @@ export function AuthProvider({ children }) {
 
   const register = useCallback(async (data) => {
     const res = await authService.register(data);
-    const { user: u, token: t } = res.data.data;
-    localStorage.setItem('token', t);
-    localStorage.setItem('user', JSON.stringify(u));
-    setToken(t);
+     const { user: u } = res.data;
     setUser(u);
     return u;
   }, []);
