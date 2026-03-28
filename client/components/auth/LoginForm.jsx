@@ -24,7 +24,7 @@ export default function LoginForm() {
       toast.success('Welcome back!');
       router.push('/dashboard');
     } catch (err) {
-      const msg = err.response?.data?.message || 'Login failed.';
+      const msg = err.message || 'Login failed.';
       // If email not verified → show OTP screen
       if (msg.toLowerCase().includes('verify your email')) {
         setNeedOtp(true);
