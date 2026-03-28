@@ -23,13 +23,13 @@ const migrations = [
     updated_at             TIMESTAMPTZ  NOT NULL DEFAULT NOW()
   )`,
 
+  // FIXED: user_id is now nullable for global categories
   `CREATE TABLE IF NOT EXISTS categories (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id     UUID REFERENCES users(id) ON DELETE CASCADE,
     name        VARCHAR(255) NOT NULL,
     description TEXT,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE(user_id, name)
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`,
 
   `CREATE TABLE IF NOT EXISTS inventory_items (
@@ -50,7 +50,6 @@ const migrations = [
     UNIQUE(user_id, sku)
   )`,
 
-  /* Sprint 2: Transactions table */
   `CREATE TABLE IF NOT EXISTS transactions (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id     UUID          NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -84,15 +83,13 @@ const migrations = [
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`,
 
-  /* Indexes */
-  `CREATE INDEX IF NOT EXISTS idx_inventory_user    ON inventory_items(user_id)`,
-  `CREATE INDEX IF NOT EXISTS idx_categories_user   ON categories(user_id)`,
-  `CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id)`,
-  `CREATE INDEX IF NOT EXISTS idx_transactions_user  ON transactions(user_id)`,
-  `CREATE INDEX IF NOT EXISTS idx_transactions_item  ON transactions(item_id)`,
-  `CREATE INDEX IF NOT EXISTS idx_transactions_date  ON transactions(user_id, created_at DESC)`,
+  // Indexes
+  `CREATE INDEX IF NOT EXISTS idx_inventory_user     ON inventory_items(user_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_categories_global  ON categories(name) WHERE user_id IS NULL`,
+  `CREATE INDEX IF NOT EXISTS idx_transactions_user   ON transactions(user_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_transactions_date   ON transactions(user_id, created_at DESC)`,
 
-  /* Alter existing tables safely */
+  // Safe column additions for existing DBs
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_email_verified      BOOLEAN     NOT NULL DEFAULT FALSE`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verify_token     VARCHAR(255)`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verify_expires   TIMESTAMPTZ`,
@@ -101,6 +98,8 @@ const migrations = [
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id     VARCHAR(255)`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_subscription_id VARCHAR(255)`,
   `ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS cost_price   NUMERIC(12,2) NOT NULL DEFAULT 0`,
+  // Allow categories.user_id to be NULL (global categories)
+  `ALTER TABLE categories ALTER COLUMN user_id DROP NOT NULL`,
 ];
 
 async function run() {
@@ -108,9 +107,12 @@ async function run() {
   console.log('[Migration] Running...');
   for (const sql of migrations) {
     try { await query(sql); }
-    catch (e) { if (!e.message.includes('already exists')) throw e; }
+    catch (e) {
+      if (!e.message.includes('already exists') && !e.message.includes('does not exist')) throw e;
+    }
   }
   console.log('[Migration] Done ✓');
   process.exit(0);
 }
+
 run().catch(e => { console.error('[Migration] FAILED:', e.message); process.exit(1); });

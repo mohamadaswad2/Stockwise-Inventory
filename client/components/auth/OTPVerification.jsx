@@ -1,36 +1,44 @@
+/**
+ * OTPVerification — 6-digit OTP input.
+ * 
+ * FIXED:
+ * - Uses completeVerification from AuthContext instead of raw localStorage
+ * - Works for both post-register and post-login (unverified) flows
+ */
 import { useState, useRef, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { ShieldCheck, RefreshCw } from 'lucide-react';
+import { ShieldCheck, RefreshCw, ArrowLeft } from 'lucide-react';
 import * as authService from '../../services/auth.service';
+import { useAuth } from '../../contexts/AuthContext';
 
-export default function OTPVerification({ email, onSuccess }) {
+export default function OTPVerification({ email, onSuccess, onBack }) {
+  const { completeVerification } = useAuth();
   const [codes,   setCodes]   = useState(['','','','','','']);
   const [loading, setLoading] = useState(false);
   const [cd,      setCd]      = useState(60);
   const refs = useRef([]);
 
-  useEffect(() => {
-    refs.current[0]?.focus();
-  }, []);
+  useEffect(() => { refs.current[0]?.focus(); }, []);
 
   useEffect(() => {
     if (cd <= 0) return;
-    const t = setTimeout(() => setCd(v => v-1), 1000);
+    const t = setTimeout(() => setCd(v => v - 1), 1000);
     return () => clearTimeout(t);
   }, [cd]);
 
   const submit = async (otp) => {
-    if (otp.length !== 6) return;
+    if (otp.length !== 6 || loading) return;
     setLoading(true);
     try {
       const res = await authService.verifyEmail(email, otp);
       const { user, token } = res.data.data;
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-      toast.success('Email verified! Welcome 🎉');
+      // Properly update global auth state
+      completeVerification(user, token);
+      toast.success('Email verified! Welcome to StockWise 🎉');
       onSuccess?.();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Invalid code.');
+      const msg = err.response?.data?.message || 'Invalid code.';
+      toast.error(msg);
       setCodes(['','','','','','']);
       refs.current[0]?.focus();
     } finally { setLoading(false); }
@@ -39,48 +47,67 @@ export default function OTPVerification({ email, onSuccess }) {
   const handleChange = (e, idx) => {
     const val = e.target.value.replace(/\D/g,'').slice(-1);
     const next = [...codes]; next[idx] = val; setCodes(next);
-    if (val && idx < 5) refs.current[idx+1]?.focus();
-    if (val && idx === 5 && next.every(c=>c)) submit(next.join(''));
+    if (val && idx < 5) refs.current[idx + 1]?.focus();
+    if (val && idx === 5 && next.every(c => c)) submit(next.join(''));
   };
 
   const handleKeyDown = (e, idx) => {
-    if (e.key === 'Backspace' && !codes[idx] && idx > 0) refs.current[idx-1]?.focus();
+    if (e.key === 'Backspace' && !codes[idx] && idx > 0) {
+      refs.current[idx - 1]?.focus();
+    }
   };
 
   const handlePaste = (e) => {
     const t = e.clipboardData.getData('text').replace(/\D/g,'').slice(0,6);
-    if (t.length === 6) { setCodes(t.split('')); submit(t); }
+    if (t.length === 6) {
+      setCodes(t.split(''));
+      setTimeout(() => submit(t), 50);
+    }
   };
 
   const resend = async () => {
     try {
       await authService.resendVerification(email);
-      toast.success('New code sent!');
+      toast.success('New code sent! Check your email.');
       setCd(60);
-    } catch (err) { toast.error('Failed to resend.'); }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to resend.');
+    }
   };
 
   return (
     <div className="space-y-6 animate-ios-in">
+      {onBack && (
+        <button onClick={onBack} className="flex items-center gap-1.5 text-sm font-medium"
+          style={{ color: 'var(--ios-blue)' }}>
+          <ArrowLeft size={16} /> Back
+        </button>
+      )}
+
       <div className="text-center">
         <div className="w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-4"
-          style={{ background: 'rgba(0,122,255,0.1)' }}>
+          style={{ background: 'rgba(0,122,255,0.12)' }}>
           <ShieldCheck size={28} style={{ color: 'var(--ios-blue)' }} />
         </div>
-        <h2 className="text-lg font-bold mb-1" style={{ color: 'var(--ios-text)' }}>Check your email</h2>
+        <h2 className="text-lg font-bold mb-1" style={{ color: 'var(--ios-text)' }}>
+          Check your email
+        </h2>
         <p className="text-sm" style={{ color: 'var(--ios-text2)' }}>
-          Code sent to <strong style={{ color: 'var(--ios-text)' }}>{email}</strong>
+          We sent a 6-digit code to<br />
+          <span className="font-semibold" style={{ color: 'var(--ios-text)' }}>{email}</span>
         </p>
       </div>
 
       {/* OTP inputs */}
       <div className="flex gap-2 justify-center" onPaste={handlePaste}>
         {codes.map((c, i) => (
-          <input key={i} ref={el => refs.current[i] = el}
+          <input key={i}
+            ref={el => refs.current[i] = el}
             type="text" inputMode="numeric" maxLength={1}
             value={c}
             onChange={e => handleChange(e, i)}
             onKeyDown={e => handleKeyDown(e, i)}
+            disabled={loading}
             className="w-12 h-14 text-center text-2xl font-bold rounded-2xl outline-none transition-all duration-200"
             style={{
               background: 'var(--ios-surface2)',
@@ -104,12 +131,17 @@ export default function OTPVerification({ email, onSuccess }) {
           ? <p className="text-sm" style={{ color: 'var(--ios-text2)' }}>
               Resend in <span className="font-semibold" style={{ color: 'var(--ios-text)' }}>{cd}s</span>
             </p>
-          : <button onClick={resend} className="text-sm font-semibold inline-flex items-center gap-1.5"
+          : <button onClick={resend}
+              className="text-sm font-semibold inline-flex items-center gap-1.5"
               style={{ color: 'var(--ios-blue)' }}>
               <RefreshCw size={13} /> Resend code
             </button>
         }
       </div>
+
+      <p className="text-center text-xs" style={{ color: 'var(--ios-text3)' }}>
+        Didn't get it? Check your spam folder.
+      </p>
     </div>
   );
 }

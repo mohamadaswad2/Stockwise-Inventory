@@ -1,17 +1,23 @@
+/**
+ * RegisterForm — FIXED:
+ * - register() no longer expects token back
+ * - Properly transitions to OTP screen after registration
+ * - All errors show as toast
+ */
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { Eye, EyeOff, CheckCircle2, Circle } from 'lucide-react';
-import * as authService from '../../services/auth.service';
+import { useAuth } from '../../contexts/AuthContext';
 import OTPVerification from './OTPVerification';
 
 const CHECKS = [
-  { label: 'At least 8 characters',     test: p => p.length >= 8 },
-  { label: 'Uppercase letter (A–Z)',     test: p => /[A-Z]/.test(p) },
-  { label: 'Lowercase letter (a–z)',     test: p => /[a-z]/.test(p) },
-  { label: 'Number (0–9)',              test: p => /[0-9]/.test(p) },
-  { label: 'Special character (!@#…)',  test: p => /[^A-Za-z0-9]/.test(p) },
+  { label: 'At least 8 characters',    test: p => p.length >= 8 },
+  { label: 'Uppercase letter (A–Z)',    test: p => /[A-Z]/.test(p) },
+  { label: 'Lowercase letter (a–z)',    test: p => /[a-z]/.test(p) },
+  { label: 'Number (0–9)',             test: p => /[0-9]/.test(p) },
+  { label: 'Special character (!@#…)', test: p => /[^A-Za-z0-9]/.test(p) },
 ];
 
 function PasswordStrength({ password }) {
@@ -54,10 +60,11 @@ function PasswordStrength({ password }) {
 
 export default function RegisterForm() {
   const router = useRouter();
+  const { register } = useAuth();
   const [form,    setForm]    = useState({ name:'', email:'', password:'' });
   const [showPw,  setShowPw]  = useState(false);
   const [loading, setLoading] = useState(false);
-  const [step,    setStep]    = useState('register');
+  const [step,    setStep]    = useState('register'); // 'register' | 'verify'
 
   const isStrong = CHECKS.every(c => c.test(form.password));
 
@@ -66,15 +73,22 @@ export default function RegisterForm() {
     if (!isStrong) { toast.error('Please meet all password requirements.'); return; }
     setLoading(true);
     try {
-      await authService.register(form);
+      await register(form); // Returns { user, requiresVerification: true }
+      toast.success('Account created! Check your email for the verification code.');
       setStep('verify');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Registration failed.');
+      toast.error(err.response?.data?.message || 'Registration failed. Please try again.');
     } finally { setLoading(false); }
   };
 
   if (step === 'verify') {
-    return <OTPVerification email={form.email} onSuccess={() => router.push('/dashboard')} />;
+    return (
+      <OTPVerification
+        email={form.email}
+        onSuccess={() => router.push('/dashboard')}
+        onBack={() => setStep('register')}
+      />
+    );
   }
 
   return (
@@ -85,7 +99,7 @@ export default function RegisterForm() {
           value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} required />
       </div>
       <div>
-        <label className="label">Email</label>
+        <label className="label">Email Address</label>
         <input type="email" className="input" placeholder="you@example.com"
           value={form.email} onChange={e => setForm(f=>({...f,email:e.target.value}))} required />
       </div>
@@ -93,7 +107,7 @@ export default function RegisterForm() {
         <label className="label">Password</label>
         <div className="relative">
           <input type={showPw ? 'text' : 'password'} className="input pr-11"
-            placeholder="Create strong password"
+            placeholder="Create a strong password"
             value={form.password} onChange={e => setForm(f=>({...f,password:e.target.value}))} required />
           <button type="button" onClick={() => setShowPw(v=>!v)}
             className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-xl"
@@ -104,19 +118,23 @@ export default function RegisterForm() {
         <PasswordStrength password={form.password} />
       </div>
 
-      {/* Trial badge */}
-      <div className="flex items-center gap-2 p-3 rounded-2xl text-xs"
-        style={{ background: 'rgba(0,122,255,0.08)', color: 'var(--ios-blue)' }}>
-        ✨ <span><strong>30 days Deluxe FREE</strong> — all features unlocked. No card needed.</span>
+      <div className="flex items-start gap-2.5 p-3 rounded-2xl text-xs"
+        style={{ background: 'rgba(0,122,255,0.08)' }}>
+        <span style={{ color: 'var(--ios-blue)' }}>✨</span>
+        <span style={{ color: 'var(--ios-blue)' }}>
+          <strong>30 days Deluxe FREE</strong> — all features unlocked. No credit card required.
+        </span>
       </div>
 
       <button type="submit" disabled={loading || !isStrong} className="btn-primary w-full">
-        {loading ? 'Creating…' : 'Create Account'}
+        {loading ? 'Creating account…' : 'Create Account'}
       </button>
 
       <p className="text-center text-sm" style={{ color: 'var(--ios-text2)' }}>
         Have an account?{' '}
-        <Link href="/auth/login" className="font-semibold" style={{ color: 'var(--ios-blue)' }}>Sign in</Link>
+        <Link href="/auth/login" className="font-semibold" style={{ color: 'var(--ios-blue)' }}>
+          Sign in
+        </Link>
       </p>
     </form>
   );

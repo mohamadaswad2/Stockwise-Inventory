@@ -1,3 +1,9 @@
+/**
+ * Login page — FIXED:
+ * - All errors show as toast (#12)
+ * - Unverified users redirected to OTP screen (#1)
+ * - "verify" message detection improved
+ */
 import Head from 'next/head';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -17,14 +23,27 @@ export default function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!form.email || !form.password) {
+      toast.error('Please enter your email and password.');
+      return;
+    }
     setLoading(true);
     try {
       await login(form);
+      toast.success('Welcome back!');
       router.push('/dashboard');
     } catch (err) {
-      const msg = err.message || 'Login failed.';
-      if (msg.toLowerCase().includes('verify')) setNeedOtp(true);
-      else toast.error(msg);
+      const msg    = err.response?.data?.message || 'Login failed. Please try again.';
+      const status = err.response?.status;
+
+      // #1 FIX: unverified email → show OTP screen
+      if (status === 403 && msg.toLowerCase().includes('verify')) {
+        toast('Please verify your email first.', { icon: '📧' });
+        setNeedOtp(true);
+      } else {
+        // #12 FIX: ALL other errors show as toast
+        toast.error(msg);
+      }
     } finally { setLoading(false); }
   };
 
@@ -32,19 +51,18 @@ export default function LoginPage() {
     <>
       <Head><title>Sign In — StockWise</title></Head>
       <div className="min-h-screen flex" style={{ background: 'var(--ios-bg)' }}>
-        {/* Left — brand panel */}
+
+        {/* Left brand panel */}
         <div className="hidden lg:flex flex-col justify-between w-[45%] p-12 relative overflow-hidden"
           style={{ background: 'linear-gradient(145deg,#007aff 0%,#5856d6 100%)' }}>
           <div className="absolute inset-0 opacity-[0.07]"
             style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
-          <div className="relative">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-white font-bold text-sm"
-                style={{ background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)' }}>
-                SW
-              </div>
-              <span className="text-white font-bold text-lg">StockWise</span>
+          <div className="relative flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-white font-bold text-sm"
+              style={{ background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)' }}>
+              SW
             </div>
+            <span className="text-white font-bold text-lg">StockWise</span>
           </div>
           <div className="relative">
             <h1 className="text-4xl font-bold text-white leading-tight mb-3">
@@ -62,7 +80,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Right — form */}
+        {/* Right form panel */}
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="w-full max-w-sm animate-ios-in">
             <div className="lg:hidden flex items-center gap-2 mb-8">
@@ -70,45 +88,69 @@ export default function LoginPage() {
                 style={{ background: 'linear-gradient(135deg,#007aff,#5856d6)' }}>SW</div>
               <span className="font-bold" style={{ color: 'var(--ios-text)' }}>StockWise</span>
             </div>
-            <h2 className="text-2xl font-bold mb-1" style={{ color: 'var(--ios-text)' }}>
-              {needOtp ? 'Verify Email' : 'Welcome back'}
-            </h2>
-            {!needOtp && <p className="text-sm mb-6" style={{ color: 'var(--ios-text2)' }}>Sign in to your account</p>}
 
             {needOtp ? (
-              <OTPVerification email={form.email} onSuccess={() => router.push('/dashboard')} />
+              <>
+                <h2 className="text-2xl font-bold mb-6" style={{ color: 'var(--ios-text)' }}>
+                  Verify your email
+                </h2>
+                <div className="card p-6">
+                  <OTPVerification
+                    email={form.email}
+                    onSuccess={() => router.push('/dashboard')}
+                    onBack={() => setNeedOtp(false)}
+                  />
+                </div>
+              </>
             ) : (
-              <div className="card p-6">
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
-                    <label className="label">Email</label>
-                    <input type="email" className="input" placeholder="you@example.com"
-                      value={form.email} onChange={e => setForm(f=>({...f,email:e.target.value}))} required />
-                  </div>
-                  <div>
-                    <label className="label">Password</label>
-                    <div className="relative">
-                      <input type={showPw ? 'text' : 'password'} className="input pr-11"
-                        placeholder="••••••••"
-                        value={form.password} onChange={e => setForm(f=>({...f,password:e.target.value}))} required />
-                      <button type="button" onClick={() => setShowPw(v=>!v)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-xl"
-                        style={{ color: 'var(--ios-text2)' }}>
-                        {showPw ? <EyeOff size={16}/> : <Eye size={16}/>}
-                      </button>
+              <>
+                <h2 className="text-2xl font-bold mb-1" style={{ color: 'var(--ios-text)' }}>Welcome back</h2>
+                <p className="text-sm mb-6" style={{ color: 'var(--ios-text2)' }}>Sign in to your account</p>
+
+                <div className="card p-6">
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                      <label className="label">Email</label>
+                      <input type="email" className="input" placeholder="you@example.com"
+                        value={form.email} onChange={e => setForm(f=>({...f,email:e.target.value}))}
+                        autoComplete="email" required />
                     </div>
-                  </div>
-                  <button type="submit" disabled={loading} className="btn-primary w-full">
-                    {loading ? 'Signing in…' : 'Sign In'}
-                  </button>
-                  <p className="text-center text-sm" style={{ color: 'var(--ios-text2)' }}>
-                    No account?{' '}
-                    <Link href="/auth/register" className="font-semibold" style={{ color: 'var(--ios-blue)' }}>
-                      Start free trial
-                    </Link>
-                  </p>
-                </form>
-              </div>
+                    <div>
+                      <label className="label">Password</label>
+                      <div className="relative">
+                        <input type={showPw ? 'text' : 'password'} className="input pr-11"
+                          placeholder="••••••••"
+                          value={form.password} onChange={e => setForm(f=>({...f,password:e.target.value}))}
+                          autoComplete="current-password" required />
+                        <button type="button" onClick={() => setShowPw(v=>!v)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-xl"
+                          style={{ color: 'var(--ios-text2)' }}>
+                          {showPw ? <EyeOff size={16}/> : <Eye size={16}/>}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end">
+                      <Link href="/auth/forgot-password"
+                        className="text-xs font-medium"
+                        style={{ color: 'var(--ios-blue)' }}>
+                        Forgot password?
+                      </Link>
+                    </div>
+
+                    <button type="submit" disabled={loading} className="btn-primary w-full">
+                      {loading ? 'Signing in…' : 'Sign In'}
+                    </button>
+
+                    <p className="text-center text-sm" style={{ color: 'var(--ios-text2)' }}>
+                      No account?{' '}
+                      <Link href="/auth/register" className="font-semibold" style={{ color: 'var(--ios-blue)' }}>
+                        Start free trial
+                      </Link>
+                    </p>
+                  </form>
+                </div>
+              </>
             )}
           </div>
         </div>
