@@ -17,10 +17,10 @@ const findByEmail = async (email) => {
 
 const create = async ({ name, email, password, emailVerifyToken, emailVerifyExpires, trialEndsAt, plan }) => {
   const result = await db.query(
-    `INSERT INTO users (name, email, password, email_verify_token, email_verify_expires, trial_ends_at, plan)
-     VALUES ($1,$2,$3,$4,$5,$6,$7)
+    `INSERT INTO users (name, email, password, email_verify_token, email_verify_expires, trial_ends_at, plan, is_email_verified)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
      RETURNING id, email, name, role, plan, is_active, is_locked, is_email_verified, trial_ends_at, created_at`,
-    [name, email.toLowerCase(), password, emailVerifyToken, emailVerifyExpires, trialEndsAt, plan || 'deluxe']
+    [name, email.toLowerCase(), password, emailVerifyToken, emailVerifyExpires, trialEndsAt, plan || 'deluxe', false]
   );
   return result.rows[0];
 };
