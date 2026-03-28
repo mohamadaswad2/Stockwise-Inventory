@@ -18,20 +18,42 @@ const generateOTP = () => String(Math.floor(100000 + Math.random() * 900000));
 
 const register = async ({ name, email, password }) => {
   const existing = await userRepository.findByEmail(email);
-  if (existing) throw new AppError('An account with that email already exists.', 409);
+
+  if (existing) {
+    if (!existing.is_email_verified) {
+      const otp = generateOTP();
+      const expires = new Date(Date.now() + 15 * 60 * 1000);
+
+      await userRepository.updateById(existing.id, {
+        email_verify_token: otp,
+        email_verify_expires: expires,
+      });
+
+      await sendVerificationEmail(existing.email, existing.name, otp);
+
+      return {
+        user: existing,
+        requiresVerification: true,
+        message: 'Account exists but not verified. New code sent.'
+      };
+    }
+
+    throw new AppError('An account with that email already exists.', 409);
+  }
 
   const hashed   = await bcrypt.hash(password, SALT_ROUNDS);
   const otp      = generateOTP();
   const expires  = new Date(Date.now() + 15 * 60 * 1000);
   const trialEnd = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
 
-  const user = await userRepository.create({
-    name, email, password: hashed,
-    emailVerifyToken:   otp,
-    emailVerifyExpires: expires,
-    trialEndsAt:        trialEnd,
-    plan:               'deluxe',
-  });
+const user = await userRepository.create({
+  name, email, password: hashed,
+  email_verify_token: otp,
+  email_verify_expires: expires,
+  trialEndsAt: trialEnd,
+  plan: 'deluxe',
+  is_email_verified: false
+});
 
   // Send OTP — await so we can catch and report error properly
   try {
