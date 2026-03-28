@@ -50,6 +50,15 @@
     --orange:  #d97706;
     --purple:  #9333ea;
     --glow:    rgba(99,102,241,0.15);
+    --ios-bg: var(--bg);
+    --ios-surface: var(--surface);
+    --ios-surface2: var(--surface2);
+    --ios-text: var(--text);
+    --ios-text2: var(--text2);
+    --ios-blue: var(--blue);
+    --ios-red: var(--red);
+    --ios-purple: var(--purple);
+    --ios-separator: var(--border);
   }
 
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -224,16 +233,4 @@
     background: linear-gradient(90deg, transparent, var(--accent), transparent);
     opacity: 0.3;
   }
-}
-
-:root {
-  --ios-bg: var(--bg);
-  --ios-surface: var(--surface);
-  --ios-surface2: var(--surface2);
-  --ios-text: var(--text);
-  --ios-text2: var(--text2);
-  --ios-blue: var(--blue);
-  --ios-red: var(--red);
-  --ios-purple: var(--purple);
-  --ios-separator: var(--border);
 }
