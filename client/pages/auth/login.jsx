@@ -1,9 +1,3 @@
-/**
- * Login page — FIXED:
- * - All errors show as toast (#12)
- * - Unverified users redirected to OTP screen (#1)
- * - "verify" message detection improved
- */
 import Head from 'next/head';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -33,18 +27,27 @@ export default function LoginPage() {
       toast.success('Welcome back!');
       router.push('/dashboard');
     } catch (err) {
-      const msg    = err.response?.data?.message || 'Login failed. Please try again.';
-      const status = err.response?.status;
+      // Get both status and message for precise detection
+      const status  = err.response?.status;
+      const message = err.response?.data?.message || '';
 
-      // #1 FIX: unverified email → show OTP screen
-      if (status === 403 && msg.toLowerCase().includes('verify')) {
-        toast('Please verify your email first.', { icon: '📧' });
+      console.log('[Login] Error status:', status, '| message:', message);
+
+      // Unverified email — status 403, message contains 'verify'
+      const isUnverified = status === 403 && (
+        message.toLowerCase().includes('verify') ||
+        message.toLowerCase().includes('email')
+      );
+
+      if (isUnverified) {
+        toast('Check your email for the verification code.', { icon: '📧', duration: 4000 });
         setNeedOtp(true);
       } else {
-        // #12 FIX: ALL other errors show as toast
-        toast.error(msg);
+        toast.error(message || 'Login failed. Please try again.');
       }
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -80,9 +83,10 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Right form panel */}
+        {/* Right form */}
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="w-full max-w-sm animate-ios-in">
+
             <div className="lg:hidden flex items-center gap-2 mb-8">
               <div className="w-9 h-9 rounded-2xl flex items-center justify-center text-white font-bold text-sm"
                 style={{ background: 'linear-gradient(135deg,#007aff,#5856d6)' }}>SW</div>
@@ -104,25 +108,32 @@ export default function LoginPage() {
               </>
             ) : (
               <>
-                <h2 className="text-2xl font-bold mb-1" style={{ color: 'var(--ios-text)' }}>Welcome back</h2>
-                <p className="text-sm mb-6" style={{ color: 'var(--ios-text2)' }}>Sign in to your account</p>
+                <h2 className="text-2xl font-bold mb-1" style={{ color: 'var(--ios-text)' }}>
+                  Welcome back
+                </h2>
+                <p className="text-sm mb-6" style={{ color: 'var(--ios-text2)' }}>
+                  Sign in to your account
+                </p>
 
                 <div className="card p-6">
                   <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
                       <label className="label">Email</label>
                       <input type="email" className="input" placeholder="you@example.com"
-                        value={form.email} onChange={e => setForm(f=>({...f,email:e.target.value}))}
+                        value={form.email}
+                        onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                         autoComplete="email" required />
                     </div>
+
                     <div>
                       <label className="label">Password</label>
                       <div className="relative">
                         <input type={showPw ? 'text' : 'password'} className="input pr-11"
                           placeholder="••••••••"
-                          value={form.password} onChange={e => setForm(f=>({...f,password:e.target.value}))}
+                          value={form.password}
+                          onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
                           autoComplete="current-password" required />
-                        <button type="button" onClick={() => setShowPw(v=>!v)}
+                        <button type="button" onClick={() => setShowPw(v => !v)}
                           className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-xl"
                           style={{ color: 'var(--ios-text2)' }}>
                           {showPw ? <EyeOff size={16}/> : <Eye size={16}/>}
