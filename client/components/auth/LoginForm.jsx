@@ -17,28 +17,24 @@ export default function LoginForm() {
   const handleChange = (e) => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
 
   const handleSubmit = async (e) => {
-      e.preventDefault();
-      setLoading(true);
-
-      try {
-        await login(form);
-        toast.success('Welcome back!');
-        router.push('/dashboard');
-      } catch (err) {
-        const msg = err.message || 'Login failed.';
-        const lower = msg.toLowerCase();
-
-        // 🔥 FIX: detect verify case properly
-        if (lower.includes('verify') || lower.includes('not verified')) {
-          setNeedOtp(true);
-          return; // IMPORTANT: stop execution
-        }
-
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await login(form);
+      toast.success('Welcome back!');
+      router.push('/dashboard');
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Login failed.';
+      // If email not verified → show OTP screen
+      if (msg.toLowerCase().includes('verify your email')) {
+        setNeedOtp(true);
+      } else {
         toast.error(msg);
-      } finally {
-        setLoading(false);
       }
-    }; 
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (needOtp) {
     return <OTPVerification email={form.email} onSuccess={() => router.push('/dashboard')} />;

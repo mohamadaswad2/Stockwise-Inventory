@@ -4,44 +4,50 @@ import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { useAuth } from '../../contexts/AuthContext';
+import axios from 'axios';
 import OTPVerification from '../../components/auth/OTPVerification';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function LoginPage() {
-  const { login } = useAuth();
-  const router    = useRouter();
-  const [form,    setForm]    = useState({ email:'', password:'' });
-  const [showPw,  setShowPw]  = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [needOtp, setNeedOtp] = useState(false);
+  const { completeVerification } = useAuth();
+  const router   = useRouter();
+  const [form,   setForm]   = useState({ email:'', password:'' });
+  const [showPw, setShowPw] = useState(false);
+  const [loading,setLoading]= useState(false);
+  const [needOtp,setNeedOtp]= useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.email || !form.password) {
-      toast.error('Please enter your email and password.');
-      return;
-    }
     setLoading(true);
+
     try {
-      await login(form);
+      // Call API directly — bypass AuthContext.login() to see raw error
+      const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+      const res = await axios.post(`${API}/auth/login`, form);
+
+      // Success — store token manually
+      const { user, token } = res.data.data;
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      completeVerification(user, token);
       toast.success('Welcome back!');
       router.push('/dashboard');
+
     } catch (err) {
-      // Get both status and message for precise detection
       const status  = err.response?.status;
       const message = err.response?.data?.message || '';
 
-      console.log('[Login] Error status:', status, '| message:', message);
+      // Debug: always show what we got
+      console.error('[Login Error]', { status, message });
 
-      // Unverified email — status 403, message contains 'verify'
-      const isUnverified = status === 403 && (
-        message.toLowerCase().includes('verify') ||
-        message.toLowerCase().includes('email')
-      );
-
-      if (isUnverified) {
-        toast('Check your email for the verification code.', { icon: '📧', duration: 4000 });
+      if (status === 403) {
+        // ANY 403 from login = email not verified
+        toast('Please verify your email to continue.', { icon: '📧', duration: 5000 });
         setNeedOtp(true);
+      } else if (status === 401) {
+        toast.error('Incorrect email or password.');
+      } else if (status === 400) {
+        toast.error(message || 'Invalid request.');
       } else {
         toast.error(message || 'Login failed. Please try again.');
       }
@@ -95,9 +101,10 @@ export default function LoginPage() {
 
             {needOtp ? (
               <>
-                <h2 className="text-2xl font-bold mb-6" style={{ color: 'var(--ios-text)' }}>
-                  Verify your email
-                </h2>
+                <h2 className="text-2xl font-bold mb-2" style={{ color: 'var(--ios-text)' }}>Verify your email</h2>
+                <p className="text-sm mb-6" style={{ color: 'var(--ios-text2)' }}>
+                  Enter the code sent to <strong>{form.email}</strong>
+                </p>
                 <div className="card p-6">
                   <OTPVerification
                     email={form.email}
@@ -108,12 +115,8 @@ export default function LoginPage() {
               </>
             ) : (
               <>
-                <h2 className="text-2xl font-bold mb-1" style={{ color: 'var(--ios-text)' }}>
-                  Welcome back
-                </h2>
-                <p className="text-sm mb-6" style={{ color: 'var(--ios-text2)' }}>
-                  Sign in to your account
-                </p>
+                <h2 className="text-2xl font-bold mb-1" style={{ color: 'var(--ios-text)' }}>Welcome back</h2>
+                <p className="text-sm mb-6" style={{ color: 'var(--ios-text2)' }}>Sign in to your account</p>
 
                 <div className="card p-6">
                   <form onSubmit={handleSubmit} className="space-y-4">
@@ -142,8 +145,7 @@ export default function LoginPage() {
                     </div>
 
                     <div className="flex justify-end">
-                      <Link href="/auth/forgot-password"
-                        className="text-xs font-medium"
+                      <Link href="/auth/forgot-password" className="text-xs font-medium"
                         style={{ color: 'var(--ios-blue)' }}>
                         Forgot password?
                       </Link>
