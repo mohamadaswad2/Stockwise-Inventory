@@ -43,7 +43,7 @@ export function AuthProvider({ children }) {
       setUser(u);
       return u;
     } catch (err) {
-      throw err.response?.data || { message: 'Login failed' };
+      throw {message:err.message ||err.response?.data?.message ||'Login failed'};
     }
   }, []);
 
