@@ -23,10 +23,15 @@ api.interceptors.response.use(
   (res) => res,
   (err) => {
     // Token expired or invalid → force logout
-    if (err.response?.status === 401 && typeof window !== 'undefined') {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/auth/login';
+    if (err.response?.status === 401 &&   typeof window !== 'undefined' && !err.config?.url?.includes('/auth/login')) {
+      // ONLY logout kalau token memang wujud
+      const token = localStorage.getItem('token');
+
+      if (token) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/auth/login';
+      }
     }
     return Promise.reject(err);
   }
