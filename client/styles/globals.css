@@ -225,3 +225,15 @@
     opacity: 0.3;
   }
 }
+
+:root {
+  --ios-bg: var(--bg);
+  --ios-surface: var(--surface);
+  --ios-surface2: var(--surface2);
+  --ios-text: var(--text);
+  --ios-text2: var(--text2);
+  --ios-blue: var(--blue);
+  --ios-red: var(--red);
+  --ios-purple: var(--purple);
+  --ios-separator: var(--border);
+}
