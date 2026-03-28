@@ -22,7 +22,7 @@ export default function LoginPage() {
       await login(form);
       router.push('/dashboard');
     } catch (err) {
-      const msg = err.response?.data?.message || 'Login failed.';
+      const msg = err.message || 'Login failed.';
       if (msg.toLowerCase().includes('verify')) setNeedOtp(true);
       else toast.error(msg);
     } finally { setLoading(false); }
