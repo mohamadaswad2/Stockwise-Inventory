@@ -28,7 +28,7 @@ export default function AppLayout({ children }) {
   const isAdmin = user?.role === 'admin';
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--ios-bg)' }}>
+    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg)' }}>
 
       {/* Mobile overlay */}
       {sideOpen && (
@@ -41,18 +41,18 @@ export default function AppLayout({ children }) {
       <aside className={clsx(
         'fixed lg:static inset-y-0 left-0 z-40 flex flex-col w-64 transition-transform duration-300',
         sideOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-      )} style={{ background: 'var(--ios-surface)', borderRight: '1px solid var(--ios-separator)' }}>
+      )} style={{ background: 'var(--surface)', borderRight: '1px solid var(--border)' }}>
 
         {/* Logo */}
         <div className="flex items-center gap-3 px-5 h-16"
-          style={{ borderBottom: '1px solid var(--ios-separator)' }}>
-          <div className="w-9 h-9 rounded-2xl flex items-center justify-center text-white text-sm font-bold shadow-ios-glow"
+          style={{ borderBottom: '1px solid var(--border)' }}>
+          <div className="w-9 h-9 rounded-2xl flex items-center justify-center text-white text-sm font-bold shadow-glow-glow"
             style={{ background: 'linear-gradient(135deg,#007aff,#5856d6)' }}>
             SW
           </div>
           <div>
-            <p className="text-sm font-bold" style={{ color: 'var(--ios-text)' }}>StockWise</p>
-            <p className="text-xs" style={{ color: 'var(--ios-text2)' }}>{user?.plan} plan</p>
+            <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>StockWise</p>
+            <p className="text-xs" style={{ color: 'var(--text2)' }}>{user?.plan} plan</p>
           </div>
           <button className="ml-auto lg:hidden btn-ghost" onClick={() => setSideOpen(false)}>
             <X size={18} />
@@ -68,13 +68,13 @@ export default function AppLayout({ children }) {
               <Link key={href} href={href} onClick={() => setSideOpen(false)}
                 className={clsx(
                   'flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-sm font-medium transition-all duration-150',
-                  active ? 'text-white shadow-ios' : ''
+                  active ? 'text-white shadow-glow' : ''
                 )}
                 style={active
-                  ? { background: 'var(--ios-blue)' }
-                  : { color: 'var(--ios-text2)' }
+                  ? { background: 'var(--blue)' }
+                  : { color: 'var(--text2)' }
                 }
-                onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'var(--ios-surface2)'; }}
+                onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'var(--surface2)'; }}
                 onMouseLeave={e => { if (!active) e.currentTarget.style.background = ''; }}>
                 <Icon size={17} />
                 {label}
@@ -92,9 +92,9 @@ export default function AppLayout({ children }) {
                   router.pathname.startsWith('/admin') ? 'text-white' : ''
                 )}
                 style={router.pathname.startsWith('/admin')
-                  ? { background: 'var(--ios-purple)' }
-                  : { color: 'var(--ios-text2)' }}
-                onMouseEnter={e => { if (!router.pathname.startsWith('/admin')) e.currentTarget.style.background = 'var(--ios-surface2)'; }}
+                  ? { background: 'var(--purple)' }
+                  : { color: 'var(--text2)' }}
+                onMouseEnter={e => { if (!router.pathname.startsWith('/admin')) e.currentTarget.style.background = 'var(--surface2)'; }}
                 onMouseLeave={e => { if (!router.pathname.startsWith('/admin')) e.currentTarget.style.background = ''; }}>
                 <ShieldAlert size={17} />
                 Admin Panel
@@ -104,11 +104,11 @@ export default function AppLayout({ children }) {
         </nav>
 
         {/* Bottom actions */}
-        <div className="px-3 py-4 space-y-0.5" style={{ borderTop: '1px solid var(--ios-separator)' }}>
+        <div className="px-3 py-4 space-y-0.5" style={{ borderTop: '1px solid var(--border)' }}>
           <button onClick={toggle}
             className="flex items-center gap-3 w-full px-3.5 py-2.5 rounded-2xl text-sm font-medium transition-all duration-150"
-            style={{ color: 'var(--ios-text2)' }}
-            onMouseEnter={e => e.currentTarget.style.background = 'var(--ios-surface2)'}
+            style={{ color: 'var(--text2)' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}
             onMouseLeave={e => e.currentTarget.style.background = ''}>
             {isDark ? <Sun size={16} /> : <Moon size={16} />}
             {isDark ? 'Light Mode' : 'Dark Mode'}
@@ -116,8 +116,8 @@ export default function AppLayout({ children }) {
 
           <button onClick={() => { setProfileOpen(true); setSideOpen(false); }}
             className="flex items-center gap-3 w-full px-3.5 py-2.5 rounded-2xl text-sm font-medium transition-all duration-150"
-            style={{ color: 'var(--ios-text2)' }}
-            onMouseEnter={e => e.currentTarget.style.background = 'var(--ios-surface2)'}
+            style={{ color: 'var(--text2)' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}
             onMouseLeave={e => e.currentTarget.style.background = ''}>
             <Settings size={16} />
             Settings
@@ -125,7 +125,7 @@ export default function AppLayout({ children }) {
 
           <button onClick={logout}
             className="flex items-center gap-3 w-full px-3.5 py-2.5 rounded-2xl text-sm font-medium transition-all duration-150"
-            style={{ color: 'var(--ios-red)' }}
+            style={{ color: 'var(--red)' }}
             onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,59,48,0.08)'}
             onMouseLeave={e => e.currentTarget.style.background = ''}>
             <LogOut size={16} />
@@ -139,8 +139,8 @@ export default function AppLayout({ children }) {
               {user?.name?.[0]?.toUpperCase()}
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-semibold truncate" style={{ color: 'var(--ios-text)' }}>{user?.name}</p>
-              <p className="text-xs truncate" style={{ color: 'var(--ios-text2)' }}>{user?.email}</p>
+              <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{user?.name}</p>
+              <p className="text-xs truncate" style={{ color: 'var(--text2)' }}>{user?.email}</p>
             </div>
           </div>
         </div>
@@ -153,7 +153,7 @@ export default function AppLayout({ children }) {
           <button className="lg:hidden btn-icon" onClick={() => setSideOpen(true)}>
             <Menu size={18} />
           </button>
-          <h1 className="text-base font-semibold" style={{ color: 'var(--ios-text)' }}>
+          <h1 className="text-base font-semibold" style={{ color: 'var(--text)' }}>
             {NAV.find(n => router.pathname.startsWith(n.href))?.label ?? 'StockWise'}
           </h1>
           <div className="ml-auto flex items-center gap-2">
