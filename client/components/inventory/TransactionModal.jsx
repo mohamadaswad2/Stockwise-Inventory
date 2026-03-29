@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { TrendingDown, TrendingUp, Zap, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
-import clsx from 'clsx';
 import { recordTransaction } from '../../services/transaction.service';
+import { useCurrency } from '../../contexts/CurrencyContext';
 
 const TYPES = [
   { key: 'sale',       label: 'Sale',       icon: TrendingDown, color: '#6366f1', desc: 'Sold to customer' },
@@ -12,6 +12,7 @@ const TYPES = [
 ];
 
 export default function TransactionModal({ item, onClose, onSuccess }) {
+  const { format, symbol } = useCurrency();
   const [type,    setType]    = useState('sale');
   const [qty,     setQty]     = useState('1');
   const [price,   setPrice]   = useState(String(item?.price ?? ''));
@@ -20,7 +21,7 @@ export default function TransactionModal({ item, onClose, onSuccess }) {
 
   const sel = TYPES.find(t => t.key === type);
   const isSaleUsage = type === 'sale' || type === 'usage';
-  const total = (Number(qty) * Number(price)).toFixed(2);
+  const total = format(Number(qty) * Number(price));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -30,7 +31,12 @@ export default function TransactionModal({ item, onClose, onSuccess }) {
     }
     setLoading(true);
     try {
-      await recordTransaction({ itemId: item.id, type, quantity: Number(qty), unitPrice: Number(price), note: note || undefined });
+      await recordTransaction({
+        itemId: item.id, type,
+        quantity: Number(qty),
+        unitPrice: Number(price),
+        note: note || undefined,
+      });
       toast.success(`${sel.label} recorded! Stock updated.`);
       onSuccess?.();
       onClose();
@@ -51,13 +57,15 @@ export default function TransactionModal({ item, onClose, onSuccess }) {
         </div>
         <div className="px-5 py-4" style={{ borderBottom: '1px solid var(--border)' }}>
           <h2 className="text-sm font-bold" style={{ color: 'var(--text)' }}>Record Transaction</h2>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--text2)' }}>{item?.name} · {item?.quantity} {item?.unit} in stock</p>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text2)' }}>
+            {item?.name} · {item?.quantity} {item?.unit} in stock
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="px-5 py-4 space-y-4">
           {/* Type selector */}
           <div>
-            <label className="label">Type</label>
+            <label className="label">Transaction Type</label>
             <div className="grid grid-cols-2 gap-2">
               {TYPES.map(({ key, label, icon: Icon, color, desc }) => (
                 <button key={key} type="button" onClick={() => setType(key)}
@@ -71,7 +79,7 @@ export default function TransactionModal({ item, onClose, onSuccess }) {
                     <Icon size={15} style={{ color }} />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{label}</p>
+                    <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>{label}</p>
                     <p className="text-xs" style={{ color: 'var(--text3)' }}>{desc}</p>
                   </div>
                 </button>
@@ -87,12 +95,12 @@ export default function TransactionModal({ item, onClose, onSuccess }) {
                 value={qty} onChange={e => setQty(e.target.value)} required />
               {isSaleUsage && (
                 <p className="text-xs mt-1" style={{ color: 'var(--text3)' }}>
-                  Max: {item?.quantity}
+                  Max available: {item?.quantity}
                 </p>
               )}
             </div>
             <div>
-              <label className="label">Unit Price (RM)</label>
+              <label className="label">Unit Price ({symbol})</label>
               <input type="number" className="input" min="0" step="0.01"
                 value={price} onChange={e => setPrice(e.target.value)} />
             </div>
@@ -102,7 +110,7 @@ export default function TransactionModal({ item, onClose, onSuccess }) {
             <div className="flex items-center justify-between p-3 rounded-xl"
               style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.15)' }}>
               <span className="text-sm font-medium" style={{ color: 'var(--text2)' }}>Total Revenue</span>
-              <span className="text-lg font-bold" style={{ color: 'var(--green)' }}>RM {total}</span>
+              <span className="text-lg font-bold" style={{ color: 'var(--green)' }}>{total}</span>
             </div>
           )}
 
@@ -114,7 +122,8 @@ export default function TransactionModal({ item, onClose, onSuccess }) {
 
           <div className="flex gap-3 pt-1">
             <button type="button" onClick={onClose} className="btn-secondary flex-1">Cancel</button>
-            <button type="submit" disabled={loading} className="flex-1 btn text-white font-semibold py-2.5 rounded-xl"
+            <button type="submit" disabled={loading}
+              className="flex-1 btn text-white font-bold py-2.5 rounded-xl"
               style={{ background: sel.color }}>
               {loading ? 'Saving…' : `Record ${sel.label}`}
             </button>

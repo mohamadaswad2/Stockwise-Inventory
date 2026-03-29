@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Pencil, Trash2, ArrowLeftRight, ChevronLeft, ChevronRight, Package } from 'lucide-react';
 import ConfirmDialog from '../ui/ConfirmDialog';
 import Spinner from '../ui/Spinner';
+import { useCurrency } from '../../contexts/CurrencyContext';
 
 function StockBadge({ qty, threshold }) {
   if (qty === 0)        return <span className="badge badge-red">Out of stock</span>;
@@ -10,6 +11,7 @@ function StockBadge({ qty, threshold }) {
 }
 
 export default function ItemTable({ items, total, loading, filters, setFilters, onEdit, onDelete, onTransaction }) {
+  const { format } = useCurrency();
   const [delItem,    setDelItem]    = useState(null);
   const [delLoading, setDelLoading] = useState(false);
   const totalPages = Math.ceil(total / (filters.limit || 20));
@@ -21,9 +23,7 @@ export default function ItemTable({ items, total, loading, filters, setFilters, 
   };
 
   if (loading) return (
-    <div className="card flex items-center justify-center py-24">
-      <Spinner size="lg" />
-    </div>
+    <div className="card flex items-center justify-center py-24"><Spinner size="lg" /></div>
   );
 
   if (!items.length) return (
@@ -46,9 +46,7 @@ export default function ItemTable({ items, total, loading, filters, setFilters, 
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface2)' }}>
                 {['Item','SKU','Category','Stock','Price','Status',''].map(h => (
                   <th key={h} className="text-left px-4 py-3 text-xs font-bold uppercase tracking-wider whitespace-nowrap"
-                    style={{ color: 'var(--text3)' }}>
-                    {h}
-                  </th>
+                    style={{ color: 'var(--text3)' }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -60,9 +58,7 @@ export default function ItemTable({ items, total, loading, filters, setFilters, 
                   onMouseLeave={e => e.currentTarget.style.background = ''}>
                   <td className="px-4 py-3 max-w-[180px]">
                     <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{item.name}</p>
-                    {item.description && (
-                      <p className="text-xs truncate" style={{ color: 'var(--text3)' }}>{item.description}</p>
-                    )}
+                    {item.description && <p className="text-xs truncate" style={{ color: 'var(--text3)' }}>{item.description}</p>}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     <span className="text-xs font-mono px-2 py-0.5 rounded-lg"
@@ -78,30 +74,30 @@ export default function ItemTable({ items, total, loading, filters, setFilters, 
                     <span className="text-xs ml-1" style={{ color: 'var(--text3)' }}>{item.unit}</span>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap font-semibold tabular-nums" style={{ color: 'var(--text)' }}>
-                    RM {Number(item.price).toFixed(2)}
+                    {format(item.price)}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     <StockBadge qty={item.quantity} threshold={item.low_stock_threshold} />
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     <div className="flex items-center gap-1">
-                      <button onClick={() => onTransaction?.(item)}
-                        className="w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-150"
-                        style={{ color: 'var(--accent3)' }} title="Record transaction"
+                      <button onClick={() => onTransaction?.(item)} title="Record transaction"
+                        className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
+                        style={{ color: 'var(--accent3)' }}
                         onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,102,241,0.12)'}
                         onMouseLeave={e => e.currentTarget.style.background = ''}>
                         <ArrowLeftRight size={14} />
                       </button>
-                      <button onClick={() => onEdit(item)}
-                        className="w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-150"
-                        style={{ color: 'var(--text2)' }} title="Edit"
+                      <button onClick={() => onEdit(item)} title="Edit"
+                        className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
+                        style={{ color: 'var(--text2)' }}
                         onMouseEnter={e => e.currentTarget.style.background = 'var(--surface3)'}
                         onMouseLeave={e => e.currentTarget.style.background = ''}>
                         <Pencil size={14} />
                       </button>
-                      <button onClick={() => setDelItem(item)}
-                        className="w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-150"
-                        style={{ color: 'var(--red)' }} title="Delete"
+                      <button onClick={() => setDelItem(item)} title="Delete"
+                        className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
+                        style={{ color: 'var(--red)' }}
                         onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.1)'}
                         onMouseLeave={e => e.currentTarget.style.background = ''}>
                         <Trash2 size={14} />

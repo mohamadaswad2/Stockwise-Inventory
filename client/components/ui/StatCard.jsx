@@ -17,7 +17,7 @@ export default function StatCard({ icon: Icon, label, value, sub, color = 'blue'
         <Icon size={18} style={{ color: p.color }} />
       </div>
       <div className="min-w-0">
-        <p className="text-xs font-semibold uppercase tracking-wider mb-1"
+        <p className="text-xs font-bold uppercase tracking-wider mb-1"
           style={{ color: 'var(--text3)' }}>{label}</p>
         <p className="text-2xl font-bold leading-none tabular-nums"
           style={{ color: 'var(--text)' }}>{value ?? '—'}</p>
