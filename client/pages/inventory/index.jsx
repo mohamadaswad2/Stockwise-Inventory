@@ -1,26 +1,35 @@
 import { useState } from 'react';
 import Head from 'next/head';
 import toast from 'react-hot-toast';
-import { Plus } from 'lucide-react';
+import { Plus, Download, Lock } from 'lucide-react';
 import ProtectedRoute from '../../components/layout/ProtectedRoute';
 import AppLayout from '../../components/layout/AppLayout';
 import ItemTable from '../../components/inventory/ItemTable';
 import ItemForm from '../../components/inventory/ItemForm';
 import InventoryFilters from '../../components/inventory/InventoryFilters';
 import TransactionModal from '../../components/inventory/TransactionModal';
+import QuickSellModal from '../../components/inventory/QuickSellModal';
 import Modal from '../../components/ui/Modal';
 import { useInventory } from '../../hooks/useInventory';
 import { useCategories } from '../../hooks/useCategories';
+import { useAuth } from '../../contexts/AuthContext';
 import * as inventoryService from '../../services/inventory.service';
 
+const EXPORT_PLANS = ['starter', 'premium', 'deluxe'];
+
 export default function InventoryPage() {
+  const { user } = useAuth();
   const { items, total, loading, filters, setFilters, refetch, deleteItem } = useInventory();
   const { categories } = useCategories();
 
-  const [createOpen, setCreateOpen] = useState(false);
-  const [editItem,   setEditItem]   = useState(null);
-  const [txItem,     setTxItem]     = useState(null);
-  const [saving,     setSaving]     = useState(false);
+  const [createOpen,    setCreateOpen]    = useState(false);
+  const [editItem,      setEditItem]      = useState(null);
+  const [txItem,        setTxItem]        = useState(null);
+  const [quickSellItem, setQuickSellItem] = useState(null);
+  const [saving,        setSaving]        = useState(false);
+  const [exporting,     setExporting]     = useState(false);
+
+  const canExport = EXPORT_PLANS.includes(user?.plan);
 
   const handleCreate = async (data) => {
     setSaving(true);
@@ -46,11 +55,35 @@ export default function InventoryPage() {
     } finally { setSaving(false); }
   };
 
+  const handleExportCSV = async () => {
+    if (!canExport) {
+      toast.error('CSV export requires Starter plan or above. Upgrade to export your data.', { duration: 5000 });
+      return;
+    }
+    setExporting(true);
+    try {
+      const res = await inventoryService.exportCSV();
+      // Trigger browser download
+      const url  = window.URL.createObjectURL(new Blob([res.data], { type: 'text/csv' }));
+      const link = document.createElement('a');
+      link.href  = url;
+      link.setAttribute('download', `stockwise-inventory-${new Date().toISOString().slice(0,10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('CSV exported successfully!');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Export failed.');
+    } finally { setExporting(false); }
+  };
+
   return (
     <ProtectedRoute>
       <AppLayout>
         <Head><title>Inventory — StockWise</title></Head>
 
+        {/* Header */}
         <div className="flex items-center justify-between mb-5 gap-4">
           <div>
             <h1 className="text-xl font-bold" style={{ color: 'var(--text)' }}>Inventory</h1>
@@ -58,27 +91,53 @@ export default function InventoryPage() {
               {total} item{total !== 1 ? 's' : ''}
             </p>
           </div>
-          <button className="btn-primary" onClick={() => setCreateOpen(true)}>
-            <Plus size={15} /> Add Item
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Export CSV */}
+            <button onClick={handleExportCSV} disabled={exporting}
+              className="btn-secondary flex items-center gap-2 text-sm"
+              title={canExport ? 'Export to CSV' : 'Upgrade to export CSV'}>
+              {canExport
+                ? <><Download size={14} /> {exporting ? 'Exporting…' : 'Export CSV'}</>
+                : <><Lock size={14} /> Export CSV</>}
+            </button>
+
+            {/* Add item */}
+            <button className="btn-primary" onClick={() => setCreateOpen(true)}>
+              <Plus size={15} /> Add Item
+            </button>
+          </div>
         </div>
 
+        {/* Export plan notice */}
+        {!canExport && (
+          <div className="mb-4 px-4 py-3 rounded-xl text-xs flex items-center gap-2"
+            style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.15)', color: 'var(--orange)' }}>
+            <Lock size={13} />
+            CSV Export is available for Starter, Premium and Deluxe plans.
+          </div>
+        )}
+
+        {/* Filters */}
         <div className="mb-4">
           <InventoryFilters filters={filters} setFilters={setFilters} categories={categories} />
         </div>
 
+        {/* Table */}
         <ItemTable
           items={items} total={total} loading={loading}
           filters={filters} setFilters={setFilters}
           onEdit={setEditItem}
           onDelete={deleteItem}
           onTransaction={setTxItem}
+          onQuickSell={setQuickSellItem}
         />
 
+        {/* Create modal */}
         <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Add New Item" size="lg">
           <ItemForm categories={categories} onSubmit={handleCreate} loading={saving} />
         </Modal>
 
+        {/* Edit modal */}
         <Modal open={!!editItem} onClose={() => setEditItem(null)} title="Edit Item" size="lg">
           {editItem && (
             <ItemForm
@@ -97,8 +156,18 @@ export default function InventoryPage() {
           )}
         </Modal>
 
+        {/* Full transaction modal */}
         {txItem && (
           <TransactionModal item={txItem} onClose={() => setTxItem(null)} onSuccess={refetch} />
+        )}
+
+        {/* Quick sell modal */}
+        {quickSellItem && (
+          <QuickSellModal
+            item={quickSellItem}
+            onClose={() => setQuickSellItem(null)}
+            onSuccess={refetch}
+          />
         )}
       </AppLayout>
     </ProtectedRoute>
