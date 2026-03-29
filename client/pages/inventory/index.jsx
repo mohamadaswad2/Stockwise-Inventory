@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import Head from 'next/head';
 import toast from 'react-hot-toast';
-import { Plus, ArrowLeftRight } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import ProtectedRoute from '../../components/layout/ProtectedRoute';
 import AppLayout from '../../components/layout/AppLayout';
 import ItemTable from '../../components/inventory/ItemTable';
@@ -19,7 +19,7 @@ export default function InventoryPage() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editItem,   setEditItem]   = useState(null);
-  const [txItem,     setTxItem]     = useState(null); // item for transaction
+  const [txItem,     setTxItem]     = useState(null);
   const [saving,     setSaving]     = useState(false);
 
   const handleCreate = async (data) => {
@@ -53,11 +53,13 @@ export default function InventoryPage() {
 
         <div className="flex items-center justify-between mb-5 gap-4">
           <div>
-            <h1 className="text-xl font-bold" style={{ color: 'var(--ios-text)' }}>Inventory</h1>
-            <p className="text-sm mt-0.5" style={{ color: 'var(--ios-text2)' }}>{total} item{total !== 1 ? 's' : ''}</p>
+            <h1 className="text-xl font-bold" style={{ color: 'var(--text)' }}>Inventory</h1>
+            <p className="text-sm mt-0.5" style={{ color: 'var(--text2)' }}>
+              {total} item{total !== 1 ? 's' : ''}
+            </p>
           </div>
           <button className="btn-primary" onClick={() => setCreateOpen(true)}>
-            <Plus size={16} /> Add Item
+            <Plus size={15} /> Add Item
           </button>
         </div>
 
@@ -73,12 +75,10 @@ export default function InventoryPage() {
           onTransaction={setTxItem}
         />
 
-        {/* Create modal */}
         <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Add New Item" size="lg">
           <ItemForm categories={categories} onSubmit={handleCreate} loading={saving} />
         </Modal>
 
-        {/* Edit modal */}
         <Modal open={!!editItem} onClose={() => setEditItem(null)} title="Edit Item" size="lg">
           {editItem && (
             <ItemForm
@@ -97,13 +97,8 @@ export default function InventoryPage() {
           )}
         </Modal>
 
-        {/* Transaction modal */}
         {txItem && (
-          <TransactionModal
-            item={txItem}
-            onClose={() => setTxItem(null)}
-            onSuccess={refetch}
-          />
+          <TransactionModal item={txItem} onClose={() => setTxItem(null)} onSuccess={refetch} />
         )}
       </AppLayout>
     </ProtectedRoute>

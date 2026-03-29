@@ -50,15 +50,6 @@
     --orange:  #d97706;
     --purple:  #9333ea;
     --glow:    rgba(99,102,241,0.15);
-    --ios-bg: var(--bg);
-    --ios-surface: var(--surface);
-    --ios-surface2: var(--surface2);
-    --ios-text: var(--text);
-    --ios-text2: var(--text2);
-    --ios-blue: var(--blue);
-    --ios-red: var(--red);
-    --ios-purple: var(--purple);
-    --ios-separator: var(--border);
   }
 
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -169,9 +160,10 @@
 
   /* ── Glass ── */
   .glass {
-    background: var(--surface);
     backdrop-filter: saturate(180%) blur(20px);
     -webkit-backdrop-filter: saturate(180%) blur(20px);
+    background: rgba(13,13,22,0.85);
+    border-bottom: 1px solid var(--border);
   }
   .light .glass {
     background: rgba(248,250,252,0.85);
