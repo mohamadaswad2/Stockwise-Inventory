@@ -1,6 +1,3 @@
-/**
- * Inventory controller — CRUD endpoints for inventory items.
- */
 const inventoryService = require('../services/inventory.service');
 const { success, created } = require('../utils/response');
 
@@ -35,8 +32,28 @@ const updateItem = async (req, res, next) => {
 const deleteItem = async (req, res, next) => {
   try {
     await inventoryService.deleteItem(req.params.id, req.user.id);
-    success(res, null, 'Item deleted successfully.');
+    success(res, null, 'Item deleted.');
   } catch (err) { next(err); }
 };
 
-module.exports = { getItems, getItem, createItem, updateItem, deleteItem };
+// Quick sell — simplified one-click stock deduction
+const quickSell = async (req, res, next) => {
+  try {
+    const { quantity } = req.body;
+    const result = await inventoryService.quickSell(req.user.id, req.params.id, Number(quantity));
+    success(res, result, `Sold ${quantity} unit(s). Stock updated.`);
+  } catch (err) { next(err); }
+};
+
+// CSV export — returns CSV file
+const exportCSV = async (req, res, next) => {
+  try {
+    const csv = await inventoryService.exportCSV(req.user.id, req.user.plan);
+    const filename = `stockwise-inventory-${new Date().toISOString().slice(0,10)}.csv`;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send('\uFEFF' + csv); // BOM for Excel UTF-8 compatibility
+  } catch (err) { next(err); }
+};
+
+module.exports = { getItems, getItem, createItem, updateItem, deleteItem, quickSell, exportCSV };
