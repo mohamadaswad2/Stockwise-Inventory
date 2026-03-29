@@ -17,9 +17,9 @@ router.get('/export/csv', inventoryController.exportCSV);
 
 // Items
 router.get('/',     validate(listQuery, 'query'), inventoryController.getItems);
-router.post('/', requireUnlocked, inventoryController.createItem);
+router.post('/',    requireUnlocked, validate(createItem), inventoryController.createItem);
 router.get('/:id',  inventoryController.getItem);
-router.put('/:id', requireUnlocked, inventoryController.updateItem);
+router.put('/:id',  requireUnlocked, validate(updateItem), inventoryController.updateItem);
 router.delete('/:id', requireUnlocked, inventoryController.deleteItem);
 
 // Quick sell — simplified transaction
