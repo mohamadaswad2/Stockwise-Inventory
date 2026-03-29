@@ -1,10 +1,3 @@
-/**
- * OTPVerification — 6-digit OTP input.
- * 
- * FIXED:
- * - Uses completeVerification from AuthContext instead of raw localStorage
- * - Works for both post-register and post-login (unverified) flows
- */
 import { useState, useRef, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { ShieldCheck, RefreshCw, ArrowLeft } from 'lucide-react';
@@ -19,7 +12,6 @@ export default function OTPVerification({ email, onSuccess, onBack }) {
   const refs = useRef([]);
 
   useEffect(() => { refs.current[0]?.focus(); }, []);
-
   useEffect(() => {
     if (cd <= 0) return;
     const t = setTimeout(() => setCd(v => v - 1), 1000);
@@ -32,13 +24,11 @@ export default function OTPVerification({ email, onSuccess, onBack }) {
     try {
       const res = await authService.verifyEmail(email, otp);
       const { user, token } = res.data.data;
-      // Properly update global auth state
       completeVerification(user, token);
-      toast.success('Email verified! Welcome to StockWise 🎉');
+      toast.success('Email verified! Welcome 🎉');
       onSuccess?.();
     } catch (err) {
-      const msg = err.response?.data?.message || 'Invalid code.';
-      toast.error(msg);
+      toast.error(err.response?.data?.message || 'Invalid code.');
       setCodes(['','','','','','']);
       refs.current[0]?.focus();
     } finally { setLoading(false); }
@@ -52,95 +42,81 @@ export default function OTPVerification({ email, onSuccess, onBack }) {
   };
 
   const handleKeyDown = (e, idx) => {
-    if (e.key === 'Backspace' && !codes[idx] && idx > 0) {
-      refs.current[idx - 1]?.focus();
-    }
+    if (e.key === 'Backspace' && !codes[idx] && idx > 0) refs.current[idx - 1]?.focus();
   };
 
   const handlePaste = (e) => {
     const t = e.clipboardData.getData('text').replace(/\D/g,'').slice(0,6);
-    if (t.length === 6) {
-      setCodes(t.split(''));
-      setTimeout(() => submit(t), 50);
-    }
+    if (t.length === 6) { setCodes(t.split('')); setTimeout(() => submit(t), 50); }
   };
 
   const resend = async () => {
     try {
       await authService.resendVerification(email);
-      toast.success('New code sent! Check your email.');
+      toast.success('New code sent!');
       setCd(60);
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to resend.');
-    }
+    } catch (err) { toast.error('Failed to resend.'); }
   };
 
   return (
     <div className="space-y-6 animate-ios-in">
       {onBack && (
         <button onClick={onBack} className="flex items-center gap-1.5 text-sm font-medium"
-          style={{ color: 'var(--ios-blue)' }}>
-          <ArrowLeft size={16} /> Back
+          style={{ color: 'var(--accent3)' }}>
+          <ArrowLeft size={15} /> Back
         </button>
       )}
 
       <div className="text-center">
-        <div className="w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-4"
-          style={{ background: 'rgba(0,122,255,0.12)' }}>
-          <ShieldCheck size={28} style={{ color: 'var(--ios-blue)' }} />
+        <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
+          style={{ background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.2)' }}>
+          <ShieldCheck size={24} style={{ color: 'var(--accent3)' }} />
         </div>
-        <h2 className="text-lg font-bold mb-1" style={{ color: 'var(--ios-text)' }}>
-          Check your email
-        </h2>
-        <p className="text-sm" style={{ color: 'var(--ios-text2)' }}>
-          We sent a 6-digit code to<br />
-          <span className="font-semibold" style={{ color: 'var(--ios-text)' }}>{email}</span>
+        <h2 className="text-base font-bold mb-1" style={{ color: 'var(--text)' }}>Check your email</h2>
+        <p className="text-sm" style={{ color: 'var(--text2)' }}>
+          6-digit code sent to<br />
+          <strong style={{ color: 'var(--text)' }}>{email}</strong>
         </p>
       </div>
 
-      {/* OTP inputs */}
+      {/* OTP boxes */}
       <div className="flex gap-2 justify-center" onPaste={handlePaste}>
         {codes.map((c, i) => (
-          <input key={i}
-            ref={el => refs.current[i] = el}
+          <input key={i} ref={el => refs.current[i] = el}
             type="text" inputMode="numeric" maxLength={1}
-            value={c}
+            value={c} disabled={loading}
             onChange={e => handleChange(e, i)}
             onKeyDown={e => handleKeyDown(e, i)}
-            disabled={loading}
-            className="w-12 h-14 text-center text-2xl font-bold rounded-2xl outline-none transition-all duration-200"
+            className="w-11 h-13 text-center text-xl font-bold rounded-xl outline-none transition-all duration-200"
             style={{
-              background: 'var(--ios-surface2)',
-              color: 'var(--ios-text)',
-              border: `2px solid ${c ? 'var(--ios-blue)' : 'transparent'}`,
-              boxShadow: c ? '0 0 0 3px rgba(0,122,255,0.15)' : 'none',
+              height: '52px',
+              background: c ? 'rgba(99,102,241,0.1)' : 'var(--surface2)',
+              color: 'var(--text)',
+              border: `2px solid ${c ? 'var(--accent)' : 'var(--border)'}`,
+              boxShadow: c ? '0 0 12px var(--glow)' : 'none',
             }}
           />
         ))}
       </div>
 
-      <button
-        onClick={() => submit(codes.join(''))}
-        disabled={loading || codes.some(c => !c)}
-        className="btn-primary w-full">
+      <button onClick={() => submit(codes.join(''))}
+        disabled={loading || codes.some(c => !c)} className="btn-primary w-full">
         {loading ? 'Verifying…' : 'Verify Email'}
       </button>
 
       <div className="text-center">
         {cd > 0
-          ? <p className="text-sm" style={{ color: 'var(--ios-text2)' }}>
-              Resend in <span className="font-semibold" style={{ color: 'var(--ios-text)' }}>{cd}s</span>
+          ? <p className="text-sm" style={{ color: 'var(--text2)' }}>
+              Resend in <strong style={{ color: 'var(--text)' }}>{cd}s</strong>
             </p>
-          : <button onClick={resend}
-              className="text-sm font-semibold inline-flex items-center gap-1.5"
-              style={{ color: 'var(--ios-blue)' }}>
+          : <button onClick={resend} className="text-sm font-semibold inline-flex items-center gap-1.5"
+              style={{ color: 'var(--accent3)' }}>
               <RefreshCw size={13} /> Resend code
             </button>
         }
       </div>
-
-      <p className="text-center text-xs" style={{ color: 'var(--ios-text3)' }}>
-        Didn't get it? Check your spam folder.
+      <p className="text-center text-xs" style={{ color: 'var(--text3)' }}>
+        Check your spam folder if you don't see it.
       </p>
     </div>
   );

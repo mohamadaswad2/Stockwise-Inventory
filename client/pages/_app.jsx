@@ -12,9 +12,21 @@ export default function App({ Component, pageProps }) {
           position="top-right"
           toastOptions={{
             duration: 4000,
-            style: { fontSize: '13px', borderRadius: '12px', padding: '12px 16px', fontFamily: 'Inter, sans-serif' },
-            success: { style: { background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534' } },
-            error:   { style: { background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b' } },
+            style: {
+              fontSize: '13px',
+              borderRadius: '12px',
+              padding: '12px 16px',
+              fontFamily: 'Inter, sans-serif',
+              background: 'var(--surface)',
+              color: 'var(--text)',
+              border: '1px solid var(--border)',
+            },
+            success: {
+              iconTheme: { primary: '#22c55e', secondary: 'white' },
+            },
+            error: {
+              iconTheme: { primary: '#ef4444', secondary: 'white' },
+            },
           }}
         />
       </AuthProvider>
