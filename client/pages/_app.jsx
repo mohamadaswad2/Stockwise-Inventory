@@ -2,6 +2,7 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from '../contexts/AuthContext';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import { CurrencyProvider } from '../contexts/CurrencyContext';
+import CookieConsent from '../components/ui/CookieConsent';
 import '../styles/globals.css';
 
 export default function App({ Component, pageProps }) {
@@ -10,6 +11,7 @@ export default function App({ Component, pageProps }) {
       <CurrencyProvider>
         <AuthProvider>
           <Component {...pageProps} />
+          <CookieConsent />
           <Toaster
             position="top-right"
             toastOptions={{
