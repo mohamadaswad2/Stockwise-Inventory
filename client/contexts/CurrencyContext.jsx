@@ -1,24 +1,38 @@
 /**
- * CurrencyContext — global currency switcher (MYR / USD).
- * Persists to localStorage. All price displays use useCurrency() hook.
+ * CurrencyContext — auto-fetching exchange rates from open API.
+ * Uses exchangerate-api.com free tier (no key needed for basic rates).
+ * Falls back to hardcoded rates if API unavailable.
  */
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 const CurrencyContext = createContext(null);
 
-// Exchange rate — in production, fetch from an API like exchangerate-api.com
-const RATES = {
-  MYR: 1,
-  USD: 0.21,  // 1 MYR = ~0.21 USD (update periodically)
-};
-
-const SYMBOLS = {
-  MYR: 'RM',
-  USD: '$',
-};
+const FALLBACK_RATES = { MYR: 1, USD: 0.2134 };
+const SYMBOLS = { MYR: 'RM', USD: '$' };
 
 export function CurrencyProvider({ children }) {
   const [currency, setCurrency] = useState('MYR');
+  const [rates,    setRates]    = useState(FALLBACK_RATES);
+  const [rateDate, setRateDate] = useState(null);
+
+  // Fetch live rates on mount
+  useEffect(() => {
+    const fetchRates = async () => {
+      try {
+        // Free API — no key needed, updates daily
+        const res  = await fetch('https://api.exchangerate-api.com/v4/latest/MYR');
+        const data = await res.json();
+        if (data?.rates) {
+          setRates({ MYR: 1, USD: data.rates.USD || FALLBACK_RATES.USD });
+          setRateDate(data.date || new Date().toISOString().slice(0,10));
+        }
+      } catch {
+        // Silent fail — use fallback rates
+        setRateDate('offline');
+      }
+    };
+    fetchRates();
+  }, []);
 
   useEffect(() => {
     const saved = localStorage.getItem('sw-currency') || 'MYR';
@@ -30,35 +44,25 @@ export function CurrencyProvider({ children }) {
     localStorage.setItem('sw-currency', code);
   }, []);
 
-  /**
-   * Format a MYR value into the selected currency.
-   * @param {number} amountMYR - Amount in MYR
-   * @param {number} decimals  - Decimal places (default 2)
-   */
   const format = useCallback((amountMYR, decimals = 2) => {
     if (amountMYR === null || amountMYR === undefined) return '—';
-    const converted = Number(amountMYR) * RATES[currency];
+    const converted = Number(amountMYR) * (rates[currency] || 1);
     return `${SYMBOLS[currency]}${converted.toFixed(decimals)}`;
-  }, [currency]);
+  }, [currency, rates]);
 
-  /**
-   * Format with thousand separators.
-   */
   const formatFull = useCallback((amountMYR) => {
     if (amountMYR === null || amountMYR === undefined) return '—';
-    const converted = Number(amountMYR) * RATES[currency];
-    return `${SYMBOLS[currency]}${converted.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  }, [currency]);
+    const converted = Number(amountMYR) * (rates[currency] || 1);
+    return `${SYMBOLS[currency]}${converted.toLocaleString('en-MY', {
+      minimumFractionDigits: 2, maximumFractionDigits: 2
+    })}`;
+  }, [currency, rates]);
 
   return (
     <CurrencyContext.Provider value={{
-      currency,
-      symbol: SYMBOLS[currency],
-      rate: RATES[currency],
-      currencies: Object.keys(RATES),
-      switchCurrency,
-      format,
-      formatFull,
+      currency, symbol: SYMBOLS[currency], rate: rates[currency] || 1,
+      currencies: Object.keys(SYMBOLS), rateDate,
+      switchCurrency, format, formatFull,
     }}>
       {children}
     </CurrencyContext.Provider>

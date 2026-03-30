@@ -9,7 +9,6 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import TrialBanner from '../ui/TrialBanner';
-import ProfileModal from '../ui/ProfileModal';
 
 const NAV = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -17,14 +16,14 @@ const NAV = [
   { href: '/sales',      label: 'Sales',       icon: BarChart2 },
 ];
 
-function NavItem({ href, label, icon: Icon, active, onClick }) {
+function NavLink({ href, label, icon: Icon, active, onClick }) {
   return (
     <Link href={href} onClick={onClick}
-      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group"
+      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150"
       style={{
-        background: active ? 'linear-gradient(135deg,rgba(99,102,241,0.2),rgba(139,92,246,0.15))' : 'transparent',
+        background: active ? 'linear-gradient(135deg,rgba(99,102,241,0.18),rgba(139,92,246,0.12))' : 'transparent',
         color: active ? 'var(--accent3)' : 'var(--text2)',
-        border: active ? '1px solid rgba(99,102,241,0.2)' : '1px solid transparent',
+        border: active ? '1px solid rgba(99,102,241,0.18)' : '1px solid transparent',
       }}
       onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'var(--surface2)'; e.currentTarget.style.color = 'var(--text)'; }}}
       onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text2)'; }}}>
@@ -39,31 +38,31 @@ export default function AppLayout({ children }) {
   const { user, logout }   = useAuth();
   const { isDark, toggle } = useTheme();
   const router = useRouter();
-  const [sideOpen,    setSideOpen]    = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
+  const [sideOpen, setSideOpen] = useState(false);
 
-  const isAdmin = user?.role === 'admin';
+  const isAdmin   = user?.role === 'admin';
   const pageTitle = NAV.find(n => router.pathname.startsWith(n.href))?.label
-    ?? (router.pathname.startsWith('/admin') ? 'Admin Panel' : 'StockWise');
+    ?? (router.pathname.startsWith('/admin') ? 'Admin Panel'
+    :   router.pathname.startsWith('/settings') ? 'Settings'
+    :   'StockWise');
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg)' }}>
 
-      {/* Mobile overlay */}
       {sideOpen && (
         <div className="fixed inset-0 z-30 lg:hidden"
           style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
           onClick={() => setSideOpen(false)} />
       )}
 
-      {/* ── Sidebar ─────────────────────────────────────────── */}
+      {/* Sidebar */}
       <aside className={clsx(
         'fixed lg:static inset-y-0 left-0 z-40 flex flex-col w-64 transition-transform duration-300',
         sideOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
       )} style={{ background: 'var(--surface)', borderRight: '1px solid var(--border)' }}>
 
         {/* Brand */}
-        <div className="flex items-center gap-3 px-4 h-16 flex-shrink-0"
+        <div className="flex items-center gap-3 px-4 h-14 flex-shrink-0"
           style={{ borderBottom: '1px solid var(--border)' }}>
           <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-black text-xs"
             style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent2))', boxShadow: '0 0 16px var(--glow)' }}>
@@ -82,7 +81,7 @@ export default function AppLayout({ children }) {
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
           <p className="section-title px-3 mb-3">Menu</p>
           {NAV.map(({ href, label, icon }) => (
-            <NavItem key={href} href={href} label={label} icon={icon}
+            <NavLink key={href} href={href} label={label} icon={icon}
               active={router.pathname.startsWith(href)}
               onClick={() => setSideOpen(false)} />
           ))}
@@ -91,17 +90,17 @@ export default function AppLayout({ children }) {
             <>
               <div className="glow-divider my-3 mx-3" />
               <p className="section-title px-3 mb-2">Admin</p>
-              <NavItem href="/admin" label="Admin Panel" icon={ShieldAlert}
+              <NavLink href="/admin" label="Admin Panel" icon={ShieldAlert}
                 active={router.pathname.startsWith('/admin')}
                 onClick={() => setSideOpen(false)} />
             </>
           )}
         </nav>
 
-        {/* Bottom actions */}
+        {/* Bottom */}
         <div className="px-3 py-3 space-y-0.5" style={{ borderTop: '1px solid var(--border)' }}>
           <button onClick={toggle}
-            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150"
+            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-all"
             style={{ color: 'var(--text2)' }}
             onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)'; e.currentTarget.style.color = 'var(--text)'; }}
             onMouseLeave={e => { e.currentTarget.style.background = ''; e.currentTarget.style.color = 'var(--text2)'; }}>
@@ -109,28 +108,22 @@ export default function AppLayout({ children }) {
             {isDark ? 'Light Mode' : 'Dark Mode'}
           </button>
 
-          <button onClick={() => { setProfileOpen(true); setSideOpen(false); }}
-            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150"
-            style={{ color: 'var(--text2)' }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)'; e.currentTarget.style.color = 'var(--text)'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = ''; e.currentTarget.style.color = 'var(--text2)'; }}>
-            <Settings size={15} />
-            Settings
-          </button>
+          {/* Settings → full page now */}
+          <NavLink href="/settings" label="Settings" icon={Settings}
+            active={router.pathname.startsWith('/settings')}
+            onClick={() => setSideOpen(false)} />
 
           <button onClick={logout}
-            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150"
+            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-all"
             style={{ color: 'var(--red)' }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.08)'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = ''; }}>
-            <LogOut size={15} />
-            Sign Out
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.08)'}
+            onMouseLeave={e => e.currentTarget.style.background = ''}>
+            <LogOut size={15} /> Sign Out
           </button>
 
           {/* User chip */}
-          <div className="flex items-center gap-2.5 px-3 py-2.5 mt-1 rounded-xl cursor-pointer"
-            style={{ borderTop: '1px solid var(--border)', marginTop: '8px', paddingTop: '12px' }}
-            onClick={() => setProfileOpen(true)}>
+          <div className="flex items-center gap-2.5 px-3 pt-3 mt-1"
+            style={{ borderTop: '1px solid var(--border)' }}>
             <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
               style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent2))' }}>
               {user?.name?.[0]?.toUpperCase()}
@@ -143,10 +136,8 @@ export default function AppLayout({ children }) {
         </div>
       </aside>
 
-      {/* ── Main area ────────────────────────────────────────── */}
+      {/* Main */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-
-        {/* Topbar */}
         <header className="glass h-14 flex items-center px-5 gap-4 flex-shrink-0 z-20 sticky top-0">
           <button className="lg:hidden btn-icon w-8 h-8 rounded-lg" onClick={() => setSideOpen(true)}>
             <Menu size={17} />
@@ -156,11 +147,11 @@ export default function AppLayout({ children }) {
             <button onClick={toggle} className="btn-icon w-8 h-8 rounded-lg">
               {isDark ? <Sun size={15} /> : <Moon size={15} />}
             </button>
-            <button onClick={() => setProfileOpen(true)}
+            <Link href="/settings"
               className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
               style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent2))' }}>
               {user?.name?.[0]?.toUpperCase()}
-            </button>
+            </Link>
           </div>
         </header>
 
@@ -170,8 +161,6 @@ export default function AppLayout({ children }) {
           {children}
         </main>
       </div>
-
-      {profileOpen && <ProfileModal user={user} onClose={() => setProfileOpen(false)} />}
     </div>
   );
 }
