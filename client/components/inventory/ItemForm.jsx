@@ -1,27 +1,24 @@
 /**
- * ItemForm — FIXED:
- * - Input focus loss fixed (no inline components that remount)
- * - SKU set to empty string properly (backend converts to null)
+ * ItemForm — FIXED for mobile:
+ * - useCallback + stable refs prevent focus loss
+ * - onSubmit properly called via button click
+ * - Responsive grid for all screen sizes
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 
 const UNITS = ['unit','pcs','kg','g','l','ml','box','pack','roll','set'];
-
-const EMPTY = {
-  name:'', sku:'', description:'', quantity:'',
-  unit:'pcs', price:'', cost_price:'', low_stock_threshold:'5', category_id:''
-};
+const EMPTY = { name:'', sku:'', description:'', quantity:'', unit:'pcs', price:'', cost_price:'', low_stock_threshold:'5', category_id:'' };
 
 export default function ItemForm({ initialData = {}, categories = [], onSubmit, loading }) {
   const [form,   setForm]   = useState({ ...EMPTY, ...initialData });
   const [errors, setErrors] = useState({});
+  const formRef = useRef(null);
 
-  // useCallback prevents function recreation on every render — fixes focus loss
   const handleChange = useCallback((e) => {
     const { name, value } = e.target;
     setForm(prev => ({ ...prev, [name]: value }));
-    setErrors(prev => ({ ...prev, [name]: '' }));
-  }, []);
+    if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
+  }, [errors]);
 
   const validate = () => {
     const errs = {};
@@ -33,8 +30,9 @@ export default function ItemForm({ initialData = {}, categories = [], onSubmit, 
     return errs;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = useCallback((e) => {
     e.preventDefault();
+    e.stopPropagation();
     const errs = validate();
     if (Object.keys(errs).length) { setErrors(errs); return; }
     onSubmit({
@@ -48,88 +46,91 @@ export default function ItemForm({ initialData = {}, categories = [], onSubmit, 
       low_stock_threshold: Number(form.low_stock_threshold) || 5,
       category_id:         form.category_id || null,
     });
-  };
+  }, [form, onSubmit]);
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Row 1 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <form ref={formRef} onSubmit={handleSubmit} noValidate className="space-y-4">
+      {/* Name + SKU */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label className="label" htmlFor="name">Item Name *</label>
-          <input id="name" name="name" type="text" autoComplete="off"
-            className="input" placeholder="Wireless Mouse"
+          <label className="label" htmlFor="f-name">Item Name *</label>
+          <input id="f-name" name="name" type="text" autoComplete="off"
+            inputMode="text" className="input" placeholder="e.g. Wireless Mouse"
             value={form.name} onChange={handleChange} required />
           {errors.name && <p className="text-xs mt-1" style={{color:'var(--red)'}}>{errors.name}</p>}
         </div>
         <div>
-          <label className="label" htmlFor="sku">SKU</label>
-          <input id="sku" name="sku" type="text" autoComplete="off"
-            className="input" placeholder="MSE-001"
+          <label className="label" htmlFor="f-sku">SKU</label>
+          <input id="f-sku" name="sku" type="text" autoComplete="off"
+            className="input" placeholder="e.g. MSE-001"
             value={form.sku} onChange={handleChange} />
         </div>
       </div>
 
       {/* Description */}
       <div>
-        <label className="label" htmlFor="description">Description</label>
-        <textarea id="description" name="description" rows={2}
-          className="input resize-none" placeholder="Optional description…"
+        <label className="label" htmlFor="f-desc">Description</label>
+        <textarea id="f-desc" name="description" rows={2}
+          className="input resize-none" placeholder="Optional…"
           value={form.description} onChange={handleChange} />
       </div>
 
-      {/* Row 2 — numbers */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {/* Qty + Unit + Prices */}
+      <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="label" htmlFor="quantity">Quantity *</label>
-          <input id="quantity" name="quantity" type="number" min="0"
-            className="input" placeholder="0"
+          <label className="label" htmlFor="f-qty">Quantity *</label>
+          <input id="f-qty" name="quantity" type="number" min="0"
+            inputMode="numeric" className="input" placeholder="0"
             value={form.quantity} onChange={handleChange} required />
           {errors.quantity && <p className="text-xs mt-1" style={{color:'var(--red)'}}>{errors.quantity}</p>}
         </div>
         <div>
-          <label className="label" htmlFor="unit">Unit</label>
-          <select id="unit" name="unit" className="input"
+          <label className="label" htmlFor="f-unit">Unit</label>
+          <select id="f-unit" name="unit" className="input"
             value={form.unit} onChange={handleChange}>
             {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
           </select>
         </div>
         <div>
-          <label className="label" htmlFor="price">Sell Price *</label>
-          <input id="price" name="price" type="number" min="0" step="0.01"
-            className="input" placeholder="0.00"
+          <label className="label" htmlFor="f-price">Sell Price *</label>
+          <input id="f-price" name="price" type="number" min="0" step="0.01"
+            inputMode="decimal" className="input" placeholder="0.00"
             value={form.price} onChange={handleChange} required />
           {errors.price && <p className="text-xs mt-1" style={{color:'var(--red)'}}>{errors.price}</p>}
         </div>
         <div>
-          <label className="label" htmlFor="cost_price">Cost Price</label>
-          <input id="cost_price" name="cost_price" type="number" min="0" step="0.01"
-            className="input" placeholder="0.00"
+          <label className="label" htmlFor="f-cost">Cost Price</label>
+          <input id="f-cost" name="cost_price" type="number" min="0" step="0.01"
+            inputMode="decimal" className="input" placeholder="0.00"
             value={form.cost_price} onChange={handleChange} />
         </div>
       </div>
 
-      {/* Row 3 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* Threshold + Category */}
+      <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="label" htmlFor="low_stock_threshold">Low Stock Alert</label>
-          <input id="low_stock_threshold" name="low_stock_threshold" type="number" min="0"
-            className="input" placeholder="5"
+          <label className="label" htmlFor="f-threshold">Low Stock Alert</label>
+          <input id="f-threshold" name="low_stock_threshold" type="number" min="0"
+            inputMode="numeric" className="input" placeholder="5"
             value={form.low_stock_threshold} onChange={handleChange} />
         </div>
         <div>
-          <label className="label" htmlFor="category_id">Category</label>
-          <select id="category_id" name="category_id" className="input"
+          <label className="label" htmlFor="f-category">Category</label>
+          <select id="f-category" name="category_id" className="input"
             value={form.category_id} onChange={handleChange}>
             <option value="">— None —</option>
-            {categories.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
+            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
       </div>
 
-      <div className="flex justify-end pt-1">
-        <button type="submit" disabled={loading} className="btn-primary">
+      {/* Submit — large tap target for mobile */}
+      <div className="pt-2">
+        <button
+          type="submit"
+          disabled={loading}
+          className="btn-primary w-full"
+          style={{ minHeight: '48px', fontSize: '15px' }}>
           {loading ? 'Saving…' : 'Save Item'}
         </button>
       </div>

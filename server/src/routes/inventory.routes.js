@@ -1,26 +1,18 @@
 const router = require('express').Router();
-const inventoryController = require('../controllers/inventory.controller');
-const categoryController  = require('../controllers/category.controller');
+const c = require('../controllers/inventory.controller');
+const cat = require('../controllers/category.controller');
 const { authenticate, requireUnlocked } = require('../middlewares/auth.middleware');
 const { validate } = require('../middlewares/validate.middleware');
 const { createItem, updateItem, listQuery } = require('../validations/inventory.validation');
 
 router.use(authenticate);
-
-// Categories — GET only (categories are global, managed by admin via seed)
-router.get('/categories', categoryController.getCategories);
-
-// CSV Export — must be before /:id routes
-router.get('/export/csv', inventoryController.exportCSV);
-
-// Items CRUD
-router.get('/',       validate(listQuery, 'query'), inventoryController.getItems);
-router.post('/',      requireUnlocked, validate(createItem), inventoryController.createItem);
-router.get('/:id',    inventoryController.getItem);
-router.put('/:id',    requireUnlocked, validate(updateItem), inventoryController.updateItem);
-router.delete('/:id', requireUnlocked, inventoryController.deleteItem);
-
-// Quick sell
-router.post('/:id/quick-sell', requireUnlocked, inventoryController.quickSell);
-
+router.get('/categories',     cat.getCategories);
+router.get('/export/csv',     c.exportCSV);
+router.get('/export/quota',   c.getExportQuota);
+router.get('/',               validate(listQuery, 'query'), c.getItems);
+router.post('/',              requireUnlocked, validate(createItem), c.createItem);
+router.get('/:id',            c.getItem);
+router.put('/:id',            requireUnlocked, validate(updateItem), c.updateItem);
+router.delete('/:id',         requireUnlocked, c.deleteItem);
+router.post('/:id/quick-sell',requireUnlocked, c.quickSell);
 module.exports = router;
