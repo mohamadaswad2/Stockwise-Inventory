@@ -1,34 +1,28 @@
 const inventoryRepository = require('../repositories/inventory.repository');
 const categoryRepository  = require('../repositories/category.repository');
+const { query }           = require('../config/database');
 const AppError = require('../utils/AppError');
 
-const EXPORT_PLANS = ['starter', 'premium', 'deluxe'];
+// Export limits per plan
+const EXPORT_LIMITS = { free: 0, starter: 3, premium: 6, deluxe: Infinity };
 
-const getItems = async (userId, query) => inventoryRepository.findAll({ userId, ...query });
-
-const getItem = async (id, userId) => {
+const getItems = async (userId, q) => inventoryRepository.findAll({ userId, ...q });
+const getItem  = async (id, userId) => {
   const item = await inventoryRepository.findById(id, userId);
   if (!item) throw new AppError('Item not found.', 404);
   return item;
 };
 
 const createItem = async (userId, data) => {
-  // Only validate category if provided
   if (data.category_id) {
     const cat = await categoryRepository.findGlobalById(data.category_id);
     if (!cat) throw new AppError('Category not found.', 404);
   }
-  // If SKU is empty string, set to null to avoid unique constraint
   if (!data.sku || data.sku.trim() === '') data.sku = null;
   return inventoryRepository.create(userId, data);
 };
 
 const updateItem = async (id, userId, data) => {
-  if (data.category_id) {
-    const cat = await categoryRepository.findGlobalById(data.category_id);
-    if (!cat) throw new AppError('Category not found.', 404);
-  }
-  // If SKU is empty string, set to null
   if (data.sku !== undefined && (!data.sku || data.sku.trim() === '')) data.sku = null;
   const item = await inventoryRepository.update(id, userId, data);
   if (!item) throw new AppError('Item not found.', 404);
@@ -47,26 +41,41 @@ const quickSell = async (userId, itemId, quantity) => {
 };
 
 const exportCSV = async (userId, userPlan) => {
-  if (!EXPORT_PLANS.includes(userPlan)) {
-    throw new AppError('CSV export requires Starter, Premium or Deluxe plan.', 403);
+  const limit = EXPORT_LIMITS[userPlan] ?? 0;
+  if (limit === 0) throw new AppError('CSV export is not available on the Free plan. Upgrade to Starter or above.', 403);
+
+  // Count exports this month for limited plans
+  if (limit !== Infinity) {
+    const countRes = await query(
+      `SELECT COUNT(*) FROM csv_exports
+       WHERE user_id = $1 AND exported_at > DATE_TRUNC('month', NOW())`,
+      [userId]
+    );
+    const used = parseInt(countRes.rows[0].count);
+    if (used >= limit) {
+      throw new AppError(
+        `You've used ${used}/${limit} CSV exports this month. Upgrade to Premium or Deluxe for more.`, 429
+      );
+    }
   }
+
   const items = await inventoryRepository.findAllForExport(userId);
+
+  // Record export
+  await query(`INSERT INTO csv_exports (user_id) VALUES ($1)`, [userId]);
 
   const headers = [
     'Name','SKU','Description','Quantity','Unit',
     'Sell Price (MYR)','Cost Price (MYR)','Low Stock Threshold',
     'Category','Status','Created At','Updated At'
   ];
-
   const escape = (val) => {
     if (val === null || val === undefined) return '';
     const str = String(val);
-    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+    if (str.includes(',') || str.includes('"') || str.includes('\n'))
       return `"${str.replace(/"/g, '""')}"`;
-    }
     return str;
   };
-
   const rows = items.map(item => [
     escape(item.name), escape(item.sku), escape(item.description),
     item.quantity, escape(item.unit),
@@ -79,4 +88,19 @@ const exportCSV = async (userId, userPlan) => {
   return [headers.join(','), ...rows].join('\n');
 };
 
-module.exports = { getItems, getItem, createItem, updateItem, deleteItem, quickSell, exportCSV };
+// Get remaining exports for this month
+const getExportQuota = async (userId, userPlan) => {
+  const limit = EXPORT_LIMITS[userPlan] ?? 0;
+  if (limit === Infinity) return { used: 0, limit: 'Unlimited', remaining: 'Unlimited' };
+  if (limit === 0) return { used: 0, limit: 0, remaining: 0 };
+
+  const res = await query(
+    `SELECT COUNT(*) FROM csv_exports
+     WHERE user_id = $1 AND exported_at > DATE_TRUNC('month', NOW())`,
+    [userId]
+  );
+  const used = parseInt(res.rows[0].count);
+  return { used, limit, remaining: Math.max(0, limit - used) };
+};
+
+module.exports = { getItems, getItem, createItem, updateItem, deleteItem, quickSell, exportCSV, getExportQuota };

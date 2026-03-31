@@ -21,6 +21,7 @@ const migrations = [
     trial_ends_at          TIMESTAMPTZ,
     stripe_customer_id     VARCHAR(255),
     stripe_subscription_id VARCHAR(255),
+    preferred_language     VARCHAR(10)  NOT NULL DEFAULT 'en',
     created_at             TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     updated_at             TIMESTAMPTZ  NOT NULL DEFAULT NOW()
   )`,
@@ -58,9 +59,27 @@ const migrations = [
     type        VARCHAR(20)   NOT NULL CHECK (type IN ('sale','restock','adjustment','usage')),
     quantity    INTEGER       NOT NULL,
     unit_price  NUMERIC(12,2) NOT NULL DEFAULT 0,
+    cost_price  NUMERIC(12,2) NOT NULL DEFAULT 0,
     total       NUMERIC(12,2) GENERATED ALWAYS AS (quantity * unit_price) STORED,
+    profit      NUMERIC(12,2) GENERATED ALWAYS AS (quantity * (unit_price - cost_price)) STORED,
     note        TEXT,
     created_at  TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+  )`,
+
+  `CREATE TABLE IF NOT EXISTS csv_exports (
+    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    exported_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`,
+
+  `CREATE TABLE IF NOT EXISTS app_updates (
+    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title      VARCHAR(255) NOT NULL,
+    content    TEXT NOT NULL,
+    version    VARCHAR(50),
+    type       VARCHAR(50) NOT NULL DEFAULT 'update',
+    author_id  UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`,
 
   `CREATE TABLE IF NOT EXISTS subscriptions (
@@ -88,8 +107,9 @@ const migrations = [
   `CREATE INDEX IF NOT EXISTS idx_categories_global  ON categories(name) WHERE user_id IS NULL`,
   `CREATE INDEX IF NOT EXISTS idx_transactions_user   ON transactions(user_id)`,
   `CREATE INDEX IF NOT EXISTS idx_transactions_date   ON transactions(user_id, created_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS idx_csv_exports_user    ON csv_exports(user_id, exported_at DESC)`,
 
-  // Safe ALTER for existing DBs
+  // Safe ALTER
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_email_verified      BOOLEAN     NOT NULL DEFAULT FALSE`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verify_token     VARCHAR(255)`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verify_expires   TIMESTAMPTZ`,
@@ -99,7 +119,9 @@ const migrations = [
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_locked              BOOLEAN     NOT NULL DEFAULT FALSE`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id     VARCHAR(255)`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_subscription_id VARCHAR(255)`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_language     VARCHAR(10)  NOT NULL DEFAULT 'en'`,
   `ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS cost_price   NUMERIC(12,2) NOT NULL DEFAULT 0`,
+  `ALTER TABLE transactions ADD COLUMN IF NOT EXISTS cost_price      NUMERIC(12,2) NOT NULL DEFAULT 0`,
   `ALTER TABLE categories ALTER COLUMN user_id DROP NOT NULL`,
 ];
 
@@ -111,7 +133,8 @@ async function run() {
     catch (e) {
       if (!e.message.includes('already exists') &&
           !e.message.includes('does not exist') &&
-          !e.message.includes('multiple primary keys')) throw e;
+          !e.message.includes('multiple primary keys') &&
+          !e.message.includes('cannot drop')) throw e;
     }
   }
   console.log('[Migration] Done ✓');
