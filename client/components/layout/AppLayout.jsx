@@ -3,8 +3,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import clsx from 'clsx';
 import {
-  LayoutDashboard, Package, BarChart2, LogOut,
-  Menu, X, Sun, Moon, ChevronRight, ShieldAlert, Settings,
+  LayoutDashboard, Package, BarChart2, TrendingUp,
+  LogOut, Menu, X, Sun, Moon, ChevronRight, ShieldAlert, Settings,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -14,6 +14,7 @@ const NAV = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/inventory',  label: 'Inventory',  icon: Package },
   { href: '/sales',      label: 'Sales',       icon: BarChart2 },
+  { href: '/analytics',  label: 'Analytics',   icon: TrendingUp },
 ];
 
 function NavLink({ href, label, icon: Icon, active, onClick }) {
@@ -42,7 +43,7 @@ export default function AppLayout({ children }) {
 
   const isAdmin   = user?.role === 'admin';
   const pageTitle = NAV.find(n => router.pathname.startsWith(n.href))?.label
-    ?? (router.pathname.startsWith('/admin') ? 'Admin Panel'
+    ?? (router.pathname.startsWith('/admin')    ? 'Admin Panel'
     :   router.pathname.startsWith('/settings') ? 'Settings'
     :   'StockWise');
 
@@ -55,7 +56,7 @@ export default function AppLayout({ children }) {
           onClick={() => setSideOpen(false)} />
       )}
 
-      {/* Sidebar */}
+      {/* ── Sidebar ── */}
       <aside className={clsx(
         'fixed lg:static inset-y-0 left-0 z-40 flex flex-col w-64 transition-transform duration-300',
         sideOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
@@ -64,15 +65,15 @@ export default function AppLayout({ children }) {
         {/* Brand */}
         <div className="flex items-center gap-3 px-4 h-14 flex-shrink-0"
           style={{ borderBottom: '1px solid var(--border)' }}>
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-black text-xs"
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-black text-xs flex-shrink-0"
             style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent2))', boxShadow: '0 0 16px var(--glow)' }}>
             SW
           </div>
-          <div>
-            <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>StockWise</p>
-            <p className="text-xs capitalize" style={{ color: 'var(--text3)' }}>{user?.plan} plan</p>
+          <div className="min-w-0">
+            <p className="text-sm font-bold truncate" style={{ color: 'var(--text)' }}>StockWise</p>
+            <p className="text-xs capitalize truncate" style={{ color: 'var(--text3)' }}>{user?.plan} plan</p>
           </div>
-          <button className="ml-auto lg:hidden btn-ghost p-1" onClick={() => setSideOpen(false)}>
+          <button className="ml-auto lg:hidden btn-ghost p-1 flex-shrink-0" onClick={() => setSideOpen(false)}>
             <X size={17} />
           </button>
         </div>
@@ -108,7 +109,6 @@ export default function AppLayout({ children }) {
             {isDark ? 'Light Mode' : 'Dark Mode'}
           </button>
 
-          {/* Settings → full page now */}
           <NavLink href="/settings" label="Settings" icon={Settings}
             active={router.pathname.startsWith('/settings')}
             onClick={() => setSideOpen(false)} />
@@ -122,7 +122,8 @@ export default function AppLayout({ children }) {
           </button>
 
           {/* User chip */}
-          <div className="flex items-center gap-2.5 px-3 pt-3 mt-1"
+          <Link href="/settings"
+            className="flex items-center gap-2.5 px-3 pt-3 mt-1"
             style={{ borderTop: '1px solid var(--border)' }}>
             <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
               style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent2))' }}>
@@ -132,23 +133,23 @@ export default function AppLayout({ children }) {
               <p className="text-xs font-semibold truncate" style={{ color: 'var(--text)' }}>{user?.name}</p>
               <p className="text-xs truncate" style={{ color: 'var(--text3)' }}>{user?.email}</p>
             </div>
-          </div>
+          </Link>
         </div>
       </aside>
 
-      {/* Main */}
+      {/* ── Main ── */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="glass h-14 flex items-center px-5 gap-4 flex-shrink-0 z-20 sticky top-0">
-          <button className="lg:hidden btn-icon w-8 h-8 rounded-lg" onClick={() => setSideOpen(true)}>
+        <header className="glass h-14 flex items-center px-4 gap-3 flex-shrink-0 z-20 sticky top-0">
+          <button className="lg:hidden btn-icon w-8 h-8 rounded-lg flex-shrink-0" onClick={() => setSideOpen(true)}>
             <Menu size={17} />
           </button>
-          <h1 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{pageTitle}</h1>
-          <div className="ml-auto flex items-center gap-2">
+          <h1 className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{pageTitle}</h1>
+          <div className="ml-auto flex items-center gap-2 flex-shrink-0">
             <button onClick={toggle} className="btn-icon w-8 h-8 rounded-lg">
               {isDark ? <Sun size={15} /> : <Moon size={15} />}
             </button>
             <Link href="/settings"
-              className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
+              className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
               style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent2))' }}>
               {user?.name?.[0]?.toUpperCase()}
             </Link>
@@ -157,7 +158,7 @@ export default function AppLayout({ children }) {
 
         <TrialBanner user={user} />
 
-        <main className="flex-1 overflow-y-auto p-5 animate-fade-in">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-5 animate-fade-in">
           {children}
         </main>
       </div>
