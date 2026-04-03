@@ -1,7 +1,17 @@
 import api from './api';
 
-export const recordTransaction = (data)          => api.post('/transactions', data);
-export const getTransactions   = (params)         => api.get('/transactions', { params });
-export const getSalesSummary   = ()               => api.get('/transactions/analytics?period=1m');
-export const getAnalytics      = (period = '1m')  => api.get(`/transactions/analytics?period=${period}`);
-export const getItemAnalytics  = (itemId, period) => api.get(`/transactions/analytics/${itemId}?period=${period}`);
+// Record a transaction (sale, restock, usage, adjustment)
+export const recordTransaction = (data) => api.post('/transactions', data);
+
+// List transactions with filters
+export const getTransactions = (params) => api.get('/transactions', { params });
+
+// Summary — used by Sales page
+// Returns: { sales, topItems, trend }
+export const getSalesSummary = (period = '1m') =>
+  api.get('/transactions/summary', { params: { period } });
+
+// Analytics — used by Analytics page
+// Returns: { summary, topItems, trend }
+export const getAnalytics = (period = '1m') =>
+  api.get('/transactions/analytics', { params: { period } });
