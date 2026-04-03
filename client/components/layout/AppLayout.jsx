@@ -9,6 +9,9 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import TrialBanner from '../ui/TrialBanner';
+import FloatingActionButton from '../ui/FloatingActionButton';
+import QuickSaleModal from '../ui/QuickSaleModal';
+import useQuickSale from '../../hooks/useQuickSale';
 
 const NAV = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -41,6 +44,9 @@ export default function AppLayout({ children }) {
   const { isDark, toggle } = useTheme();
   const router = useRouter();
   const [sideOpen, setSideOpen] = useState(false);
+  
+  // Quick sale modal state
+  const { isModalOpen, openModal, closeModal, handleSuccess } = useQuickSale();
 
   const isAdmin   = user?.role === 'admin';
   const pageTitle = NAV.find(n => router.pathname.startsWith(n.href))?.label
@@ -162,6 +168,16 @@ export default function AppLayout({ children }) {
           {children}
         </main>
       </div>
+
+      {/* Floating Action Button */}
+      <FloatingActionButton onClick={openModal} />
+
+      {/* Quick Sale Modal */}
+      <QuickSaleModal 
+        isOpen={isModalOpen} 
+        onClose={closeModal} 
+        onSuccess={handleSuccess}
+      />
     </div>
   );
 }

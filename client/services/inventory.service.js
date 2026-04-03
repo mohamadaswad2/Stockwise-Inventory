@@ -10,3 +10,6 @@ export const restockItem    = (id, data)       => api.post(`/inventory/${id}/res
 export const getCategories  = ()               => api.get('/inventory/categories');
 export const exportCSV      = ()               => api.get('/inventory/export/csv', { responseType: 'blob' });
 export const getExportQuota = ()               => api.get('/inventory/export/quota');
+
+// Alias for consistency with QuickSaleModal
+export const getInventory    = getItems;
