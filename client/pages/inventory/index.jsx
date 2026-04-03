@@ -7,8 +7,8 @@ import AppLayout from '../../components/layout/AppLayout';
 import ItemTable from '../../components/inventory/ItemTable';
 import ItemForm from '../../components/inventory/ItemForm';
 import InventoryFilters from '../../components/inventory/InventoryFilters';
-import TransactionModal from '../../components/inventory/TransactionModal';
 import QuickSellModal from '../../components/inventory/QuickSellModal';
+import RestockModal from '../../components/inventory/RestockModal';
 import Modal from '../../components/ui/Modal';
 import { useInventory } from '../../hooks/useInventory';
 import { useCategories } from '../../hooks/useCategories';
@@ -24,8 +24,8 @@ export default function InventoryPage() {
 
   const [createOpen,    setCreateOpen]    = useState(false);
   const [editItem,      setEditItem]      = useState(null);
-  const [txItem,        setTxItem]        = useState(null);
   const [quickSellItem, setQuickSellItem] = useState(null);
+  const [restockItem,   setRestockItem]   = useState(null);
   const [saving,        setSaving]        = useState(false);
   const [exporting,     setExporting]     = useState(false);
 
@@ -57,22 +57,21 @@ export default function InventoryPage() {
 
   const handleExportCSV = async () => {
     if (!canExport) {
-      toast.error('CSV export requires Starter plan or above. Upgrade to export your data.', { duration: 5000 });
+      toast.error('CSV export requires Starter plan or above.');
       return;
     }
     setExporting(true);
     try {
-      const res = await inventoryService.exportCSV();
-      // Trigger browser download
+      const res  = await inventoryService.exportCSV();
       const url  = window.URL.createObjectURL(new Blob([res.data], { type: 'text/csv' }));
       const link = document.createElement('a');
       link.href  = url;
-      link.setAttribute('download', `stockwise-inventory-${new Date().toISOString().slice(0,10)}.csv`);
+      link.setAttribute('download', `stockwise-${new Date().toISOString().slice(0,10)}.csv`);
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-      toast.success('CSV exported successfully!');
+      toast.success('CSV exported!');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Export failed.');
     } finally { setExporting(false); }
@@ -84,36 +83,29 @@ export default function InventoryPage() {
         <Head><title>Inventory — StockWise</title></Head>
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-5 gap-4">
+        <div className="flex items-center justify-between mb-4 gap-3">
           <div>
             <h1 className="text-xl font-bold" style={{ color: 'var(--text)' }}>Inventory</h1>
-            <p className="text-sm mt-0.5" style={{ color: 'var(--text2)' }}>
-              {total} item{total !== 1 ? 's' : ''}
-            </p>
+            <p className="text-sm mt-0.5" style={{ color: 'var(--text2)' }}>{total} item{total !== 1 ? 's' : ''}</p>
           </div>
           <div className="flex items-center gap-2">
-            {/* Export CSV */}
             <button onClick={handleExportCSV} disabled={exporting}
-              className="btn-secondary flex items-center gap-2 text-sm"
-              title={canExport ? 'Export to CSV' : 'Upgrade to export CSV'}>
-              {canExport
-                ? <><Download size={14} /> {exporting ? 'Exporting…' : 'Export CSV'}</>
-                : <><Lock size={14} /> Export CSV</>}
+              className="btn-secondary text-sm flex items-center gap-2"
+              title={canExport ? 'Export CSV' : 'Upgrade to export CSV'}>
+              {canExport ? <Download size={14} /> : <Lock size={14} />}
+              <span className="hidden sm:inline">{exporting ? 'Exporting…' : 'Export CSV'}</span>
             </button>
-
-            {/* Add item */}
             <button className="btn-primary" onClick={() => setCreateOpen(true)}>
               <Plus size={15} /> Add Item
             </button>
           </div>
         </div>
 
-        {/* Export plan notice */}
+        {/* Plan notice */}
         {!canExport && (
-          <div className="mb-4 px-4 py-3 rounded-xl text-xs flex items-center gap-2"
+          <div className="mb-3 px-4 py-2.5 rounded-xl text-xs flex items-center gap-2"
             style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.15)', color: 'var(--orange)' }}>
-            <Lock size={13} />
-            CSV Export is available for Starter, Premium and Deluxe plans.
+            <Lock size={12} /> CSV Export available on Starter plan and above.
           </div>
         )}
 
@@ -128,8 +120,8 @@ export default function InventoryPage() {
           filters={filters} setFilters={setFilters}
           onEdit={setEditItem}
           onDelete={deleteItem}
-          onTransaction={setTxItem}
           onQuickSell={setQuickSellItem}
+          onRestock={setRestockItem}
         />
 
         {/* Create modal */}
@@ -156,16 +148,20 @@ export default function InventoryPage() {
           )}
         </Modal>
 
-        {/* Full transaction modal */}
-        {txItem && (
-          <TransactionModal item={txItem} onClose={() => setTxItem(null)} onSuccess={refetch} />
-        )}
-
-        {/* Quick sell modal */}
+        {/* Quick Sell modal */}
         {quickSellItem && (
           <QuickSellModal
             item={quickSellItem}
             onClose={() => setQuickSellItem(null)}
+            onSuccess={refetch}
+          />
+        )}
+
+        {/* Restock modal */}
+        {restockItem && (
+          <RestockModal
+            item={restockItem}
+            onClose={() => setRestockItem(null)}
             onSuccess={refetch}
           />
         )}
