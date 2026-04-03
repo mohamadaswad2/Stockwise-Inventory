@@ -358,7 +358,7 @@ const QuickSaleModal = ({ isOpen, onClose, onSuccess }) => {
                         fontWeight: '600',
                         color: selectedItem?.id === item.id ? 'white' : 'var(--green)',
                       }}>
-                        RM{item.price.toFixed(2)}
+                        RM{(Number(item.price) || 0).toFixed(2)}
                       </div>
                       <div style={{ 
                         fontSize: '12px', 
@@ -452,7 +452,7 @@ const QuickSaleModal = ({ isOpen, onClose, onSuccess }) => {
                   fontWeight: '600', 
                   color: 'var(--green)' 
                 }}>
-                  RM{(selectedItem.price * quantity).toFixed(2)}
+                  RM{(Number(selectedItem.price) * Number(quantity)).toFixed(2)}
                 </span>
               </div>
               <div style={{ fontSize: '12px', color: 'var(--text3)' }}>
