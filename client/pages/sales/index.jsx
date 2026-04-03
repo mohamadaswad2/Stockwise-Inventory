@@ -177,40 +177,69 @@ export default function SalesPage() {
                 Revenue & Profit — Last 30 Days
               </h3>
               {data?.trend?.length > 0 ? (
-                <ResponsiveContainer width="100%" height={200}>
-                  <AreaChart data={data.trend} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
+                <ResponsiveContainer width="100%" height={240}>
+                  <AreaChart data={data.trend} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
                     <defs>
                       <linearGradient id="sRev" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%"  stopColor="#22c55e" stopOpacity={0.25} />
-                        <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                        <stop offset="5%"  stopColor="#22c55e" stopOpacity={0.3} />
+                        <stop offset="50%" stopColor="#22c55e" stopOpacity={0.1} />
+                        <stop offset="95%" stopColor="#22c55e" stopOpacity={0.01} />
                       </linearGradient>
                       <linearGradient id="sProfit" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%"  stopColor="#6366f1" stopOpacity={0.25} />
-                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                        <stop offset="5%"  stopColor="#6366f1" stopOpacity={0.3} />
+                        <stop offset="50%" stopColor="#6366f1" stopOpacity={0.1} />
+                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0.01} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid stroke="var(--surface3)" strokeDasharray="3 3" />
+                    <CartesianGrid 
+                      stroke="var(--surface3)" 
+                      strokeDasharray="2 2" 
+                      horizontal={true}
+                      vertical={false}
+                      opacity={0.4}
+                    />
                     <XAxis 
                       dataKey="date" 
-                      tick={{ fill: 'var(--text3)', fontSize: 10 }}
+                      tick={{ fill: 'var(--text3)', fontSize: 11 }}
                       tickFormatter={d => d?.slice(5)} 
                       axisLine={false} 
                       tickLine={false}
-                      minTickGap={5}
+                      minTickGap={8}
+                      dy={4}
                     />
                     <YAxis 
-                      tick={{ fill: 'var(--text3)', fontSize: 10 }} 
+                      tick={{ fill: 'var(--text3)', fontSize: 11 }} 
                       axisLine={false} 
                       tickLine={false}
                       tickFormatter={v => format(v, 0)}
                       domain={[0, 'dataMax']}
                       allowDecimals={false}
+                      dx={-4}
                     />
-                    <Tooltip content={<ChartTooltip formatFn={format} />} />
-                    <Area type="monotone" dataKey="revenue" name="Revenue"
-                      stroke="#22c55e" strokeWidth={2.5} fill="url(#sRev)" />
-                    <Area type="monotone" dataKey="profit" name="Profit"
-                      stroke="#6366f1" strokeWidth={2} fill="url(#sProfit)" />
+                    <Tooltip 
+                      content={<ChartTooltip formatFn={format} />}
+                      cursor={{ stroke: 'var(--accent)', strokeWidth: 1, strokeDasharray: '4 4' }}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="revenue" 
+                      name="Revenue"
+                      stroke="#22c55e" 
+                      strokeWidth={3}
+                      fill="url(#sRev)"
+                      strokeLinejoin="round"
+                      strokeLinecap="round"
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="profit" 
+                      name="Profit"
+                      stroke="#6366f1" 
+                      strokeWidth={2.5}
+                      fill="url(#sProfit)"
+                      strokeLinejoin="round"
+                      strokeLinecap="round"
+                    />
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (
