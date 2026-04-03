@@ -5,8 +5,19 @@ const AppError = require('../utils/AppError');
 
 const EXPORT_LIMITS = { free: 0, starter: 3, premium: 6, deluxe: Infinity };
 
-const getItems   = async (userId, q) => inventoryRepository.findAll({ userId, ...q });
-const getItem    = async (id, userId) => {
+const getItems = async (userId, q) => {
+  // #15 FIX: map snake_case query params to camelCase repo params
+  return inventoryRepository.findAll({
+    userId,
+    page:       q.page,
+    limit:      q.limit,
+    search:     q.search,
+    categoryId: q.category_id,   // snake_case → camelCase
+    lowStock:   q.low_stock,     // snake_case → camelCase
+  });
+};
+
+const getItem = async (id, userId) => {
   const item = await inventoryRepository.findById(id, userId);
   if (!item) throw new AppError('Item not found.', 404);
   return item;
@@ -39,7 +50,6 @@ const quickSell = async (userId, itemId, quantity) => {
   return inventoryRepository.quickSell(userId, itemId, quantity);
 };
 
-// Restock endpoint
 const restockItem = async (userId, itemId, { quantity, cost_price, note }) => {
   if (!quantity || quantity < 1) throw new AppError('Quantity must be at least 1.', 400);
   return inventoryRepository.restock(userId, itemId, quantity, cost_price, note);

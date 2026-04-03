@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import clsx from 'clsx';
 import {
-  LayoutDashboard, Package, BarChart2, TrendingUp,
+  LayoutDashboard, Package, BarChart2, TrendingUp, Megaphone,
   LogOut, Menu, X, Sun, Moon, ChevronRight, ShieldAlert, Settings,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -15,6 +15,7 @@ const NAV = [
   { href: '/inventory',  label: 'Inventory',  icon: Package },
   { href: '/sales',      label: 'Sales',       icon: BarChart2 },
   { href: '/analytics',  label: 'Analytics',   icon: TrendingUp },
+  { href: '/updates',    label: 'App Updates',  icon: Megaphone },
 ];
 
 function NavLink({ href, label, icon: Icon, active, onClick }) {
@@ -56,7 +57,7 @@ export default function AppLayout({ children }) {
           onClick={() => setSideOpen(false)} />
       )}
 
-      {/* ── Sidebar ── */}
+      {/* Sidebar */}
       <aside className={clsx(
         'fixed lg:static inset-y-0 left-0 z-40 flex flex-col w-64 transition-transform duration-300',
         sideOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
@@ -122,8 +123,7 @@ export default function AppLayout({ children }) {
           </button>
 
           {/* User chip */}
-          <Link href="/settings"
-            className="flex items-center gap-2.5 px-3 pt-3 mt-1"
+          <Link href="/settings" className="flex items-center gap-2.5 px-3 pt-3 mt-1 group"
             style={{ borderTop: '1px solid var(--border)' }}>
             <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
               style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent2))' }}>
@@ -137,7 +137,7 @@ export default function AppLayout({ children }) {
         </div>
       </aside>
 
-      {/* ── Main ── */}
+      {/* Main */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header className="glass h-14 flex items-center px-4 gap-3 flex-shrink-0 z-20 sticky top-0">
           <button className="lg:hidden btn-icon w-8 h-8 rounded-lg flex-shrink-0" onClick={() => setSideOpen(true)}>

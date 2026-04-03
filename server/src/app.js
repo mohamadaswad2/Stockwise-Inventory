@@ -10,6 +10,9 @@ const dashboardRoutes   = require('./routes/dashboard.routes');
 const userRoutes        = require('./routes/user.routes');
 const adminRoutes       = require('./routes/admin.routes');
 const transactionRoutes = require('./routes/transaction.routes');
+const { authenticate }  = require('./middlewares/auth.middleware');
+const appUpdateService  = require('./services/appUpdate.service');
+const { success }       = require('./utils/response');
 const { notFound, errorHandler } = require('./middlewares/error.middleware');
 
 const app = express();
@@ -27,6 +30,12 @@ app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use('/api', rateLimit({ windowMs: 15*60*1000, max: 200, standardHeaders: true, legacyHeaders: false }));
 
 app.get('/health', (_req, res) => res.json({ success: true, message: 'API is running', ts: new Date() }));
+
+// Public route — all users (including unauthenticated) can read updates
+app.get('/api/updates', async (req, res, next) => {
+  try { success(res, await appUpdateService.getUpdates(req.query)); }
+  catch(e) { next(e); }
+});
 
 app.use('/api/auth',         authRoutes);
 app.use('/api/inventory',    inventoryRoutes);
