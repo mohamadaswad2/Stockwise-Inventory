@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pencil, Trash2, ArrowLeftRight, ChevronLeft, ChevronRight, Package, ShoppingCart } from 'lucide-react';
+import { Pencil, Trash2, ChevronLeft, ChevronRight, Package, ShoppingCart, PackagePlus } from 'lucide-react';
 import ConfirmDialog from '../ui/ConfirmDialog';
 import Spinner from '../ui/Spinner';
 import { useCurrency } from '../../contexts/CurrencyContext';
@@ -12,7 +12,7 @@ function StockBadge({ qty, threshold }) {
 
 export default function ItemTable({
   items, total, loading, filters, setFilters,
-  onEdit, onDelete, onTransaction, onQuickSell
+  onEdit, onDelete, onQuickSell, onRestock
 }) {
   const { format } = useCurrency();
   const [delItem,    setDelItem]    = useState(null);
@@ -47,90 +47,111 @@ export default function ItemTable({
           <table className="w-full text-sm">
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface2)' }}>
-                {['Item','SKU','Category','Stock','Price','Status','Actions'].map(h => (
+                {['Item','Category','Stock','Price','Cost','Margin','Status','Actions'].map(h => (
                   <th key={h} className="text-left px-4 py-3 text-xs font-bold uppercase tracking-wider whitespace-nowrap"
                     style={{ color: 'var(--text3)' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {items.map(item => (
-                <tr key={item.id} className="transition-colors duration-100"
-                  style={{ borderBottom: '1px solid var(--border)' }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}
-                  onMouseLeave={e => e.currentTarget.style.background = ''}>
-                  <td className="px-4 py-3 max-w-[180px]">
-                    <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{item.name}</p>
-                    {item.description && (
-                      <p className="text-xs truncate" style={{ color: 'var(--text3)' }}>{item.description}</p>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <span className="text-xs font-mono px-2 py-0.5 rounded-lg"
-                      style={{ background: 'var(--surface3)', color: 'var(--text2)' }}>
-                      {item.sku || '—'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: 'var(--text2)' }}>
-                    {item.category_name || '—'}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <span className="font-bold tabular-nums" style={{ color: 'var(--text)' }}>{item.quantity}</span>
-                    <span className="text-xs ml-1" style={{ color: 'var(--text3)' }}>{item.unit}</span>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap font-semibold tabular-nums" style={{ color: 'var(--text)' }}>
-                    {format(item.price)}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <StockBadge qty={item.quantity} threshold={item.low_stock_threshold} />
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="flex items-center gap-1">
-                      {/* Quick Sell — most prominent */}
-                      <button onClick={() => onQuickSell?.(item)}
-                        disabled={item.quantity === 0}
-                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-150"
-                        style={{
-                          background: item.quantity > 0 ? 'rgba(99,102,241,0.12)' : 'var(--surface3)',
-                          color: item.quantity > 0 ? 'var(--accent3)' : 'var(--text3)',
-                        }}
-                        title="Quick sell"
-                        onMouseEnter={e => { if(item.quantity > 0) e.currentTarget.style.background = 'rgba(99,102,241,0.2)'; }}
-                        onMouseLeave={e => { if(item.quantity > 0) e.currentTarget.style.background = 'rgba(99,102,241,0.12)'; }}>
-                        <ShoppingCart size={12} />
-                        Sell
-                      </button>
+              {items.map(item => {
+                const price    = Number(item.price);
+                const cost     = Number(item.cost_price || 0);
+                const margin   = price > 0 ? (((price - cost) / price) * 100).toFixed(0) : 0;
+                const isMarginGood = Number(margin) >= 20;
 
-                      {/* Full transaction */}
-                      <button onClick={() => onTransaction?.(item)} title="Full transaction"
-                        className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
-                        style={{ color: 'var(--text3)' }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'var(--surface3)'}
-                        onMouseLeave={e => e.currentTarget.style.background = ''}>
-                        <ArrowLeftRight size={13} />
-                      </button>
+                return (
+                  <tr key={item.id} className="transition-colors duration-100"
+                    style={{ borderBottom: '1px solid var(--border)' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}
+                    onMouseLeave={e => e.currentTarget.style.background = ''}>
 
-                      {/* Edit */}
-                      <button onClick={() => onEdit(item)} title="Edit"
-                        className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
-                        style={{ color: 'var(--text3)' }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'var(--surface3)'}
-                        onMouseLeave={e => e.currentTarget.style.background = ''}>
-                        <Pencil size={13} />
-                      </button>
+                    <td className="px-4 py-3 max-w-[160px]">
+                      <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{item.name}</p>
+                      {item.sku && (
+                        <span className="text-xs font-mono" style={{ color: 'var(--text3)' }}>{item.sku}</span>
+                      )}
+                    </td>
 
-                      {/* Delete */}
-                      <button onClick={() => setDelItem(item)} title="Delete"
-                        className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
-                        style={{ color: 'var(--red)' }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.1)'}
-                        onMouseLeave={e => e.currentTarget.style.background = ''}>
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: 'var(--text2)' }}>
+                      {item.category_name || '—'}
+                    </td>
+
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className="font-bold tabular-nums" style={{ color: 'var(--text)' }}>{item.quantity}</span>
+                      <span className="text-xs ml-1" style={{ color: 'var(--text3)' }}>{item.unit}</span>
+                    </td>
+
+                    <td className="px-4 py-3 whitespace-nowrap font-semibold tabular-nums" style={{ color: 'var(--green)' }}>
+                      {format(price)}
+                    </td>
+
+                    <td className="px-4 py-3 whitespace-nowrap font-semibold tabular-nums" style={{ color: 'var(--orange)' }}>
+                      {cost > 0 ? format(cost) : <span style={{ color: 'var(--text3)' }}>—</span>}
+                    </td>
+
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {cost > 0 ? (
+                        <span className="text-xs font-bold px-2 py-0.5 rounded-full"
+                          style={{
+                            background: isMarginGood ? 'rgba(34,197,94,0.1)' : 'rgba(245,158,11,0.1)',
+                            color: isMarginGood ? 'var(--green)' : 'var(--orange)',
+                          }}>
+                          {margin}%
+                        </span>
+                      ) : <span style={{ color: 'var(--text3)', fontSize: '11px' }}>No cost</span>}
+                    </td>
+
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <StockBadge qty={item.quantity} threshold={item.low_stock_threshold} />
+                    </td>
+
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="flex items-center gap-1">
+                        {/* Sell */}
+                        <button onClick={() => onQuickSell?.(item)}
+                          disabled={item.quantity === 0}
+                          className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-bold transition-all"
+                          title="Quick Sell"
+                          style={{
+                            background: item.quantity > 0 ? 'rgba(99,102,241,0.12)' : 'var(--surface3)',
+                            color: item.quantity > 0 ? 'var(--accent3)' : 'var(--text3)',
+                          }}>
+                          <ShoppingCart size={12} /> Sell
+                        </button>
+
+                        {/* Restock */}
+                        <button onClick={() => onRestock?.(item)}
+                          className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-bold transition-all"
+                          title="Restock"
+                          style={{ background: 'rgba(34,197,94,0.1)', color: 'var(--green)' }}>
+                          <PackagePlus size={12} /> Restock
+                        </button>
+
+                        {/* Edit */}
+                        <button onClick={() => onEdit(item)}
+                          title="Edit item"
+                          className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
+                          style={{ color: 'var(--text3)' }}
+                          onMouseEnter={e => e.currentTarget.style.background = 'var(--surface3)'}
+                          onMouseLeave={e => e.currentTarget.style.background = ''}>
+                          <Pencil size={13} />
+                        </button>
+
+                        {/* Delete */}
+                        <button onClick={() => setDelItem(item)}
+                          title="Delete item"
+                          className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
+                          style={{ color: 'var(--red)' }}
+                          onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.1)'}
+                          onMouseLeave={e => e.currentTarget.style.background = ''}>
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

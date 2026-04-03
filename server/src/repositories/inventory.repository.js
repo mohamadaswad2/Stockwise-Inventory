@@ -28,15 +28,12 @@ const findAll = async ({ userId, page = 1, limit = 20, search = '', categoryId, 
      LIMIT $${idx} OFFSET $${idx + 1}`,
     [...values, limit, offset]
   );
-
   return { items: itemResult.rows, total, page, limit };
 };
 
-// Export ALL items (no pagination) for CSV
 const findAllForExport = async (userId) => {
   const result = await db.query(
-    `SELECT
-       i.name, i.sku, i.description, i.quantity, i.unit,
+    `SELECT i.name, i.sku, i.description, i.quantity, i.unit,
        i.price, i.cost_price, i.low_stock_threshold,
        c.name AS category,
        CASE WHEN i.quantity = 0 THEN 'Out of Stock'
@@ -68,8 +65,7 @@ const create = async (userId, data) => {
   const result = await db.query(
     `INSERT INTO inventory_items
        (user_id, name, sku, description, quantity, unit, price, cost_price, low_stock_threshold, category_id)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-     RETURNING *`,
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
     [userId, name, sku||null, description||null, quantity, unit||'unit',
      price, cost_price||0, low_stock_threshold??5, category_id||null]
   );
@@ -103,39 +99,36 @@ const remove = async (id, userId) => {
   return result.rows[0] || null;
 };
 
-// Quick sell — deduct stock atomically
+// Quick sell — includes cost_price for profit tracking
 const quickSell = async (userId, itemId, quantity) => {
   const client = await db.getClient();
   try {
     await client.query('BEGIN');
 
-    // Check stock and lock row
     const check = await client.query(
-      `SELECT id, name, quantity, price, unit, low_stock_threshold
+      `SELECT id, name, quantity, price, cost_price, unit, low_stock_threshold
        FROM inventory_items
-       WHERE id = $1 AND user_id = $2 AND is_active = TRUE
-       FOR UPDATE`,
+       WHERE id = $1 AND user_id = $2 AND is_active = TRUE FOR UPDATE`,
       [itemId, userId]
     );
 
     if (!check.rows[0]) throw new Error('Item not found.');
     const item = check.rows[0];
-    if (item.quantity < quantity) throw new Error(`Insufficient stock. Available: ${item.quantity} ${item.unit}.`);
+    if (item.quantity < quantity)
+      throw new Error(`Insufficient stock. Available: ${item.quantity} ${item.unit}.`);
 
-    // Deduct stock
     const updated = await client.query(
       `UPDATE inventory_items SET quantity = quantity - $1, updated_at = NOW()
        WHERE id = $2 AND user_id = $3
-       RETURNING id, name, quantity, unit, price, low_stock_threshold`,
+       RETURNING id, name, quantity, unit, price, cost_price, low_stock_threshold`,
       [quantity, itemId, userId]
     );
 
-    // Record transaction
+    // Record transaction WITH cost_price for profit tracking
     const tx = await client.query(
-      `INSERT INTO transactions (user_id, item_id, type, quantity, unit_price, note)
-       VALUES ($1, $2, 'sale', $3, $4, 'Quick sell')
-       RETURNING *`,
-      [userId, itemId, quantity, item.price]
+      `INSERT INTO transactions (user_id, item_id, type, quantity, unit_price, cost_price, note)
+       VALUES ($1, $2, 'sale', $3, $4, $5, 'Quick sell') RETURNING *`,
+      [userId, itemId, quantity, item.price, item.cost_price] // FIX: include cost_price
     );
 
     await client.query('COMMIT');
@@ -143,21 +136,61 @@ const quickSell = async (userId, itemId, quantity) => {
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
-  } finally {
-    client.release();
-  }
+  } finally { client.release(); }
+};
+
+// Restock — add stock with optional cost update
+const restock = async (userId, itemId, quantity, newCostPrice, note) => {
+  const client = await db.getClient();
+  try {
+    await client.query('BEGIN');
+
+    const check = await client.query(
+      `SELECT id, name, quantity, price, cost_price, unit
+       FROM inventory_items
+       WHERE id = $1 AND user_id = $2 AND is_active = TRUE FOR UPDATE`,
+      [itemId, userId]
+    );
+    if (!check.rows[0]) throw new Error('Item not found.');
+    const item = check.rows[0];
+
+    // Optionally update cost price if supplied
+    const costToUse = newCostPrice !== undefined && newCostPrice !== null
+      ? newCostPrice
+      : item.cost_price;
+
+    const updated = await client.query(
+      `UPDATE inventory_items
+       SET quantity = quantity + $1,
+           cost_price = $2,
+           updated_at = NOW()
+       WHERE id = $3 AND user_id = $4
+       RETURNING id, name, quantity, unit, price, cost_price`,
+      [quantity, costToUse, itemId, userId]
+    );
+
+    // Record restock transaction
+    await client.query(
+      `INSERT INTO transactions (user_id, item_id, type, quantity, unit_price, cost_price, note)
+       VALUES ($1, $2, 'restock', $3, $4, $5, $6)`,
+      [userId, itemId, quantity, item.price, costToUse, note || 'Restock']
+    );
+
+    await client.query('COMMIT');
+    return { item: updated.rows[0] };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally { client.release(); }
 };
 
 const getDashboardStats = async (userId) => {
   const result = await db.query(
-    `SELECT
-       COUNT(*)                                              AS total_items,
-       COALESCE(SUM(quantity), 0)                           AS total_quantity,
-       COALESCE(SUM(price * quantity), 0)                   AS total_value,
+    `SELECT COUNT(*) AS total_items, COALESCE(SUM(quantity),0) AS total_quantity,
+       COALESCE(SUM(price * quantity),0) AS total_value,
        COUNT(*) FILTER (WHERE quantity <= low_stock_threshold AND quantity > 0) AS low_stock_count,
-       COUNT(*) FILTER (WHERE quantity = 0)                 AS out_of_stock_count
-     FROM inventory_items
-     WHERE user_id = $1 AND is_active = TRUE`,
+       COUNT(*) FILTER (WHERE quantity = 0) AS out_of_stock_count
+     FROM inventory_items WHERE user_id = $1 AND is_active = TRUE`,
     [userId]
   );
   return result.rows[0];
@@ -187,9 +220,8 @@ const getStockTrend = async (userId) => {
 
 const getCategoryBreakdown = async (userId) => {
   const result = await db.query(
-    `SELECT COALESCE(c.name, 'Uncategorized') AS name,
-            COUNT(i.id) AS item_count,
-            COALESCE(SUM(i.quantity), 0) AS total_quantity
+    `SELECT COALESCE(c.name,'Uncategorized') AS name,
+            COUNT(i.id) AS item_count, COALESCE(SUM(i.quantity),0) AS total_quantity
      FROM inventory_items i
      LEFT JOIN categories c ON c.id = i.category_id
      WHERE i.user_id = $1 AND i.is_active = TRUE
@@ -200,6 +232,7 @@ const getCategoryBreakdown = async (userId) => {
 };
 
 module.exports = {
-  findAll, findAllForExport, findById, create, update, remove, quickSell,
+  findAll, findAllForExport, findById, create, update, remove,
+  quickSell, restock,
   getDashboardStats, getLowStockItems, getStockTrend, getCategoryBreakdown
 };
