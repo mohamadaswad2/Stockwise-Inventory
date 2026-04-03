@@ -533,7 +533,7 @@ const QuickSaleModal = ({ isOpen, onClose, onSuccess }) => {
                     border: '2px solid rgba(255,255,255,0.3)',
                     borderTop: '2px solid white',
                     borderRadius: '50%',
-                    animation: 'spin 1s linear infinite',
+                    animation: 'quickSaleSpin 1s linear infinite',
                   }}
                 />
               )}
@@ -542,13 +542,6 @@ const QuickSaleModal = ({ isOpen, onClose, onSuccess }) => {
           </div>
         </form>
       </div>
-
-      <style jsx>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 };

@@ -220,6 +220,10 @@
   @keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
   @keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes iosIn   { from { opacity: 0; transform: translateY(12px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  
+  /* ── Loading spinners ── */
+  @keyframes fabSpin     { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  @keyframes quickSaleSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
   /* ── Segment control ── */
   .segment-control { @apply flex rounded-xl p-1 gap-1; background: var(--surface2); }
