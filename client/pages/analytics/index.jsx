@@ -218,7 +218,7 @@ export default function AnalyticsPage() {
               </div>
               {data?.trend?.length > 0 ? (
                 <ResponsiveContainer width="100%" height={260}>
-                  <AreaChart data={data.trend} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
+                  <AreaChart data={data.trend} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
                     <defs>
                       {[
                         { id: 'rev',    color: '#22c55e' },
@@ -232,10 +232,22 @@ export default function AnalyticsPage() {
                       ))}
                     </defs>
                     <CartesianGrid stroke="var(--surface3)" strokeDasharray="3 3" />
-                    <XAxis dataKey="date" tick={{ fill: 'var(--text3)', fontSize: 10 }}
-                      tickFormatter={d => d?.slice(5)} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: 'var(--text3)', fontSize: 10 }} axisLine={false} tickLine={false}
-                      tickFormatter={v => `${format(v, 0)}`} />
+                    <XAxis 
+                      dataKey="date" 
+                      tick={{ fill: 'var(--text3)', fontSize: 10 }}
+                      tickFormatter={d => d?.slice(5)} 
+                      axisLine={false} 
+                      tickLine={false}
+                      minTickGap={5}
+                    />
+                    <YAxis 
+                      tick={{ fill: 'var(--text3)', fontSize: 10 }} 
+                      axisLine={false} 
+                      tickLine={false}
+                      tickFormatter={v => format(v, 0)}
+                      domain={[0, 'dataMax']}
+                      allowDecimals={false}
+                    />
                     <Tooltip content={<ChartTooltip formatFn={format} />} />
                     <Legend iconType="circle" iconSize={8}
                       formatter={v => <span style={{ fontSize: 11, color: 'var(--text2)' }}>{v}</span>} />
