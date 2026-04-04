@@ -32,6 +32,7 @@ function ChartTooltip({ active, payload, label }) {
 
 // Donut centre label
 function DonutLabel({ viewBox, total }) {
+  if (!viewBox) return null;
   const { cx, cy } = viewBox;
   return (
     <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
@@ -222,7 +223,7 @@ export default function DashboardPage() {
                       cx="50%" cy="50%"
                       innerRadius={0} outerRadius={0}
                       dataKey="value"
-                      label={<DonutLabel total={totalUnits} />}
+                      label={(props) => <DonutLabel {...props} total={totalUnits} />}
                       labelLine={false}
                     />
                     <Tooltip
