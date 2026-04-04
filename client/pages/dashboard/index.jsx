@@ -33,27 +33,56 @@ const BAR_COLORS = [
   'var(--pink)'
 ];
 
-// Custom label untuk donut chart
-const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+// Custom label untuk donut chart - label luar dengan garis putus-putus
+const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
   const RADIAN = Math.PI / 180;
-  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+  const radius = outerRadius + 30; // Position label outside donut
   const x = cx + radius * Math.cos(-midAngle * RADIAN);
   const y = cy + radius * Math.sin(-midAngle * RADIAN);
 
-  if (percent < 0.05) return null; // Hide label for small slices
+  // Line dari donut ke label
+  const lineStartX = cx + (outerRadius + 5) * Math.cos(-midAngle * RADIAN);
+  const lineStartY = cy + (outerRadius + 5) * Math.sin(-midAngle * RADIAN);
+  const lineEndX = cx + (outerRadius + 25) * Math.cos(-midAngle * RADIAN);
+  const lineEndY = cy + (outerRadius + 25) * Math.sin(-midAngle * RADIAN);
 
   return (
-    <text 
-      x={x} 
-      y={y} 
-      fill="white" 
-      textAnchor={x > cx ? 'start' : 'end'} 
-      dominantBaseline="central"
-      className="text-xs font-bold drop-shadow-lg"
-      style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}
-    >
-      {`${(percent * 100).toFixed(0)}%`}
-    </text>
+    <g>
+      {/* Dotted line */}
+      <line
+        x1={lineStartX}
+        y1={lineStartY}
+        x2={lineEndX}
+        y2={lineEndY}
+        stroke={BAR_COLORS[index % BAR_COLORS.length]}
+        strokeWidth={1}
+        strokeDasharray="2 2"
+        opacity={0.6}
+      />
+      {/* Label background */}
+      <rect
+        x={x - 20}
+        y={y - 10}
+        width={40}
+        height={20}
+        rx={4}
+        fill="white"
+        stroke={BAR_COLORS[index % BAR_COLORS.length]}
+        strokeWidth={1}
+        opacity={0.9}
+      />
+      {/* Label text */}
+      <text 
+        x={x} 
+        y={y} 
+        fill={BAR_COLORS[index % BAR_COLORS.length]}
+        textAnchor="middle" 
+        dominantBaseline="central"
+        className="text-xs font-bold"
+      >
+        {categoryData[index]?.value || 0}
+      </text>
+    </g>
   );
 };
 
@@ -214,9 +243,10 @@ export default function DashboardPage() {
                         data={categoryData}
                         cx="50%"
                         cy="50%"
-                        innerRadius={50}
-                        outerRadius={90}
-                        paddingAngle={2}
+                        innerRadius={60}
+                        outerRadius={100}
+                        paddingAngle={8} // Jarak antara segmen
+                        cornerRadius={12} // Sudut bulat untuk segmen
                         dataKey="value"
                         labelLine={false}
                         label={renderCustomizedLabel}
@@ -283,15 +313,12 @@ export default function DashboardPage() {
                     </PieChart>
                   </ResponsiveContainer>
                   
-                  {/* Center text */}
+                  {/* Center text - ganti dengan icon atau gambar */}
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                     <div className="text-center">
-                      <p className="text-2xl font-bold" style={{ color: 'var(--text)' }}>
-                        {categoryData.reduce((sum, item) => sum + item.value, 0)}
-                      </p>
-                      <p className="text-xs" style={{ color: 'var(--text2)' }}>
-                        Total Items
-                      </p>
+                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-surface to-surface2 flex items-center justify-center shadow-inner">
+                        <Package size={28} style={{ color: 'var(--accent)' }} />
+                      </div>
                     </div>
                   </div>
                 </div>
