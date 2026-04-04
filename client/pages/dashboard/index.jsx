@@ -201,7 +201,7 @@ export default function DashboardPage() {
 
             {loading ? (
               <div className="flex items-center justify-center h-44"><Spinner /></div>
-            ) : hasCat && categoryData?.length > 0 ? (
+            ) : hasCat && categoryData && categoryData.length > 0 ? (
               <>
                 <ResponsiveContainer width="100%" height={150}>
                   <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
@@ -214,7 +214,7 @@ export default function DashboardPage() {
                       strokeWidth={0}
                       label={false}>
                       {categoryData.map((entry, i) => (
-                        <Cell key={`cell-${i}`} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />
+                        <Cell key={`cell-${entry.name || i}`} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />
                       ))}
                     </Pie>
                     <Pie
