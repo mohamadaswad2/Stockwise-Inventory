@@ -1,7 +1,7 @@
 import Head from 'next/head';
 import Link from 'next/link';
-import { Plus, Package, TrendingUp, Users, ArrowRight } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, AreaChart, Area, CartesianGrid, XAxis, YAxis } from 'recharts';
+import { Plus, Package, TrendingUp, Users } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import ProtectedRoute from '../../components/layout/ProtectedRoute';
 import AppLayout from '../../components/layout/AppLayout';
 import StatsGrid from '../../components/dashboard/StatsGrid';
@@ -24,14 +24,7 @@ function ChartTooltip({ active, payload, label }) {
   );
 }
 
-const BAR_COLORS = [
-  'var(--accent)', 
-  'var(--green)', 
-  'var(--blue)', 
-  'var(--orange)', 
-  'var(--purple)', 
-  'var(--pink)'
-];
+const BAR_COLORS = ['#6366f1','#8b5cf6','#a855f7','#c084fc','#d8b4fe','#818cf8'];
 
 export default function DashboardPage() {
   const { user }            = useAuth();
@@ -48,59 +41,6 @@ export default function DashboardPage() {
     name:  row.name,
     value: parseInt(row.total_quantity || 0),
   }));
-
-  // Custom label untuk donut chart - label luar dengan garis putus-putus
-  const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
-    const RADIAN = Math.PI / 180;
-    const radius = outerRadius + 30; // Position label outside donut
-    const x = cx + radius * Math.cos(-midAngle * RADIAN);
-    const y = cy + radius * Math.sin(-midAngle * RADIAN);
-
-    // Line dari donut ke label
-    const lineStartX = cx + (outerRadius + 5) * Math.cos(-midAngle * RADIAN);
-    const lineStartY = cy + (outerRadius + 5) * Math.sin(-midAngle * RADIAN);
-    const lineEndX = cx + (outerRadius + 25) * Math.cos(-midAngle * RADIAN);
-    const lineEndY = cy + (outerRadius + 25) * Math.sin(-midAngle * RADIAN);
-
-    return (
-      <g>
-        {/* Dotted line */}
-        <line
-          x1={lineStartX}
-          y1={lineStartY}
-          x2={lineEndX}
-          y2={lineEndY}
-          stroke={BAR_COLORS[index % BAR_COLORS.length]}
-          strokeWidth={1}
-          strokeDasharray="2 2"
-          opacity={0.6}
-        />
-        {/* Label background */}
-        <rect
-          x={x - 20}
-          y={y - 10}
-          width={40}
-          height={20}
-          rx={4}
-          fill="white"
-          stroke={BAR_COLORS[index % BAR_COLORS.length]}
-          strokeWidth={1}
-          opacity={0.9}
-        />
-        {/* Label text */}
-        <text 
-          x={x} 
-          y={y} 
-          fill={BAR_COLORS[index % BAR_COLORS.length]}
-          textAnchor="middle" 
-          dominantBaseline="central"
-          className="text-xs font-bold"
-        >
-          {categoryData[index]?.value || 0}
-        </text>
-      </g>
-    );
-  };
 
   const hasStockData    = stockTrend.length > 0;
   const hasCategoryData = categoryData.filter(d => d.value > 0).length > 0;
@@ -185,187 +125,40 @@ export default function DashboardPage() {
           </div>
 
           {/* Category breakdown — real data */}
-          <div className="card p-6 relative overflow-hidden bg-gradient-to-br from-surface to-surface2 border-0 shadow-2xl">
-            {/* Premium background effects */}
-            <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-accent/20 via-transparent to-transparent rounded-full blur-3xl animate-pulse"></div>
-            <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-blue/20 via-transparent to-transparent rounded-full blur-2xl"></div>
-            <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none"></div>
-            
-            <div className="relative z-10">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-base font-bold mb-1" style={{ color: 'var(--text)' }}>
-                    Category Distribution
-                  </h3>
-                  <p className="text-xs" style={{ color: 'var(--text2)' }}>
-                    Real-time inventory breakdown
-                  </p>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                  <span className="text-xs font-medium" style={{ color: 'var(--green)' }}>
-                    Live
-                  </span>
-                </div>
+          <div className="card p-5">
+            <h3 className="text-sm font-bold mb-1" style={{ color: 'var(--text)' }}>
+              By Category
+            </h3>
+            <p className="text-xs mb-4" style={{ color: 'var(--text2)' }}>
+              Stock distribution
+            </p>
+            {loading ? (
+              <div className="flex items-center justify-center h-48"><Spinner /></div>
+            ) : hasCategoryData ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie
+                    data={categoryData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={40}
+                    outerRadius={80}
+                    paddingAngle={2}
+                    dataKey="value"
+                  >
+                    {categoryData.map((_, i) => (
+                      <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<ChartTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-48"
+                style={{ color: 'var(--text3)' }}>
+                <p className="text-sm">No categories yet.</p>
               </div>
-              
-              {loading ? (
-                <div className="flex items-center justify-center h-52">
-                  <div className="relative">
-                    <div className="w-12 h-12 rounded-full border-4 border-accent/20 border-t-accent animate-spin"></div>
-                  </div>
-                </div>
-              ) : hasCategoryData ? (
-                <div className="relative">
-                  <ResponsiveContainer width="100%" height={240}>
-                    <PieChart>
-                      <defs>
-                        {BAR_COLORS.map((color, index) => (
-                          <linearGradient key={index} id={`premium-gradient-${index}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stopColor={color} stopOpacity={1} />
-                            <stop offset="50%" stopColor={color} stopOpacity={0.8} />
-                            <stop offset="100%" stopColor={color} stopOpacity={0.6} />
-                          </linearGradient>
-                        ))}
-                        {/* Premium shadow filter */}
-                        <filter id="premium-shadow" x="-50%" y="-50%" width="200%" height="200%">
-                          <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
-                          <feOffset dx="0" dy="2" result="offsetblur"/>
-                          <feFlood floodColor="#000000" floodOpacity="0.2"/>
-                          <feComposite in2="offsetblur" operator="in"/>
-                          <feMerge>
-                            <feMergeNode/>
-                            <feMergeNode in="SourceGraphic"/>
-                          </feMerge>
-                        </filter>
-                      </defs>
-                      <Pie
-                        data={categoryData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={100}
-                        paddingAngle={8} // Jarak antara segmen
-                        cornerRadius={12} // Sudut bulat untuk segmen
-                        dataKey="value"
-                        labelLine={false}
-                        label={renderCustomizedLabel}
-                        animationBegin={0}
-                        animationDuration={2000}
-                        animationEasing="cubic-bezier(0.4, 0, 0.2, 1)"
-                        isAnimationActive={true}
-                      >
-                        {categoryData.map((_, i) => (
-                          <Cell 
-                            key={i} 
-                            fill={`url(#premium-gradient-${i})`}
-                            filter="url(#premium-shadow)"
-                            className="transition-all duration-500"
-                            style={{
-                              cursor: 'default',
-                              outline: 'none'
-                            }}
-                          />
-                        ))}
-                      </Pie>
-                      <Tooltip 
-                        content={({ active, payload }) => {
-                          if (active && payload && payload.length) {
-                            const total = categoryData.reduce((sum, item) => sum + item.value, 0);
-                            const percentage = ((payload[0].value / total) * 100).toFixed(1);
-                            return (
-                              <div className="card px-4 py-3 shadow-2xl border-0 bg-surface/95 backdrop-blur-sm">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <div 
-                                    className="w-3 h-3 rounded-full shadow-sm"
-                                    style={{ backgroundColor: BAR_COLORS[payload[0].index % BAR_COLORS.length] }}
-                                  />
-                                  <p className="font-semibold text-sm" style={{ color: 'var(--text)' }}>
-                                    {payload[0].name}
-                                  </p>
-                                </div>
-                                <div className="space-y-1">
-                                  <p className="text-xs" style={{ color: 'var(--text2)' }}>
-                                    <span className="font-bold text-lg" style={{ color: 'var(--text)' }}>{payload[0].value}</span> units
-                                  </p>
-                                  <div className="flex items-center gap-2">
-                                    <div className="flex-1 h-1 bg-surface3 rounded-full overflow-hidden">
-                                      <div 
-                                        className="h-full rounded-full transition-all duration-500"
-                                        style={{ 
-                                          width: `${percentage}%`,
-                                          backgroundColor: BAR_COLORS[payload[0].index % BAR_COLORS.length]
-                                        }}
-                                      />
-                                    </div>
-                                    <span className="text-xs font-bold" style={{ color: BAR_COLORS[payload[0].index % BAR_COLORS.length] }}>
-                                      {percentage}%
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          }
-                          return null;
-                        }}
-                        cursorStyle="default"
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  
-                  {/* Center text - ganti dengan icon atau gambar */}
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="text-center">
-                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-surface to-surface2 flex items-center justify-center shadow-inner">
-                        <Package size={28} style={{ color: 'var(--accent)' }} />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-52">
-                  <div className="w-16 h-16 rounded-full bg-surface3 flex items-center justify-center mb-3">
-                    <Package size={24} style={{ color: 'var(--text3)' }} />
-                  </div>
-                  <p className="text-sm font-medium" style={{ color: 'var(--text3)' }}>
-                    No categories yet
-                  </p>
-                  <p className="text-xs mt-1" style={{ color: 'var(--text3)' }}>
-                    Start adding items to see distribution
-                  </p>
-                </div>
-              )}
-              
-              {/* Premium legend */}
-              {hasCategoryData && (
-                <div className="mt-6 grid grid-cols-2 gap-3">
-                  {categoryData.slice(0, 4).map((item, index) => {
-                    const percentage = ((item.value / categoryData.reduce((sum, cat) => sum + cat.value, 0)) * 100).toFixed(1);
-                    return (
-                      <div key={index} className="flex items-center justify-between p-2 rounded-lg bg-surface/50 backdrop-blur-sm border border-surface3/50">
-                        <div className="flex items-center gap-2">
-                          <div 
-                            className="w-2 h-2 rounded-full shadow-sm animate-pulse"
-                            style={{ backgroundColor: BAR_COLORS[index % BAR_COLORS.length] }}
-                          />
-                          <div>
-                            <p className="text-xs font-medium truncate max-w-20" style={{ color: 'var(--text)' }}>
-                              {item.name}
-                            </p>
-                            <p className="text-xs" style={{ color: 'var(--text3)' }}>
-                              {percentage}%
-                            </p>
-                          </div>
-                        </div>
-                        <span className="text-xs font-bold" style={{ color: 'var(--text)' }}>
-                          {item.value}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+            )}
           </div>
         </div>
 
