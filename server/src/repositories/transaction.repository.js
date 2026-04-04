@@ -78,19 +78,35 @@ const getSalesSummary = async (userId, period = '1m') => {
 
 const getRevenueTrend = async (userId, period = '1m') => {
   const interval = periodToInterval(period);
-  const groupBy  = ['24h','7d','1m'].includes(period) ? 'day' : 'week';
-  const result   = await db.query(`
-    SELECT
-      DATE_TRUNC('${groupBy}', created_at)::date AS date,
-      COALESCE(SUM(quantity * unit_price)              FILTER (WHERE type='sale'), 0) AS revenue,
-      COALESCE(SUM(quantity * (unit_price-cost_price)) FILTER (WHERE type='sale'), 0) AS profit,
-      COALESCE(SUM(quantity * cost_price)              FILTER (WHERE type='sale'), 0) AS cost,
-      COUNT(*) FILTER (WHERE type='sale') AS transactions
-    FROM transactions
-    WHERE user_id = $1 AND created_at > NOW() - INTERVAL '${interval}'
-    GROUP BY DATE_TRUNC('${groupBy}', created_at)
-    ORDER BY date ASC`, [userId]
-  );
+  
+  const result = await db.query(`
+    WITH date_series AS (
+      SELECT generate_series(
+        (NOW() - INTERVAL '${interval}')::date,
+        CURRENT_DATE,
+        INTERVAL '1 day'
+      )::date AS date
+    ),
+    transaction_data AS (
+      SELECT
+        DATE_TRUNC('day', created_at)::date AS date,
+        COALESCE(SUM(quantity * unit_price) FILTER (WHERE type='sale'), 0) AS revenue,
+        COALESCE(SUM(quantity * (unit_price - cost_price)) FILTER (WHERE type='sale'), 0) AS profit,
+        COALESCE(SUM(quantity * cost_price) FILTER (WHERE type='sale'), 0) AS cost
+      FROM transactions
+      WHERE user_id = $1 AND created_at > NOW() - INTERVAL '${interval}'
+      GROUP BY DATE_TRUNC('day', created_at)
+    )
+    SELECT 
+      ds.date::text AS date,
+      ROUND(COALESCE(td.revenue, 0), 2) AS revenue,
+      ROUND(COALESCE(td.profit, 0), 2) AS profit,
+      ROUND(COALESCE(td.cost, 0), 2) AS cost
+    FROM date_series ds
+    LEFT JOIN transaction_data td ON ds.date = td.date
+    ORDER BY ds.date ASC
+  `, [userId]);
+
   return result.rows;
 };
 
