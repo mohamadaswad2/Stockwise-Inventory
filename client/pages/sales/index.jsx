@@ -111,43 +111,45 @@ export default function SalesPage() {
                 Revenue — Last 30 Days
               </h3>
               {trend.length > 0 ? (
-                <ResponsiveContainer width="100%" height={220}>
-                  <AreaChart data={trend} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
-                    <defs>
-                      <linearGradient id="sRev" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%"  stopColor="#22c55e" stopOpacity={0.25} />
-                        <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid stroke="var(--surface3)" strokeDasharray="3 3" />
-                    <XAxis 
-                      dataKey="date" 
-                      tick={{ fill: 'var(--text3)', fontSize: 10 }}
-                      tickFormatter={d => d?.slice(5)} 
-                      axisLine={false} 
-                      tickLine={false}
-                      padding={{ left: 10, right: 10 }}
-                    />
-                    <YAxis 
-                      tick={{ fill: 'var(--text3)', fontSize: 10 }} 
-                      axisLine={false} 
-                      tickLine={false}
-                      tickFormatter={v => format(v, 0)}
-                      padding={{ top: 10, bottom: 10 }}
-                      domain={['dataMin', 'dataMax']}
-                      allowDataOverflow={false}
-                    />
-                    <Tooltip content={<ChartTooltip formatFn={format} />} />
-                    <Area 
-                      type="natural" 
-                      dataKey="revenue" 
-                      name="Revenue"
-                      stroke="#22c55e" 
-                      strokeWidth={2.5} 
-                      fill="url(#sRev)"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+                <div style={{ width: '100%', height: '220px', position: 'relative' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={trend} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                      <defs>
+                        <linearGradient id="sRev" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%"  stopColor="#22c55e" stopOpacity={0.25} />
+                          <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid stroke="var(--surface3)" strokeDasharray="3 3" />
+                      <XAxis 
+                        dataKey="date" 
+                        tick={{ fill: 'var(--text3)', fontSize: 10 }}
+                        tickFormatter={d => d?.slice(5)} 
+                        axisLine={false} 
+                        tickLine={false}
+                        padding={{ left: 10, right: 10 }}
+                      />
+                      <YAxis 
+                        tick={{ fill: 'var(--text3)', fontSize: 10 }} 
+                        axisLine={false} 
+                        tickLine={false}
+                        tickFormatter={v => format(v, 0)}
+                        padding={{ top: 20, bottom: 20 }}
+                        domain={[0, 'dataMax + 10%']}
+                        allowDataOverflow={false}
+                      />
+                      <Tooltip content={<ChartTooltip formatFn={format} />} />
+                      <Area 
+                        type="natural" 
+                        dataKey="revenue" 
+                        name="Revenue"
+                        stroke="#22c55e" 
+                        strokeWidth={2.5} 
+                        fill="url(#sRev)"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
               ) : (
                 <div className="flex flex-col items-center justify-center h-36"
                   style={{ color: 'var(--text3)' }}>
