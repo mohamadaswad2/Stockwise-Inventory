@@ -33,59 +33,6 @@ const BAR_COLORS = [
   'var(--pink)'
 ];
 
-// Custom label untuk donut chart - label luar dengan garis putus-putus
-const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
-  const RADIAN = Math.PI / 180;
-  const radius = outerRadius + 30; // Position label outside donut
-  const x = cx + radius * Math.cos(-midAngle * RADIAN);
-  const y = cy + radius * Math.sin(-midAngle * RADIAN);
-
-  // Line dari donut ke label
-  const lineStartX = cx + (outerRadius + 5) * Math.cos(-midAngle * RADIAN);
-  const lineStartY = cy + (outerRadius + 5) * Math.sin(-midAngle * RADIAN);
-  const lineEndX = cx + (outerRadius + 25) * Math.cos(-midAngle * RADIAN);
-  const lineEndY = cy + (outerRadius + 25) * Math.sin(-midAngle * RADIAN);
-
-  return (
-    <g>
-      {/* Dotted line */}
-      <line
-        x1={lineStartX}
-        y1={lineStartY}
-        x2={lineEndX}
-        y2={lineEndY}
-        stroke={BAR_COLORS[index % BAR_COLORS.length]}
-        strokeWidth={1}
-        strokeDasharray="2 2"
-        opacity={0.6}
-      />
-      {/* Label background */}
-      <rect
-        x={x - 20}
-        y={y - 10}
-        width={40}
-        height={20}
-        rx={4}
-        fill="white"
-        stroke={BAR_COLORS[index % BAR_COLORS.length]}
-        strokeWidth={1}
-        opacity={0.9}
-      />
-      {/* Label text */}
-      <text 
-        x={x} 
-        y={y} 
-        fill={BAR_COLORS[index % BAR_COLORS.length]}
-        textAnchor="middle" 
-        dominantBaseline="central"
-        className="text-xs font-bold"
-      >
-        {categoryData[index]?.value || 0}
-      </text>
-    </g>
-  );
-};
-
 export default function DashboardPage() {
   const { user }            = useAuth();
   const { stats, loading }  = useDashboard();
@@ -101,6 +48,59 @@ export default function DashboardPage() {
     name:  row.name,
     value: parseInt(row.total_quantity || 0),
   }));
+
+  // Custom label untuk donut chart - label luar dengan garis putus-putus
+  const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
+    const RADIAN = Math.PI / 180;
+    const radius = outerRadius + 30; // Position label outside donut
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+    // Line dari donut ke label
+    const lineStartX = cx + (outerRadius + 5) * Math.cos(-midAngle * RADIAN);
+    const lineStartY = cy + (outerRadius + 5) * Math.sin(-midAngle * RADIAN);
+    const lineEndX = cx + (outerRadius + 25) * Math.cos(-midAngle * RADIAN);
+    const lineEndY = cy + (outerRadius + 25) * Math.sin(-midAngle * RADIAN);
+
+    return (
+      <g>
+        {/* Dotted line */}
+        <line
+          x1={lineStartX}
+          y1={lineStartY}
+          x2={lineEndX}
+          y2={lineEndY}
+          stroke={BAR_COLORS[index % BAR_COLORS.length]}
+          strokeWidth={1}
+          strokeDasharray="2 2"
+          opacity={0.6}
+        />
+        {/* Label background */}
+        <rect
+          x={x - 20}
+          y={y - 10}
+          width={40}
+          height={20}
+          rx={4}
+          fill="white"
+          stroke={BAR_COLORS[index % BAR_COLORS.length]}
+          strokeWidth={1}
+          opacity={0.9}
+        />
+        {/* Label text */}
+        <text 
+          x={x} 
+          y={y} 
+          fill={BAR_COLORS[index % BAR_COLORS.length]}
+          textAnchor="middle" 
+          dominantBaseline="central"
+          className="text-xs font-bold"
+        >
+          {categoryData[index]?.value || 0}
+        </text>
+      </g>
+    );
+  };
 
   const hasStockData    = stockTrend.length > 0;
   const hasCategoryData = categoryData.filter(d => d.value > 0).length > 0;
