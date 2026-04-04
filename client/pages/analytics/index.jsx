@@ -197,99 +197,83 @@ export default function AnalyticsPage() {
               </div>
 
               {data?.trend?.length > 0 ? (
-                <div style={{ width: '100%', height: '280px', position: 'relative' }}>
+                <div style={{ width: '100%', height: '300px', position: 'relative', overflow: 'hidden' }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart
                       data={data.trend}
-                      margin={{ top: 20, right: 20, left: 10, bottom: 20 }}
-                    >
+                      margin={{ top: 30, right: 40, left: 30, bottom: 30 }}>
                       <defs>
-                        <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#22c55e" stopOpacity={0.1} />
-                          <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
-                        </linearGradient>
-                        <linearGradient id="profitGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1} />
-                          <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-                        </linearGradient>
-                        <linearGradient id="costGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.1} />
-                          <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
-                        </linearGradient>
+                        {[
+                          { id: 'aRev',    color: '#22c55e' },
+                          { id: 'aProfit', color: '#6366f1' },
+                          { id: 'aCost',   color: '#f59e0b' },
+                        ].map(({ id, color }) => (
+                          <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%"  stopColor={color} stopOpacity={0.12} />
+                            <stop offset="95%" stopColor={color} stopOpacity={0} />
+                          </linearGradient>
+                        ))}
                       </defs>
-                      
                       <CartesianGrid 
                         stroke="var(--surface3)" 
-                        strokeDasharray="1 1" 
+                        strokeDasharray="2 2" 
                         strokeWidth={0.5}
                         vertical={false} 
+                        horizontalDasharray="2 2"
                       />
-                      
                       <XAxis 
                         dataKey="date"
                         tick={{ fill: 'var(--text3)', fontSize: 9 }}
                         tickFormatter={d => d?.slice(5)}
                         axisLine={false} 
                         tickLine={false} 
-                        tickMargin={8}
-                        padding={{ left: 10, right: 10 }}
-                      />
-                      
+                        tickMargin={10}
+                        padding={{ left: 20, right: 20 }} />
                       <YAxis
                         tick={{ fill: 'var(--text3)', fontSize: 9 }}
                         axisLine={false} 
                         tickLine={false}
                         tickFormatter={v => format(v, 0)}
-                        width={60} 
-                        tickMargin={4}
-                        domain={['auto', 'auto']}
-                        allowDataOverflow={false}
-                        tickCount={5}
-                      />
-                      
+                        width={70} 
+                        tickMargin={8}
+                        padding={{ top: 30, bottom: 30 }}
+                        domain={[0, 'dataMax + 8%']}
+                        allowDataOverflow={false} />
                       <Tooltip 
                         content={<ChartTooltip formatFn={format} />}
-                        cursor={{ stroke: 'var(--border2)', strokeWidth: 0.5, strokeDasharray: '3 3' }}
-                      />
-                      
+                        cursor={{ stroke: 'var(--border2)', strokeWidth: 0.5 }} />
                       <Legend 
                         iconType="circle" 
                         iconSize={6}
-                        wrapperStyle={{ paddingTop: '8px' }}
+                        wrapperStyle={{ paddingTop: '10px' }}
                         formatter={v => <span style={{ fontSize: 10, color: 'var(--text2)' }}>{v}</span>} />
-                      
                       <Area 
-                        type="monotone" 
+                        type="natural" 
                         dataKey="revenue" 
                         name="Revenue"
                         stroke="#22c55e" 
-                        strokeWidth={1.5} 
-                        fill="url(#revenueGrad)" 
+                        strokeWidth={2} 
+                        fill="url(#aRev)" 
                         dot={false}
-                        activeDot={false}
-                      />
-                      
+                        activeDot={{ r: 3, fill: '#22c55e', strokeWidth: 1 }} />
                       <Area 
-                        type="monotone" 
+                        type="natural" 
                         dataKey="profit" 
                         name="Profit"
                         stroke="#6366f1" 
-                        strokeWidth={1.5} 
-                        fill="url(#profitGrad)" 
+                        strokeWidth={2} 
+                        fill="url(#aProfit)" 
                         dot={false}
-                        activeDot={false}
-                      />
-                      
+                        activeDot={{ r: 3, fill: '#6366f1', strokeWidth: 1 }} />
                       <Area 
-                        type="monotone" 
+                        type="natural" 
                         dataKey="cost" 
                         name="Cost"
                         stroke="#f59e0b" 
-                        strokeWidth={1.5} 
-                        fill="url(#costGrad)" 
+                        strokeWidth={2} 
+                        fill="url(#aCost)" 
                         dot={false}
-                        activeDot={false}
-                      />
+                        activeDot={{ r: 3, fill: '#f59e0b', strokeWidth: 1 }} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
