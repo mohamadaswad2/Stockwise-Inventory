@@ -59,7 +59,8 @@ export default function QuickSaleModal({ isOpen, onClose, onSuccess }) {
   const loadInventory = async () => {
     setLoadingItems(true);
     try {
-      const res = await getInventory({ page: 1, limit: 200 });
+      // Fix: limit max 100 according to validation rules
+      const res = await getInventory({ page: 1, limit: 100 });
       setItems(res.data.data.items || []);
     } catch {
       toast.error('Failed to load inventory.');
