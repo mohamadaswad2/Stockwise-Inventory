@@ -197,11 +197,11 @@ export default function AnalyticsPage() {
               </div>
 
               {data?.trend?.length > 0 ? (
-                <div style={{ width: '100%', height: '280px', position: 'relative', overflow: 'hidden' }}>
+                <div style={{ width: '100%', height: '300px', position: 'relative', overflow: 'hidden' }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart
                       data={data.trend}
-                      margin={{ top: 25, right: 35, left: 25, bottom: 25 }}>
+                      margin={{ top: 30, right: 40, left: 30, bottom: 30 }}>
                       <defs>
                         {[
                           { id: 'aRev',    color: '#22c55e' },
@@ -209,38 +209,71 @@ export default function AnalyticsPage() {
                           { id: 'aCost',   color: '#f59e0b' },
                         ].map(({ id, color }) => (
                           <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%"  stopColor={color} stopOpacity={0.15} />
+                            <stop offset="5%"  stopColor={color} stopOpacity={0.12} />
                             <stop offset="95%" stopColor={color} stopOpacity={0} />
                           </linearGradient>
                         ))}
                       </defs>
-                      <CartesianGrid stroke="var(--surface3)" strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="date"
-                        tick={{ fill: 'var(--text3)', fontSize: 10 }}
+                      <CartesianGrid 
+                        stroke="var(--surface3)" 
+                        strokeDasharray="2 2" 
+                        strokeWidth={0.5}
+                        vertical={false} 
+                        horizontalDasharray="2 2"
+                      />
+                      <XAxis 
+                        dataKey="date"
+                        tick={{ fill: 'var(--text3)', fontSize: 9 }}
                         tickFormatter={d => d?.slice(5)}
-                        axisLine={false} tickLine={false} tickMargin={8}
-                        padding={{ left: 15, right: 15 }} />
+                        axisLine={false} 
+                        tickLine={false} 
+                        tickMargin={10}
+                        padding={{ left: 20, right: 20 }} />
                       <YAxis
-                        tick={{ fill: 'var(--text3)', fontSize: 10 }}
-                        axisLine={false} tickLine={false}
+                        tick={{ fill: 'var(--text3)', fontSize: 9 }}
+                        axisLine={false} 
+                        tickLine={false}
                         tickFormatter={v => format(v, 0)}
-                        width={60} tickMargin={6}
-                        padding={{ top: 25, bottom: 25 }}
-                        domain={[0, 'dataMax + 5%']}
+                        width={70} 
+                        tickMargin={8}
+                        padding={{ top: 30, bottom: 30 }}
+                        domain={[0, 'dataMax + 8%']}
                         allowDataOverflow={false} />
-                      <Tooltip content={<ChartTooltip formatFn={format} />}
-                        cursor={{ stroke: 'var(--border2)', strokeWidth: 1 }} />
-                      <Legend iconType="circle" iconSize={7}
-                        formatter={v => <span style={{ fontSize: 11, color: 'var(--text2)' }}>{v}</span>} />
-                      <Area type="monotone" dataKey="revenue" name="Revenue"
-                        stroke="#22c55e" strokeWidth={2} fill="url(#aRev)" dot={false}
-                        activeDot={{ r: 3, fill: '#22c55e', strokeWidth: 0 }} />
-                      <Area type="monotone" dataKey="profit" name="Profit"
-                        stroke="#6366f1" strokeWidth={2} fill="url(#aProfit)" dot={false}
-                        activeDot={{ r: 3, fill: '#6366f1', strokeWidth: 0 }} />
-                      <Area type="monotone" dataKey="cost" name="Cost"
-                        stroke="#f59e0b" strokeWidth={2} fill="url(#aCost)" dot={false}
-                        activeDot={{ r: 3, fill: '#f59e0b', strokeWidth: 0 }} />
+                      <Tooltip 
+                        content={<ChartTooltip formatFn={format} />}
+                        cursor={{ stroke: 'var(--border2)', strokeWidth: 0.5 }} />
+                      <Legend 
+                        iconType="circle" 
+                        iconSize={6}
+                        wrapperStyle={{ paddingTop: '10px' }}
+                        formatter={v => <span style={{ fontSize: 10, color: 'var(--text2)' }}>{v}</span>} />
+                      <Area 
+                        type="natural" 
+                        dataKey="revenue" 
+                        name="Revenue"
+                        stroke="#22c55e" 
+                        strokeWidth={2} 
+                        fill="url(#aRev)" 
+                        dot={false}
+                        activeDot={{ r: 3, fill: '#22c55e', strokeWidth: 1 }} />
+                      <Area 
+                        type="natural" 
+                        dataKey="profit" 
+                        name="Profit"
+                        stroke="#6366f1" 
+                        strokeWidth={2} 
+                        fill="url(#aProfit)" 
+                        dot={false}
+                        activeDot={{ r: 3, fill: '#6366f1', strokeWidth: 1 }} />
+                      <Area 
+                        type="natural" 
+                        dataKey="cost" 
+                        name="Cost"
+                        stroke="#f59e0b" 
+                        strokeWidth={2} 
+                        fill="url(#aCost)" 
+                        dot={false}
+                        activeDot={{ r: 3, fill: '#f59e0b', strokeWidth: 1 }} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
