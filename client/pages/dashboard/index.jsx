@@ -19,16 +19,16 @@ function StockTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   return (
     <div style={{
-      background: 'rgba(30,35,60,0.95)',
-      border: '1px solid rgba(99,150,255,0.25)',
+      background: 'var(--surface)',
+      border: '1px solid var(--border2)',
       borderRadius: '10px',
       padding: '8px 14px',
       boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
     }}>
-      <p style={{ color: '#60a5fa', fontSize: '11px', fontWeight: 700, marginBottom: '2px' }}>
+      <p style={{ color: 'var(--accent)', fontSize: '11px', fontWeight: 700, marginBottom: '2px' }}>
         {label}
       </p>
-      <p style={{ color: '#fff', fontSize: '15px', fontWeight: 800, margin: 0 }}>
+      <p style={{ color: 'var(--text)', fontSize: '15px', fontWeight: 800, margin: 0 }}>
         {payload[0]?.value} units
       </p>
     </div>
@@ -45,8 +45,8 @@ function DonutLabel({ cx, cy, total }) {
   );
 }
 
-// Deep blue palette — like the screenshot
-const CHART_COLORS = ['#3b82f6','#60a5fa','#93c5fd','#1d4ed8','#2563eb','#1e40af'];
+// Theme-consistent chart colors
+const CHART_COLORS = ['var(--accent)', 'var(--green)', 'var(--orange)', 'var(--purple)', 'var(--blue)', 'var(--red)'];
 const PERIODS = ['7d','14d','30d'];
 
 export default function DashboardPage() {
@@ -112,27 +112,27 @@ export default function DashboardPage() {
           {/* ── Stock Trend Chart (2/3 width) ── */}
           <div className="lg:col-span-2 rounded-2xl overflow-hidden"
             style={{
-              background: 'linear-gradient(160deg,#0f172a 0%,#1e1b4b 50%,#0f172a 100%)',
-              border: '1px solid rgba(99,102,241,0.15)',
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
             }}>
             <div className="p-5 pb-0">
               {/* Header row */}
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <h3 className="text-sm font-bold text-white">Stock Activity</h3>
-                  <p className="text-xs mt-0.5" style={{ color: 'rgba(148,163,184,0.8)' }}>
+                  <h3 className="text-sm font-bold" style={{ color: 'var(--text)' }}>Stock Activity</h3>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--text2)' }}>
                     Units added to inventory
                   </p>
                 </div>
                 {/* Period selector */}
-                <div className="flex gap-1 rounded-xl p-1" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                <div className="flex gap-1 rounded-xl p-1" style={{ background: 'var(--surface2)' }}>
                   {PERIODS.map(p => (
                     <button key={p} onClick={() => setActivePeriod(p)}
                       className="px-3 py-1 rounded-lg text-xs font-bold transition-all duration-150"
                       style={{
-                        background: activePeriod === p ? 'rgba(99,150,255,0.25)' : 'transparent',
-                        color: activePeriod === p ? '#60a5fa' : 'rgba(148,163,184,0.7)',
-                        border: activePeriod === p ? '1px solid rgba(99,150,255,0.3)' : '1px solid transparent',
+                        background: activePeriod === p ? 'var(--accent)' : 'transparent',
+                        color: activePeriod === p ? 'white' : 'var(--text2)',
+                        border: activePeriod === p ? '1px solid var(--accent)' : '1px solid transparent',
                       }}>
                       {p}
                     </button>
@@ -143,8 +143,8 @@ export default function DashboardPage() {
               {/* Peak label */}
               {hasStock && peakQty > 0 && (
                 <div className="mb-2">
-                  <span className="text-2xl font-black text-white">{peakQty}</span>
-                  <span className="text-sm ml-2" style={{ color: 'rgba(148,163,184,0.6)' }}>
+                  <span className="text-2xl font-black" style={{ color: 'var(--text)' }}>{peakQty}</span>
+                  <span className="text-sm ml-2" style={{ color: 'var(--text2)' }}>
                     peak units
                   </span>
                 </div>
@@ -159,11 +159,11 @@ export default function DashboardPage() {
               <ResponsiveContainer width="100%" height={220}>
                 <AreaChart data={chartData} margin={{ top: 5, right: 0, left: -30, bottom: 0 }}>
                   <defs>
-                    {/* Deep blue gradient — matches screenshot */}
-                    <linearGradient id="deepBlue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%"   stopColor="#3b82f6" stopOpacity={0.6} />
-                      <stop offset="50%"  stopColor="#1d4ed8" stopOpacity={0.3} />
-                      <stop offset="100%" stopColor="#1e1b4b" stopOpacity={0.05} />
+                    {/* Theme-consistent gradient */}
+                    <linearGradient id="stockGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%"   stopColor="var(--accent)" stopOpacity={0.6} />
+                      <stop offset="50%"  stopColor="var(--accent2)" stopOpacity={0.3} />
+                      <stop offset="100%" stopColor="var(--accent)" stopOpacity={0.05} />
                     </linearGradient>
                     {/* Glow filter on line */}
                     <filter id="glow">
@@ -176,19 +176,19 @@ export default function DashboardPage() {
                   </defs>
                   <XAxis
                     dataKey="date"
-                    tick={{ fill: 'rgba(148,163,184,0.6)', fontSize: 10 }}
+                    tick={{ fill: 'var(--text3)', fontSize: 10 }}
                     axisLine={false} tickLine={false}
                     tickFormatter={d => d?.replace('-','/')}
                   />
                   <YAxis
-                    tick={{ fill: 'rgba(148,163,184,0.6)', fontSize: 10 }}
+                    tick={{ fill: 'var(--text3)', fontSize: 10 }}
                     axisLine={false} tickLine={false}
                     allowDecimals={false}
                   />
                   <Tooltip
                     content={<StockTooltip />}
                     cursor={{
-                      stroke: 'rgba(99,150,255,0.4)',
+                      stroke: 'var(--accent)',
                       strokeWidth: 1,
                       strokeDasharray: '4 4',
                     }}
@@ -197,15 +197,15 @@ export default function DashboardPage() {
                     type="monotoneX"
                     dataKey="qty"
                     name="Units"
-                    stroke="#60a5fa"
+                    stroke="var(--accent)"
                     strokeWidth={3}
-                    fill="url(#deepBlue)"
+                    fill="url(#stockGradient)"
                     filter="url(#glow)"
                     dot={false}
                     activeDot={{
                       r: 6,
-                      fill: '#fff',
-                      stroke: '#60a5fa',
+                      fill: 'var(--text)',
+                      stroke: 'var(--accent)',
                       strokeWidth: 2,
                       filter: 'url(#glow)',
                     }}
@@ -214,11 +214,11 @@ export default function DashboardPage() {
               </ResponsiveContainer>
             ) : (
               <div className="flex flex-col items-center justify-center h-52"
-                style={{ color: 'rgba(148,163,184,0.5)' }}>
+                style={{ color: 'var(--text3)' }}>
                 <Package size={32} className="mb-2 opacity-30" />
                 <p className="text-sm">No stock activity yet.</p>
                 <Link href="/inventory" className="text-xs mt-2 font-semibold"
-                  style={{ color: '#60a5fa' }}>
+                  style={{ color: 'var(--accent)' }}>
                   Add your first item →
                 </Link>
               </div>
@@ -228,11 +228,11 @@ export default function DashboardPage() {
           {/* ── Category Donut (1/3 width) ── */}
           <div className="rounded-2xl p-5"
             style={{
-              background: 'linear-gradient(160deg,#0f172a 0%,#1e1b4b 100%)',
-              border: '1px solid rgba(99,102,241,0.15)',
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
             }}>
-            <h3 className="text-sm font-bold text-white mb-0.5">By Category</h3>
-            <p className="text-xs mb-4" style={{ color: 'rgba(148,163,184,0.7)' }}>
+            <h3 className="text-sm font-bold" style={{ color: 'var(--text)' }}>By Category</h3>
+            <p className="text-xs mb-4" style={{ color: 'var(--text2)' }}>
               Stock distribution
             </p>
 
@@ -292,24 +292,24 @@ export default function DashboardPage() {
               </>
             ) : (
               <div className="flex flex-col items-center justify-center h-44"
-                style={{ color: 'rgba(148,163,184,0.5)' }}>
+                style={{ color: 'var(--text3)' }}>
                 <p className="text-sm">No categories yet.</p>
               </div>
             )}
           </div>
         </div>
-
-        {/* ── Quick Actions ── */}
-        <div className="grid grid-cols-2 gap-3 mt-4">
-          {[
-            { href: '/inventory', label: 'Manage Inventory', sub: 'Add, edit, remove items',  color: '#6366f1', icon: Package },
-            { href: '/sales',     label: 'View Sales',       sub: 'Revenue & analytics',       color: '#22c55e', icon: ShoppingCart },
-          ].map(({ href, label, sub, color, icon: Icon }) => (
-            <Link key={href} href={href}
-              className="card p-4 flex items-center justify-between transition-all duration-200"
-              onMouseEnter={e => { e.currentTarget.style.borderColor = color; e.currentTarget.style.background = `${color}08`; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--surface)'; }}>
-              <div className="flex items-center gap-3">
+        {/* Period selector */}
+        <div className="flex gap-1 rounded-xl p-1" style={{ background: 'var(--surface2)' }}>
+          {PERIODS.map(p => (
+            <button key={p} onClick={() => setActivePeriod(p)}
+              className="px-3 py-1 rounded-lg text-xs font-bold transition-all duration-150"
+              style={{
+                background: activePeriod === p ? 'var(--accent)' : 'transparent',
+                color: activePeriod === p ? 'white' : 'var(--text2)',
+                border: activePeriod === p ? '1px solid var(--accent)' : '1px solid transparent',
+              }}>
+              {p}
+            </button>
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
                   style={{ background: `${color}15` }}>
                   <Icon size={16} style={{ color }} />
