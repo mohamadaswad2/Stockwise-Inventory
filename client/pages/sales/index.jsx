@@ -111,8 +111,8 @@ export default function SalesPage() {
                 Revenue — Last 30 Days
               </h3>
               {trend.length > 0 ? (
-                <ResponsiveContainer width="100%" height={200}>
-                  <AreaChart data={trend} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
+                <ResponsiveContainer width="100%" height={220}>
+                  <AreaChart data={trend} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
                     <defs>
                       <linearGradient id="sRev" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%"  stopColor="#22c55e" stopOpacity={0.25} />
@@ -120,13 +120,33 @@ export default function SalesPage() {
                       </linearGradient>
                     </defs>
                     <CartesianGrid stroke="var(--surface3)" strokeDasharray="3 3" />
-                    <XAxis dataKey="date" tick={{ fill: 'var(--text3)', fontSize: 10 }}
-                      tickFormatter={d => d?.slice(5)} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: 'var(--text3)', fontSize: 10 }} axisLine={false} tickLine={false}
-                      tickFormatter={v => format(v, 0)} />
+                    <XAxis 
+                      dataKey="date" 
+                      tick={{ fill: 'var(--text3)', fontSize: 10 }}
+                      tickFormatter={d => d?.slice(5)} 
+                      axisLine={false} 
+                      tickLine={false}
+                      padding={{ left: 10, right: 10 }}
+                    />
+                    <YAxis 
+                      tick={{ fill: 'var(--text3)', fontSize: 10 }} 
+                      axisLine={false} 
+                      tickLine={false}
+                      tickFormatter={v => format(v, 0)}
+                      padding={{ top: 10, bottom: 10 }}
+                      domain={['dataMin', 'dataMax']}
+                      allowDataOverflow={false}
+                    />
                     <Tooltip content={<ChartTooltip formatFn={format} />} />
-                    <Area type="monotone" dataKey="revenue" name="Revenue"
-                      stroke="#22c55e" strokeWidth={2.5} fill="url(#sRev)" />
+                    <Area 
+                      type="monotone" 
+                      dataKey="revenue" 
+                      name="Revenue"
+                      stroke="#22c55e" 
+                      strokeWidth={2.5} 
+                      fill="url(#sRev)"
+                      connectNulls={false}
+                    />
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (
