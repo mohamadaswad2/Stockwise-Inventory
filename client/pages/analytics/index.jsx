@@ -201,7 +201,7 @@ export default function AnalyticsPage() {
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart
                       data={data.trend}
-                      margin={{ top: 30, right: 40, left: 30, bottom: 30 }}>
+                      margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
                       <defs>
                         {[
                           { id: 'aRev',    color: '#22c55e' },
@@ -228,17 +228,15 @@ export default function AnalyticsPage() {
                         axisLine={false} 
                         tickLine={false} 
                         tickMargin={10}
-                        padding={{ left: 20, right: 20 }} />
+                        padding={{ left: 10, right: 10 }} />
                       <YAxis
                         tick={{ fill: 'var(--text3)', fontSize: 9 }}
-                        axisLine={false} 
+                        axisLine={false}
                         tickLine={false}
                         tickFormatter={v => format(v, 0)}
-                        width={70} 
-                        tickMargin={8}
-                        padding={{ top: 30, bottom: 30 }}
-                        domain={[0, 'dataMax + 8%']}
-                        allowDataOverflow={false} />
+                        width={60}
+                        domain={[0, (dataMax) => dataMax * 1.05]}
+                      />
                       <Tooltip 
                         content={<ChartTooltip formatFn={format} />}
                         cursor={{ stroke: 'var(--border2)', strokeWidth: 0.5 }} />
@@ -248,7 +246,7 @@ export default function AnalyticsPage() {
                         wrapperStyle={{ paddingTop: '10px' }}
                         formatter={v => <span style={{ fontSize: 10, color: 'var(--text2)' }}>{v}</span>} />
                       <Area 
-                        type="natural" 
+                        type="monotone"
                         dataKey="revenue" 
                         name="Revenue"
                         stroke="#22c55e" 
@@ -257,7 +255,7 @@ export default function AnalyticsPage() {
                         dot={false}
                         activeDot={{ r: 3, fill: '#22c55e', strokeWidth: 1 }} />
                       <Area 
-                        type="natural" 
+                        type="monotone"
                         dataKey="profit" 
                         name="Profit"
                         stroke="#6366f1" 
@@ -266,7 +264,7 @@ export default function AnalyticsPage() {
                         dot={false}
                         activeDot={{ r: 3, fill: '#6366f1', strokeWidth: 1 }} />
                       <Area 
-                        type="natural" 
+                        type="monotone"
                         dataKey="cost" 
                         name="Cost"
                         stroke="#f59e0b" 
