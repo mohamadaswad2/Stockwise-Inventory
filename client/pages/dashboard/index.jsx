@@ -308,19 +308,17 @@ export default function DashboardPage() {
                 color: activePeriod === p ? 'white' : 'var(--text2)',
                 border: activePeriod === p ? '1px solid var(--accent)' : '1px solid transparent',
               }}>
-              {p}
-            </button>
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: `${color}15` }}>
-                  <Icon size={16} style={{ color }} />
-                </div>
-                <div>
-                  <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>{label}</p>
-                  <p className="text-xs" style={{ color: 'var(--text2)' }}>{sub}</p>
-                </div>
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: `${color}15` }}
+              >
+                <Icon size={16} style={{ color }} />
+              </div>
+              <div>
+                <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>{label}</p>
+                <p className="text-xs" style={{ color: 'var(--text2)' }}>{sub}</p>
               </div>
               <ArrowRight size={15} style={{ color, flexShrink: 0 }} />
-            </Link>
+            </button>
           ))}
         </div>
 
