@@ -21,11 +21,15 @@ export default function QuickSaleModal({ isOpen, onClose, onSuccess }) {
   const [quantity,      setQuantity]      = useState(1);
   const [loading,       setLoading]       = useState(false);
   const [loadingItems,  setLoadingItems]  = useState(false);
+  const [page,          setPage]          = useState(1);
+  const [hasMore,       setHasMore]       = useState(false);
+  const [totalCount,     setTotalCount]    = useState(0);
   const searchRef = useRef(null);
 
   // Load items when modal opens
   useEffect(() => {
     if (isOpen) {
+      setPage(1);
       loadInventory();
       setSearch('');
       setSelectedItem(null);
@@ -38,13 +42,22 @@ export default function QuickSaleModal({ isOpen, onClose, onSuccess }) {
     if (isOpen) setTimeout(() => searchRef.current?.focus(), 100);
   }, [isOpen]);
 
-  // Filter items
+  // Filter items - client side search untuk better UX
   useEffect(() => {
     const q = search.trim().toLowerCase();
-    const filtered = q
-      ? items.filter(i => i.name.toLowerCase().includes(q) || i.sku?.toLowerCase().includes(q))
-      : items;
+    let filtered = items;
+    
+    // Client-side search untuk semua items
+    if (q) {
+      filtered = items.filter(i => 
+        i.name.toLowerCase().includes(q) || 
+        i.sku?.toLowerCase().includes(q)
+      );
+    }
+    
+    // Show 10 items untuk performance, tapi ada "Load More" jika ada lebih
     setFilteredItems(filtered.slice(0, 10));
+    setHasMore(filtered.length > 10);
   }, [search, items]);
 
   // Keyboard shortcuts
@@ -56,16 +69,36 @@ export default function QuickSaleModal({ isOpen, onClose, onSuccess }) {
     return () => document.removeEventListener('keydown', handler);
   }, [isOpen, onClose]);
 
-  const loadInventory = async () => {
+  const loadInventory = async (resetPage = false) => {
     setLoadingItems(true);
     try {
-      // Fix: limit max 100 according to validation rules
-      const res = await getInventory({ page: 1, limit: 100 });
-      setItems(res.data.data.items || []);
+      // Load semua items dalam batches untuk performance
+      const res = await getInventory({ 
+        page: resetPage ? 1 : page, 
+        limit: 100 
+      });
+      
+      if (resetPage) {
+        setItems(res.data.data.items || []);
+        setPage(1);
+      } else {
+        setItems(prev => [...prev, ...(res.data.data.items || [])]);
+      }
+      
+      setTotalCount(res.data.data.total || 0);
+      setHasMore((res.data.data.items || []).length === 100);
     } catch {
       toast.error('Failed to load inventory.');
     } finally {
       setLoadingItems(false);
+    }
+  };
+
+  // Load more items
+  const loadMore = () => {
+    if (!loadingItems && hasMore) {
+      setPage(prev => prev + 1);
+      loadInventory(false);
     }
   };
 
@@ -174,40 +207,87 @@ export default function QuickSaleModal({ isOpen, onClose, onSuccess }) {
 
             {/* Item list */}
             {loadingItems ? (
-              <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text3)', fontSize: '14px' }}>Loading items…</div>
+              <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text3)', fontSize: '14px' }}>
+                Loading items…
+                {totalCount > 0 && (
+                  <p style={{ fontSize: '12px', marginTop: '8px', opacity: 0.7 }}>
+                    {totalCount} total items
+                  </p>
+                )}
+              </div>
             ) : filteredItems.length > 0 ? (
-              <div style={{ marginBottom: '16px', border: '1px solid var(--border)', borderRadius: '14px', overflow: 'hidden' }}>
-                {filteredItems.map((item, idx) => {
-                  const isSelected  = selectedItem?.id === item.id;
-                  const isOutOfStock = item.quantity === 0;
-                  return (
-                    <div key={item.id}
-                      onClick={() => handleItemSelect(item)}
-                      style={{
-                        padding: '11px 14px',
-                        borderBottom: idx < filteredItems.length - 1 ? '1px solid var(--border)' : 'none',
-                        cursor: isOutOfStock ? 'not-allowed' : 'pointer',
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                        background: isSelected ? 'linear-gradient(135deg,rgba(99,102,241,0.15),rgba(139,92,246,0.1))' : 'transparent',
-                        opacity: isOutOfStock ? 0.5 : 1,
-                        transition: 'background 0.15s',
-                      }}
-                      onMouseEnter={e => { if (!isSelected && !isOutOfStock) e.currentTarget.style.background = 'var(--surface2)'; }}
-                      onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = isSelected ? 'linear-gradient(135deg,rgba(99,102,241,0.15),rgba(139,92,246,0.1))' : 'transparent'; }}>
-                      <div>
-                        <p style={{ margin: 0, fontSize: '13px', fontWeight: '600', color: isSelected ? 'var(--accent3)' : 'var(--text)' }}>{item.name}</p>
-                        <p style={{ margin: 0, fontSize: '11px', color: 'var(--text3)' }}>
-                          {item.sku ? `${item.sku} · ` : ''}
-                          {isOutOfStock ? 'Out of stock' : `${item.quantity} ${item.unit} left`}
+              <>
+                <div style={{ marginBottom: '16px', border: '1px solid var(--border)', borderRadius: '14px', overflow: 'hidden' }}>
+                  {filteredItems.map((item, idx) => {
+                    const isSelected  = selectedItem?.id === item.id;
+                    const isOutOfStock = item.quantity === 0;
+                    return (
+                      <div key={item.id}
+                        onClick={() => handleItemSelect(item)}
+                        style={{
+                          padding: '11px 14px',
+                          borderBottom: idx < filteredItems.length - 1 ? '1px solid var(--border)' : 'none',
+                          cursor: isOutOfStock ? 'not-allowed' : 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                          background: isSelected ? 'linear-gradient(135deg,rgba(99,102,241,0.15),rgba(139,92,246,0.1))' : 'transparent',
+                          opacity: isOutOfStock ? 0.5 : 1,
+                          transition: 'background 0.15s',
+                        }}
+                        onMouseEnter={e => { if (!isSelected && !isOutOfStock) e.currentTarget.style.background = 'var(--surface2)'; }}
+                        onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = isSelected ? 'linear-gradient(135deg,rgba(99,102,241,0.15),rgba(139,92,246,0.1))' : 'transparent'; }}>
+                        <div>
+                          <p style={{ margin: 0, fontSize: '13px', fontWeight: '600', color: isSelected ? 'var(--accent3)' : 'var(--text)' }}>{item.name}</p>
+                          <p style={{ margin: 0, fontSize: '11px', color: 'var(--text3)' }}>
+                            {item.sku ? `${item.sku} · ` : ''}
+                            {isOutOfStock ? 'Out of stock' : `${item.quantity} ${item.unit} left`}
+                          </p>
+                        </div>
+                        <p style={{ margin: 0, fontSize: '13px', fontWeight: '700', color: isSelected ? 'var(--accent3)' : 'var(--green)', flexShrink: 0 }}>
+                          {format(item.price)}
                         </p>
                       </div>
-                      <p style={{ margin: 0, fontSize: '13px', fontWeight: '700', color: isSelected ? 'var(--accent3)' : 'var(--green)', flexShrink: 0 }}>
-                        {format(item.price)}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+                
+                {/* Load More Button */}
+                {hasMore && (
+                  <button
+                    type="button"
+                    onClick={loadMore}
+                    disabled={loadingItems}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '1px solid var(--border)',
+                      borderRadius: '10px',
+                      background: 'var(--surface2)',
+                      color: 'var(--text)',
+                      cursor: loadingItems ? 'not-allowed' : 'pointer',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={e => { if (!loadingItems) e.currentTarget.style.background = 'var(--surface3)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'var(--surface2)'; }}
+                  >
+                    {loadingItems ? (
+                      <div style={{ width: '14px', height: '14px', border: '2px solid var(--text3)', borderTop: '2px solid var(--accent)', borderRadius: '50%', animation: 'fabSpin 1s linear infinite' }} />
+                    ) : (
+                      <>
+                        <span>Load More</span>
+                        <span style={{ fontSize: '11px', color: 'var(--text3)', fontWeight: '400' }}>
+                          ({items.length} of {totalCount})
+                        </span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </>
             ) : search.trim() ? (
               <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text3)', fontSize: '13px' }}>
                 No items found for "{search}"
