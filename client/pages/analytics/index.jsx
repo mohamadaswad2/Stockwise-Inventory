@@ -197,48 +197,122 @@ export default function AnalyticsPage() {
               </div>
 
               {data?.trend?.length > 0 ? (
-                /* KEY FIX: top:10 right:20 prevents line from clipping */
-                <ResponsiveContainer width="100%" height={260}>
-                  <AreaChart
-                    data={data.trend}
-                    margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                    <defs>
-                      {[
-                        { id: 'aRev',    color: '#22c55e' },
-                        { id: 'aProfit', color: '#6366f1' },
-                        { id: 'aCost',   color: '#f59e0b' },
-                      ].map(({ id, color }) => (
-                        <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%"  stopColor={color} stopOpacity={0.25} />
-                          <stop offset="95%" stopColor={color} stopOpacity={0} />
-                        </linearGradient>
-                      ))}
-                    </defs>
-                    <CartesianGrid stroke="var(--surface3)" strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="date"
-                      tick={{ fill: 'var(--text3)', fontSize: 10 }}
-                      tickFormatter={d => d?.slice(5)}
-                      axisLine={false} tickLine={false} tickMargin={8} />
-                    <YAxis
-                      tick={{ fill: 'var(--text3)', fontSize: 10 }}
-                      axisLine={false} tickLine={false}
-                      tickFormatter={v => format(v, 0)}
-                      width={52} tickMargin={4} />
-                    <Tooltip content={<ChartTooltip formatFn={format} />}
-                      cursor={{ stroke: 'var(--border2)', strokeWidth: 1 }} />
-                    <Legend iconType="circle" iconSize={7}
-                      formatter={v => <span style={{ fontSize: 11, color: 'var(--text2)' }}>{v}</span>} />
-                    <Area type="monotone" dataKey="revenue" name="Revenue"
-                      stroke="#22c55e" strokeWidth={2.5} fill="url(#aRev)" dot={false}
-                      activeDot={{ r: 4, fill: '#22c55e', strokeWidth: 0 }} />
-                    <Area type="monotone" dataKey="profit" name="Profit"
-                      stroke="#6366f1" strokeWidth={2} fill="url(#aProfit)" dot={false}
-                      activeDot={{ r: 4, fill: '#6366f1', strokeWidth: 0 }} />
-                    <Area type="monotone" dataKey="cost" name="Cost"
-                      stroke="#f59e0b" strokeWidth={2} fill="url(#aCost)" dot={false}
-                      activeDot={{ r: 4, fill: '#f59e0b', strokeWidth: 0 }} />
-                  </AreaChart>
-                </ResponsiveContainer>
+                <div style={{ width: '100%', height: '320px', position: 'relative', overflow: 'hidden' }}>
+                  <ResponsiveContainer 
+                    width="100%" 
+                    height="100%"
+                    key={`${period}-${data?.trend?.length}`} // Force re-render on data change
+                  >
+                    <AreaChart
+                      data={data.trend}
+                      margin={{ top: 10, right: 20, left: 10, bottom: 10 }}
+                      syncId="analytics" // Sync multiple charts if needed
+                    >
+                      <defs>
+                        {[
+                          { id: 'aRev',    color: '#22c55e' },
+                          { id: 'aProfit', color: '#6366f1' },
+                          { id: 'aCost',   color: '#f59e0b' },
+                        ].map(({ id, color }) => (
+                          <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%"  stopColor={color} stopOpacity={0.12} />
+                            <stop offset="95%" stopColor={color} stopOpacity={0} />
+                          </linearGradient>
+                        ))}
+                      </defs>
+                      
+                      {/* Professional grid */}
+                      <CartesianGrid 
+                        stroke="var(--surface3)" 
+                        strokeDasharray="2 2" 
+                        strokeWidth={0.5}
+                        vertical={false} 
+                      />
+                      
+                      {/* X-axis with proper formatting */}
+                      <XAxis 
+                        dataKey="date"
+                        tick={{ fill: 'var(--text3)', fontSize: 9 }}
+                        tickFormatter={d => d?.slice(5)}
+                        axisLine={false} 
+                        tickLine={false} 
+                        tickMargin={10}
+                        padding={{ left: 20, right: 20 }}
+                      />
+                      
+                      {/* Y-axis with auto-scaling */}
+                      <YAxis
+                        tick={{ fill: 'var(--text3)', fontSize: 9 }}
+                        axisLine={false} 
+                        tickLine={false}
+                        tickFormatter={v => format(v, 0)}
+                        width={70} 
+                        tickMargin={8}
+                        // Auto-scaling domain - calculates from actual data
+                        domain={['auto', 'auto']}
+                        allowDataOverflow={false}
+                        // Nice rounding for better visual appearance
+                        tickCount={6}
+                      />
+                      
+                      {/* Professional tooltip */}
+                      <Tooltip 
+                        content={<ChartTooltip formatFn={format} />}
+                        cursor={{ stroke: 'var(--border2)', strokeWidth: 0.5, strokeDasharray: '4 4' }}
+                        isAnimationActive={false}
+                      />
+                      
+                      {/* Clean legend */}
+                      <Legend 
+                        iconType="circle" 
+                        iconSize={6}
+                        wrapperStyle={{ paddingTop: '10px' }}
+                        formatter={v => <span style={{ fontSize: 10, color: 'var(--text2)' }}>{v}</span>} />
+                      
+                      {/* Revenue line - smooth, no overshoot */}
+                      <Area 
+                        type="monotone" 
+                        dataKey="revenue" 
+                        name="Revenue"
+                        stroke="#22c55e" 
+                        strokeWidth={1.5} 
+                        fill="url(#aRev)" 
+                        dot={false}
+                        activeDot={{ r: 4, fill: '#22c55e', strokeWidth: 1 }}
+                        animationDuration={800}
+                        animationBegin={0}
+                      />
+                      
+                      {/* Profit line - smooth, no overshoot */}
+                      <Area 
+                        type="monotone" 
+                        dataKey="profit" 
+                        name="Profit"
+                        stroke="#6366f1" 
+                        strokeWidth={2} 
+                        fill="url(#aProfit)" 
+                        dot={false}
+                        activeDot={{ r: 4, fill: '#6366f1', strokeWidth: 1 }}
+                        animationDuration={800}
+                        animationBegin={100}
+                      />
+                      
+                      {/* Cost line - smooth, no overshoot */}
+                      <Area 
+                        type="monotone" 
+                        dataKey="cost" 
+                        name="Cost"
+                        stroke="#f59e0b" 
+                        strokeWidth={2} 
+                        fill="url(#aCost)" 
+                        dot={false}
+                        activeDot={{ r: 4, fill: '#f59e0b', strokeWidth: 1 }}
+                        animationDuration={800}
+                        animationBegin={200}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
               ) : (
                 <div className="flex flex-col items-center justify-center h-40" style={{ color: 'var(--text3)' }}>
                   <BarChart2 size={32} className="mb-2 opacity-20" />
