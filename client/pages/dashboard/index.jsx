@@ -19,41 +19,34 @@ function StockTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   return (
     <div style={{
-      background: getThemeColor('surface'),
-      border: '1px solid var(--border2)',
+      background: 'rgba(30,35,60,0.95)',
+      border: '1px solid rgba(99,150,255,0.25)',
       borderRadius: '10px',
       padding: '8px 14px',
       boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
     }}>
-      <p style={{ color: getThemeColor('accent'), fontSize: '11px', fontWeight: 700, marginBottom: '2px' }}>
+      <p style={{ color: '#60a5fa', fontSize: '11px', fontWeight: 700, marginBottom: '2px' }}>
         {label}
       </p>
-      <p style={{ color: getThemeColor('text'), fontSize: '15px', fontWeight: 800, margin: 0 }}>
+      <p style={{ color: '#fff', fontSize: '15px', fontWeight: 800, margin: 0 }}>
         {payload[0]?.value} units
       </p>
     </div>
   );
 }
 
-// ── Donut chart label ────────────────────────────────────────
+// ── Donut chart label ────────────────────────────────────────────────
 function DonutLabel({ cx, cy, total }) {
   return (
     <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
-      <tspan x={cx} dy="-6" fontSize="22" fontWeight="800" fill={getThemeColor('text')}>{total}</tspan>
-      <tspan x={cx} dy="20" fontSize="11" fill={getThemeColor('text3')}>total</tspan>
+      <tspan x={cx} dy="-6" fontSize="22" fontWeight="800" fill="var(--text)">{total}</tspan>
+      <tspan x={cx} dy="20" fontSize="11" fill="var(--text3)">total</tspan>
     </text>
   );
 }
 
-// Theme-consistent chart colors - gunakan getThemeColor function
-const CHART_COLORS = [
-  getThemeColor('accent'), 
-  getThemeColor('green'), 
-  getThemeColor('orange'), 
-  getThemeColor('purple'), 
-  getThemeColor('blue'), 
-  getThemeColor('red')
-];
+// Deep blue palette — like the screenshot
+const CHART_COLORS = ['#3b82f6','#60a5fa','#93c5fd','#1d4ed8','#2563eb','#1e40af'];
 const PERIODS = ['7d','14d','30d'];
 
 export default function DashboardPage() {
@@ -283,13 +276,13 @@ export default function DashboardPage() {
                       <div key={d.name} className="flex items-center justify-between">
                         <div className="flex items-center gap-2 min-w-0">
                           <div className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                            style={{ background: getThemeColor(CHART_COLORS[i % CHART_COLORS.length]) }} />
-                          <span className="text-xs truncate" style={{ color: getThemeColor('text2') }}>
+                            style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
+                          <span className="text-xs truncate" style={{ color: 'rgba(203,213,225,0.8)' }}>
                             {d.name}
                           </span>
                         </div>
                         <span className="text-xs font-bold flex-shrink-0 ml-2"
-                          style={{ color: getThemeColor(CHART_COLORS[i % CHART_COLORS.length]) }}>
+                          style={{ color: CHART_COLORS[i % CHART_COLORS.length] }}>
                           {pct}%
                         </span>
                       </div>
