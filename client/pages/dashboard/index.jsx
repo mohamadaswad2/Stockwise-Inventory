@@ -222,7 +222,7 @@ export default function DashboardPage() {
                       cx="50%" cy="50%"
                       innerRadius={0} outerRadius={0}
                       dataKey="value"
-                      label={totalUnits > 0 ? <DonutLabel total={totalUnits} /> : null}
+                      label={totalUnits > 0 ? (props) => <DonutLabel {...props} total={totalUnits} /> : null}
                       labelLine={false}
                     />
                     <Tooltip
