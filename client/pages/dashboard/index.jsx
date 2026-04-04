@@ -26,6 +26,29 @@ function ChartTooltip({ active, payload, label }) {
 
 const BAR_COLORS = ['#6366f1','#8b5cf6','#a855f7','#c084fc','#d8b4fe','#818cf8'];
 
+// Custom label untuk donut chart
+const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+  const RADIAN = Math.PI / 180;
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+  const x = cx + radius * Math.cos(-midAngle * RADIAN);
+  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+  if (percent < 0.05) return null; // Hide label for small slices
+
+  return (
+    <text 
+      x={x} 
+      y={y} 
+      fill="white" 
+      textAnchor={x > cx ? 'start' : 'end'} 
+      dominantBaseline="central"
+      className="text-xs font-semibold"
+    >
+      {`${(percent * 100).toFixed(0)}%`}
+    </text>
+  );
+};
+
 export default function DashboardPage() {
   const { user }            = useAuth();
   const { stats, loading }  = useDashboard();
@@ -125,40 +148,103 @@ export default function DashboardPage() {
           </div>
 
           {/* Category breakdown — real data */}
-          <div className="card p-5">
-            <h3 className="text-sm font-bold mb-1" style={{ color: 'var(--text)' }}>
-              By Category
-            </h3>
-            <p className="text-xs mb-4" style={{ color: 'var(--text2)' }}>
-              Stock distribution
-            </p>
-            {loading ? (
-              <div className="flex items-center justify-center h-48"><Spinner /></div>
-            ) : hasCategoryData ? (
-              <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
-                  <Pie
-                    data={categoryData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={40}
-                    outerRadius={80}
-                    paddingAngle={2}
-                    dataKey="value"
-                  >
-                    {categoryData.map((_, i) => (
-                      <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip content={<ChartTooltip />} />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-48"
-                style={{ color: 'var(--text3)' }}>
-                <p className="text-sm">No categories yet.</p>
-              </div>
-            )}
+          <div className="card p-5 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-500/10 to-blue-500/10 rounded-full blur-3xl"></div>
+            <div className="relative z-10">
+              <h3 className="text-sm font-bold mb-1" style={{ color: 'var(--text)' }}>
+                By Category
+              </h3>
+              <p className="text-xs mb-4" style={{ color: 'var(--text2)' }}>
+                Stock distribution
+              </p>
+              {loading ? (
+                <div className="flex items-center justify-center h-48"><Spinner /></div>
+              ) : hasCategoryData ? (
+                <ResponsiveContainer width="100%" height={220}>
+                  <PieChart>
+                    <defs>
+                      {BAR_COLORS.map((color, index) => (
+                        <linearGradient key={index} id={`gradient-${index}`} x1="0" y1="0" x2="1" y2="1">
+                          <stop offset="0%" stopColor={color} stopOpacity={1} />
+                          <stop offset="100%" stopColor={color} stopOpacity={0.7} />
+                        </linearGradient>
+                      ))}
+                    </defs>
+                    <Pie
+                      data={categoryData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={45}
+                      outerRadius={85}
+                      paddingAngle={3}
+                      dataKey="value"
+                      labelLine={false}
+                      label={renderCustomizedLabel}
+                      animationBegin={0}
+                      animationDuration={1500}
+                      animationEasing="ease-out"
+                    >
+                      {categoryData.map((_, i) => (
+                        <Cell 
+                          key={i} 
+                          fill={`url(#gradient-${i})`}
+                          className="hover:opacity-80 transition-all duration-300 cursor-pointer"
+                          style={{
+                            filter: 'drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1))'
+                          }}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          return (
+                            <div className="card px-4 py-3 shadow-xl border-0">
+                              <p className="font-semibold text-sm" style={{ color: 'var(--text)' }}>
+                                {payload[0].name}
+                              </p>
+                              <p className="text-xs mt-1" style={{ color: 'var(--text2)' }}>
+                                {payload[0].value} units
+                              </p>
+                              <p className="text-xs font-medium mt-1" style={{ color: payload[0].payload.fill }}>
+                                {((payload[0].value / categoryData.reduce((sum, item) => sum + item.value, 0)) * 100).toFixed(1)}%
+                              </p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-48"
+                  style={{ color: 'var(--text3)' }}>
+                  <Package size={32} className="mb-2 opacity-30" />
+                  <p className="text-sm">No categories yet.</p>
+                </div>
+              )}
+              
+              {/* Legend */}
+              {hasCategoryData && (
+                <div className="mt-4 space-y-2">
+                  {categoryData.slice(0, 3).map((item, index) => (
+                    <div key={index} className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-3 h-3 rounded-full shadow-sm"
+                          style={{ backgroundColor: BAR_COLORS[index % BAR_COLORS.length] }}
+                        />
+                        <span style={{ color: 'var(--text2)' }}>{item.name}</span>
+                      </div>
+                      <span className="font-medium" style={{ color: 'var(--text)' }}>
+                        {item.value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
