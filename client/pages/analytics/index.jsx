@@ -197,11 +197,11 @@ export default function AnalyticsPage() {
               </div>
 
               {data?.trend?.length > 0 ? (
-                <div style={{ width: '100%', height: '260px', position: 'relative' }}>
+                <div style={{ width: '100%', height: '280px', position: 'relative', overflow: 'hidden' }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart
                       data={data.trend}
-                      margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                      margin={{ top: 25, right: 35, left: 25, bottom: 25 }}>
                       <defs>
                         {[
                           { id: 'aRev',    color: '#22c55e' },
@@ -209,7 +209,7 @@ export default function AnalyticsPage() {
                           { id: 'aCost',   color: '#f59e0b' },
                         ].map(({ id, color }) => (
                           <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%"  stopColor={color} stopOpacity={0.25} />
+                            <stop offset="5%"  stopColor={color} stopOpacity={0.15} />
                             <stop offset="95%" stopColor={color} stopOpacity={0} />
                           </linearGradient>
                         ))}
@@ -219,28 +219,28 @@ export default function AnalyticsPage() {
                         tick={{ fill: 'var(--text3)', fontSize: 10 }}
                         tickFormatter={d => d?.slice(5)}
                         axisLine={false} tickLine={false} tickMargin={8}
-                        padding={{ left: 10, right: 10 }} />
+                        padding={{ left: 15, right: 15 }} />
                       <YAxis
                         tick={{ fill: 'var(--text3)', fontSize: 10 }}
                         axisLine={false} tickLine={false}
                         tickFormatter={v => format(v, 0)}
-                        width={52} tickMargin={4}
-                        padding={{ top: 20, bottom: 20 }}
-                        domain={[0, 'dataMax + 10%']}
+                        width={60} tickMargin={6}
+                        padding={{ top: 25, bottom: 25 }}
+                        domain={[0, 'dataMax + 5%']}
                         allowDataOverflow={false} />
                       <Tooltip content={<ChartTooltip formatFn={format} />}
                         cursor={{ stroke: 'var(--border2)', strokeWidth: 1 }} />
                       <Legend iconType="circle" iconSize={7}
                         formatter={v => <span style={{ fontSize: 11, color: 'var(--text2)' }}>{v}</span>} />
                       <Area type="monotone" dataKey="revenue" name="Revenue"
-                        stroke="#22c55e" strokeWidth={2.5} fill="url(#aRev)" dot={false}
-                        activeDot={{ r: 4, fill: '#22c55e', strokeWidth: 0 }} />
+                        stroke="#22c55e" strokeWidth={2} fill="url(#aRev)" dot={false}
+                        activeDot={{ r: 3, fill: '#22c55e', strokeWidth: 0 }} />
                       <Area type="monotone" dataKey="profit" name="Profit"
                         stroke="#6366f1" strokeWidth={2} fill="url(#aProfit)" dot={false}
-                        activeDot={{ r: 4, fill: '#6366f1', strokeWidth: 0 }} />
+                        activeDot={{ r: 3, fill: '#6366f1', strokeWidth: 0 }} />
                       <Area type="monotone" dataKey="cost" name="Cost"
                         stroke="#f59e0b" strokeWidth={2} fill="url(#aCost)" dot={false}
-                        activeDot={{ r: 4, fill: '#f59e0b', strokeWidth: 0 }} />
+                        activeDot={{ r: 3, fill: '#f59e0b', strokeWidth: 0 }} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
