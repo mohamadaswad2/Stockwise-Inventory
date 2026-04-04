@@ -5,17 +5,20 @@ const periodToInterval = (period) => {
   return map[period] || '30 days';
 };
 
+const periodToDays = (period) => {
+  const map = { '24h':1,'7d':7,'1m':30,'2m':60,'3m':90,'year':365 };
+  return map[period] || 30;
+};
+
 const create = async (userId, { itemId, type, quantity, unitPrice, costPrice, note }) => {
   const client = await db.getClient();
   try {
     await client.query('BEGIN');
-
     const txRes = await client.query(
       `INSERT INTO transactions (user_id, item_id, type, quantity, unit_price, cost_price, note)
        VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
       [userId, itemId, type, quantity, unitPrice || 0, costPrice || 0, note || null]
     );
-
     const delta = (type === 'sale' || type === 'usage') ? -Math.abs(quantity) : Math.abs(quantity);
     const itemRes = await client.query(
       `UPDATE inventory_items SET quantity = GREATEST(0, quantity + $1), updated_at = NOW()
@@ -23,7 +26,6 @@ const create = async (userId, { itemId, type, quantity, unitPrice, costPrice, no
        RETURNING id, name, quantity, low_stock_threshold, unit`,
       [delta, itemId, userId]
     );
-
     if (!itemRes.rows[0]) throw new Error('Item not found.');
     await client.query('COMMIT');
     return { transaction: txRes.rows[0], item: itemRes.rows[0] };
@@ -35,14 +37,11 @@ const create = async (userId, { itemId, type, quantity, unitPrice, costPrice, no
 
 const findAll = async (userId, { page = 1, limit = 20, type, itemId, dateFrom, dateTo }) => {
   const offset = (page - 1) * limit;
-  const conds = ['t.user_id = $1'];
-  const vals  = [userId];
-  let i = 2;
+  const conds = ['t.user_id = $1']; const vals = [userId]; let i = 2;
   if (type)     { conds.push(`t.type = $${i++}`);        vals.push(type); }
   if (itemId)   { conds.push(`t.item_id = $${i++}`);     vals.push(itemId); }
   if (dateFrom) { conds.push(`t.created_at >= $${i++}`); vals.push(dateFrom); }
   if (dateTo)   { conds.push(`t.created_at <= $${i++}`); vals.push(dateTo); }
-
   const where = conds.join(' AND ');
   const [countRes, rowRes] = await Promise.all([
     db.query(`SELECT COUNT(*) FROM transactions t WHERE ${where}`, vals),
@@ -78,8 +77,12 @@ const getSalesSummary = async (userId, period = '1m') => {
 
 const getRevenueTrend = async (userId, period = '1m') => {
   const interval = periodToInterval(period);
+  const days     = periodToDays(period);
+  // Use day grouping for <= 30 days, week for longer periods
   const groupBy  = ['24h','7d','1m'].includes(period) ? 'day' : 'week';
-  const result   = await db.query(`
+
+  // Query actual data
+  const result = await db.query(`
     SELECT
       DATE_TRUNC('${groupBy}', created_at)::date AS date,
       COALESCE(SUM(quantity * unit_price)              FILTER (WHERE type='sale'), 0) AS revenue,
@@ -91,12 +94,53 @@ const getRevenueTrend = async (userId, period = '1m') => {
     GROUP BY DATE_TRUNC('${groupBy}', created_at)
     ORDER BY date ASC`, [userId]
   );
-  return result.rows;
+
+  // Build a complete date series — fill missing dates with 0
+  // This prevents gaps that cause chart spikes
+  const dataMap = {};
+  for (const row of result.rows) {
+    const key = row.date instanceof Date
+      ? row.date.toISOString().slice(0, 10)
+      : String(row.date).slice(0, 10);
+    dataMap[key] = {
+      date:         key,
+      revenue:      Math.max(0, parseFloat(row.revenue)     || 0),
+      profit:       parseFloat(row.profit)                  || 0, // profit can be negative
+      cost:         Math.max(0, parseFloat(row.cost)        || 0),
+      transactions: parseInt(row.transactions)              || 0,
+    };
+  }
+
+  // Generate full date range
+  const filled = [];
+  const now    = new Date();
+
+  if (groupBy === 'day') {
+    for (let d = days - 1; d >= 0; d--) {
+      const dt  = new Date(now);
+      dt.setDate(dt.getDate() - d);
+      const key = dt.toISOString().slice(0, 10);
+      filled.push(dataMap[key] || {
+        date: key, revenue: 0, profit: 0, cost: 0, transactions: 0,
+      });
+    }
+  } else {
+    // For week grouping — use actual query results (already sparse by week)
+    // Just ensure values are valid numbers
+    for (const row of result.rows) {
+      const key = row.date instanceof Date
+        ? row.date.toISOString().slice(0, 10)
+        : String(row.date).slice(0, 10);
+      filled.push(dataMap[key]);
+    }
+  }
+
+  return filled;
 };
 
 const getTopItems = async (userId, period = '1m', limit = 20) => {
   const interval = periodToInterval(period);
-  const result   = await db.query(`
+  const result = await db.query(`
     SELECT
       i.id, i.name, i.sku, i.unit, i.price, i.cost_price,
       SUM(t.quantity)                                  AS units_sold,
@@ -119,15 +163,12 @@ const getTopItems = async (userId, period = '1m', limit = 20) => {
 
 const getItemSalesHistory = async (userId, itemId, period = '1m') => {
   const interval = periodToInterval(period);
-  const result   = await db.query(`
-    SELECT
-      t.id, t.quantity, t.unit_price, t.cost_price,
+  const result = await db.query(`
+    SELECT t.id, t.quantity, t.unit_price, t.cost_price,
       (t.quantity * t.unit_price)               AS total,
       (t.quantity * (t.unit_price-t.cost_price)) AS profit,
-      t.note, t.created_at,
-      i.name AS item_name, i.unit
-    FROM transactions t
-    JOIN inventory_items i ON i.id = t.item_id
+      t.note, t.created_at, i.name AS item_name, i.unit
+    FROM transactions t JOIN inventory_items i ON i.id = t.item_id
     WHERE t.user_id = $1 AND t.item_id = $2 AND t.type = 'sale'
       AND t.created_at > NOW() - INTERVAL '${interval}'
     ORDER BY t.created_at DESC`, [userId, itemId]
