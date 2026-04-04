@@ -201,7 +201,7 @@ export default function DashboardPage() {
 
             {loading ? (
               <div className="flex items-center justify-center h-44"><Spinner /></div>
-            ) : hasCat && categoryData && categoryData.length > 0 ? (
+            ) : hasCat && Array.isArray(categoryData) && categoryData.length > 0 ? (
               <>
                 <ResponsiveContainer width="100%" height={150}>
                   <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
@@ -214,7 +214,7 @@ export default function DashboardPage() {
                       strokeWidth={0}
                       label={false}>
                       {categoryData.map((entry, i) => (
-                        <Cell key={`cell-${entry.name || i}`} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />
+                        <Cell key={`cell-${entry?.name || i}`} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />
                       ))}
                     </Pie>
                     <Pie
@@ -222,7 +222,7 @@ export default function DashboardPage() {
                       cx="50%" cy="50%"
                       innerRadius={0} outerRadius={0}
                       dataKey="value"
-                      label={<DonutLabel total={totalUnits} />}
+                      label={totalUnits > 0 ? <DonutLabel total={totalUnits} /> : null}
                       labelLine={false}
                     />
                     <Tooltip
@@ -243,12 +243,12 @@ export default function DashboardPage() {
                   {categoryData.map((d, i) => {
                     const pct = totalUnits > 0 ? ((d.value / totalUnits) * 100).toFixed(0) : 0;
                     return (
-                      <div key={d.name} className="flex items-center justify-between">
+                      <div key={d?.name || i} className="flex items-center justify-between">
                         <div className="flex items-center gap-2 min-w-0">
                           <div className="w-2 h-2 rounded-full flex-shrink-0"
                             style={{ background: DONUT_COLORS[i % DONUT_COLORS.length] }} />
                           <span className="text-xs truncate" style={{ color: 'var(--text2)' }}>
-                            {d.name}
+                            {d?.name || 'Unknown'}
                           </span>
                         </div>
                         <span className="text-xs font-bold flex-shrink-0 ml-2"
