@@ -197,118 +197,98 @@ export default function AnalyticsPage() {
               </div>
 
               {data?.trend?.length > 0 ? (
-                <div style={{ width: '100%', height: '320px', position: 'relative', overflow: 'hidden' }}>
-                  <ResponsiveContainer 
-                    width="100%" 
-                    height="100%"
-                    key={`${period}-${data?.trend?.length}`} // Force re-render on data change
-                  >
+                <div style={{ width: '100%', height: '280px', position: 'relative' }}>
+                  <ResponsiveContainer width="100%" height="100%">
                     <AreaChart
                       data={data.trend}
-                      margin={{ top: 10, right: 20, left: 10, bottom: 10 }}
-                      syncId="analytics" // Sync multiple charts if needed
+                      margin={{ top: 20, right: 20, left: 10, bottom: 20 }}
                     >
                       <defs>
-                        {[
-                          { id: 'aRev',    color: '#22c55e' },
-                          { id: 'aProfit', color: '#6366f1' },
-                          { id: 'aCost',   color: '#f59e0b' },
-                        ].map(({ id, color }) => (
-                          <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%"  stopColor={color} stopOpacity={0.12} />
-                            <stop offset="95%" stopColor={color} stopOpacity={0} />
-                          </linearGradient>
-                        ))}
+                        <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#22c55e" stopOpacity={0.1} />
+                          <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id="profitGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1} />
+                          <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id="costGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.1} />
+                          <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                        </linearGradient>
                       </defs>
                       
-                      {/* Professional grid */}
                       <CartesianGrid 
                         stroke="var(--surface3)" 
-                        strokeDasharray="2 2" 
+                        strokeDasharray="1 1" 
                         strokeWidth={0.5}
                         vertical={false} 
                       />
                       
-                      {/* X-axis with proper formatting */}
                       <XAxis 
                         dataKey="date"
                         tick={{ fill: 'var(--text3)', fontSize: 9 }}
                         tickFormatter={d => d?.slice(5)}
                         axisLine={false} 
                         tickLine={false} 
-                        tickMargin={10}
-                        padding={{ left: 20, right: 20 }}
+                        tickMargin={8}
+                        padding={{ left: 10, right: 10 }}
                       />
                       
-                      {/* Y-axis with auto-scaling */}
                       <YAxis
                         tick={{ fill: 'var(--text3)', fontSize: 9 }}
                         axisLine={false} 
                         tickLine={false}
                         tickFormatter={v => format(v, 0)}
-                        width={70} 
-                        tickMargin={8}
-                        // Auto-scaling domain - calculates from actual data
+                        width={60} 
+                        tickMargin={4}
                         domain={['auto', 'auto']}
                         allowDataOverflow={false}
-                        // Nice rounding for better visual appearance
-                        tickCount={6}
+                        tickCount={5}
                       />
                       
-                      {/* Professional tooltip */}
                       <Tooltip 
                         content={<ChartTooltip formatFn={format} />}
-                        cursor={{ stroke: 'var(--border2)', strokeWidth: 0.5, strokeDasharray: '4 4' }}
-                        isAnimationActive={false}
+                        cursor={{ stroke: 'var(--border2)', strokeWidth: 0.5, strokeDasharray: '3 3' }}
                       />
                       
-                      {/* Clean legend */}
                       <Legend 
                         iconType="circle" 
                         iconSize={6}
-                        wrapperStyle={{ paddingTop: '10px' }}
+                        wrapperStyle={{ paddingTop: '8px' }}
                         formatter={v => <span style={{ fontSize: 10, color: 'var(--text2)' }}>{v}</span>} />
                       
-                      {/* Revenue line - smooth, no overshoot */}
                       <Area 
                         type="monotone" 
                         dataKey="revenue" 
                         name="Revenue"
                         stroke="#22c55e" 
                         strokeWidth={1.5} 
-                        fill="url(#aRev)" 
+                        fill="url(#revenueGrad)" 
                         dot={false}
-                        activeDot={{ r: 4, fill: '#22c55e', strokeWidth: 1 }}
-                        animationDuration={800}
-                        animationBegin={0}
+                        activeDot={false}
                       />
                       
-                      {/* Profit line - smooth, no overshoot */}
                       <Area 
                         type="monotone" 
                         dataKey="profit" 
                         name="Profit"
                         stroke="#6366f1" 
-                        strokeWidth={2} 
-                        fill="url(#aProfit)" 
+                        strokeWidth={1.5} 
+                        fill="url(#profitGrad)" 
                         dot={false}
-                        activeDot={{ r: 4, fill: '#6366f1', strokeWidth: 1 }}
-                        animationDuration={800}
-                        animationBegin={100}
+                        activeDot={false}
                       />
                       
-                      {/* Cost line - smooth, no overshoot */}
                       <Area 
                         type="monotone" 
                         dataKey="cost" 
                         name="Cost"
                         stroke="#f59e0b" 
-                        strokeWidth={2} 
-                        fill="url(#aCost)" 
+                        strokeWidth={1.5} 
+                        fill="url(#costGrad)" 
                         dot={false}
-                        activeDot={{ r: 4, fill: '#f59e0b', strokeWidth: 1 }}
-                        animationDuration={800}
-                        animationBegin={200}
+                        activeDot={false}
                       />
                     </AreaChart>
                   </ResponsiveContainer>

@@ -80,14 +80,14 @@ const getRevenueTrend = async (userId, period = '1m') => {
   const interval = periodToInterval(period);
   
   const result = await db.query(`
-    WITH date_series AS (
+    WITH date_range AS (
       SELECT generate_series(
         (NOW() - INTERVAL '${interval}')::date,
         CURRENT_DATE,
         INTERVAL '1 day'
       )::date AS date
     ),
-    transaction_data AS (
+    daily_transactions AS (
       SELECT
         DATE_TRUNC('day', created_at)::date AS date,
         COALESCE(SUM(quantity * unit_price) FILTER (WHERE type='sale'), 0) AS revenue,
@@ -98,13 +98,13 @@ const getRevenueTrend = async (userId, period = '1m') => {
       GROUP BY DATE_TRUNC('day', created_at)
     )
     SELECT 
-      ds.date::text AS date,
-      ROUND(COALESCE(td.revenue, 0), 2) AS revenue,
-      ROUND(COALESCE(td.profit, 0), 2) AS profit,
-      ROUND(COALESCE(td.cost, 0), 2) AS cost
-    FROM date_series ds
-    LEFT JOIN transaction_data td ON ds.date = td.date
-    ORDER BY ds.date ASC
+      dr.date::text AS date,
+      ROUND(COALESCE(dt.revenue, 0), 2) AS revenue,
+      ROUND(COALESCE(dt.profit, 0), 2) AS profit,
+      ROUND(COALESCE(dt.cost, 0), 2) AS cost
+    FROM date_range dr
+    LEFT JOIN daily_transactions dt ON dr.date = dt.date
+    ORDER BY dr.date ASC
   `, [userId]);
 
   return result.rows;
