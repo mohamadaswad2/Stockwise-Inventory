@@ -139,13 +139,12 @@ export default function SalesPage() {
                     />
                     <Tooltip content={<ChartTooltip formatFn={format} />} />
                     <Area 
-                      type="monotone" 
+                      type="natural" 
                       dataKey="revenue" 
                       name="Revenue"
                       stroke="#22c55e" 
                       strokeWidth={2.5} 
                       fill="url(#sRev)"
-                      connectNulls={false}
                     />
                   </AreaChart>
                 </ResponsiveContainer>
