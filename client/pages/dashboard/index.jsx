@@ -1,7 +1,10 @@
 import Head from 'next/head';
 import Link from 'next/link';
-import { Plus, Package, TrendingUp, Users } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { Plus, TrendingUp, ArrowRight, Package } from 'lucide-react';
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, BarChart, Bar, Cell,
+} from 'recharts';
 import ProtectedRoute from '../../components/layout/ProtectedRoute';
 import AppLayout from '../../components/layout/AppLayout';
 import StatsGrid from '../../components/dashboard/StatsGrid';
@@ -136,22 +139,20 @@ export default function DashboardPage() {
               <div className="flex items-center justify-center h-48"><Spinner /></div>
             ) : hasCategoryData ? (
               <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
-                  <Pie
-                    data={categoryData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={40}
-                    outerRadius={80}
-                    paddingAngle={2}
-                    dataKey="value"
-                  >
+                <BarChart data={categoryData} layout="vertical"
+                  margin={{ top: 0, right: 4, left: 4, bottom: 0 }}>
+                  <XAxis type="number" tick={{ fill: 'var(--text3)', fontSize: 10 }}
+                    axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="name" width={80}
+                    tick={{ fill: 'var(--text2)', fontSize: 10 }}
+                    axisLine={false} tickLine={false} />
+                  <Tooltip content={<ChartTooltip />} />
+                  <Bar dataKey="value" name="Units" radius={[0,4,4,0]}>
                     {categoryData.map((_, i) => (
                       <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />
                     ))}
-                  </Pie>
-                  <Tooltip content={<ChartTooltip />} />
-                </PieChart>
+                  </Bar>
+                </BarChart>
               </ResponsiveContainer>
             ) : (
               <div className="flex flex-col items-center justify-center h-48"
