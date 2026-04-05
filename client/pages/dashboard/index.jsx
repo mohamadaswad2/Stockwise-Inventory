@@ -32,6 +32,7 @@ function ChartTooltip({ active, payload, label }) {
 
 // Donut centre label
 function DonutLabel({ viewBox, total }) {
+    if (!viewBox) return null;
   const { cx, cy } = viewBox;
   return (
     <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
