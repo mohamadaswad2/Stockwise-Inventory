@@ -32,7 +32,6 @@ function ChartTooltip({ active, payload, label }) {
 
 // Donut centre label
 function DonutLabel({ viewBox, total }) {
-  if (!viewBox) return null;
   const { cx, cy } = viewBox;
   return (
     <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
@@ -68,6 +67,7 @@ export default function DashboardPage() {
 
   const categoryData = (stats?.category_breakdown || [])
     .filter(r => parseInt(r.total_quantity) > 0)
+    .slice(0, 5)
     .map(row => ({ name: row.name, value: parseInt(row.total_quantity || 0) }));
 
   const totalUnits = categoryData.reduce((s, d) => s + d.value, 0);
@@ -131,50 +131,44 @@ export default function DashboardPage() {
             {loading ? (
               <div className="flex items-center justify-center h-52"><Spinner /></div>
             ) : hasStock ? (
-              /* KEY FIX: proper margins so line never clips outside container */
-              <ResponsiveContainer width="100%" height={220}>
+              <ResponsiveContainer width="100%" height={220} key={activePeriod}>
                 <AreaChart
                   data={chartData}
-                  margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                  margin={{ top: 16, right: 24, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="dashGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%"   stopColor="#6366f1" stopOpacity={0.35} />
-                      <stop offset="95%"  stopColor="#6366f1" stopOpacity={0} />
+                      <stop offset="5%"  stopColor="#6366f1" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid
-                    stroke="var(--surface3)"
-                    strokeDasharray="3 3"
-                    vertical={false}
-                  />
+                  <CartesianGrid stroke="var(--surface3)" strokeDasharray="3 3" vertical={false} />
                   <XAxis
                     dataKey="date"
                     tick={{ fill: 'var(--text3)', fontSize: 10 }}
-                    axisLine={false}
-                    tickLine={false}
-                    tickMargin={8}
+                    axisLine={false} tickLine={false} tickMargin={8}
+                    interval="preserveStartEnd"
                   />
                   <YAxis
                     tick={{ fill: 'var(--text3)', fontSize: 10 }}
-                    axisLine={false}
-                    tickLine={false}
+                    axisLine={false} tickLine={false}
                     allowDecimals={false}
-                    width={36}
-                    tickMargin={4}
+                    width={40} tickMargin={4}
+                    domain={['auto', 'auto']}
                   />
                   <Tooltip
                     content={<ChartTooltip />}
-                    cursor={{ stroke: 'var(--accent)', strokeWidth: 1, strokeDasharray: '4 4' }}
+                    cursor={{ stroke: 'var(--border2)', strokeWidth: 1 }}
                   />
                   <Area
                     type="monotone"
                     dataKey="qty"
                     name="Units"
                     stroke="#6366f1"
-                    strokeWidth={2.5}
+                    strokeWidth={1.5}
                     fill="url(#dashGrad)"
                     dot={false}
-                    activeDot={{ r: 5, fill: '#fff', stroke: '#6366f1', strokeWidth: 2 }}
+                    activeDot={{ r: 3, fill: '#6366f1', strokeWidth: 0 }}
+                    isAnimationActive={false}
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -223,7 +217,7 @@ export default function DashboardPage() {
                       cx="50%" cy="50%"
                       innerRadius={0} outerRadius={0}
                       dataKey="value"
-                      label={(props) => <DonutLabel {...props} total={totalUnits} />}
+                      label={<DonutLabel total={totalUnits} />}
                       labelLine={false}
                     />
                     <Tooltip

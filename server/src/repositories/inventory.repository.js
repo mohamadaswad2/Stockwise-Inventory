@@ -215,7 +215,27 @@ const getStockTrend = async (userId) => {
      GROUP BY DATE(created_at) ORDER BY date ASC`,
     [userId]
   );
-  return result.rows;
+
+  // Fill missing dates with 0 — same fix as analytics trend
+  const dataMap = {};
+  for (const row of result.rows) {
+    const key = String(row.date).slice(0, 10);
+    dataMap[key] = {
+      date:          key,
+      items_added:   parseInt(row.items_added)    || 0,
+      total_quantity: parseInt(row.total_quantity) || 0,
+    };
+  }
+
+  const filled = [];
+  const now    = new Date();
+  for (let d = 29; d >= 0; d--) {
+    const dt  = new Date(now);
+    dt.setDate(dt.getDate() - d);
+    const key = dt.toISOString().slice(0, 10);
+    filled.push(dataMap[key] || { date: key, items_added: 0, total_quantity: 0 });
+  }
+  return filled;
 };
 
 const getCategoryBreakdown = async (userId) => {
