@@ -30,17 +30,7 @@ function ChartTooltip({ active, payload, label }) {
   );
 }
 
-// Donut centre label
-function DonutLabel({ viewBox, total }) {
-    if (!viewBox) return null;
-  const { cx, cy } = viewBox;
-  return (
-    <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
-      <tspan x={cx} dy="-7" fontSize="20" fontWeight="800" fill="var(--text)">{total}</tspan>
-      <tspan x={cx} dy="18" fontSize="10" fill="var(--text3)">units</tspan>
-    </text>
-  );
-}
+// No DonutCentreLabel component needed — use absolute div overlay instead
 
 const DONUT_COLORS = ['#6366f1','#8b5cf6','#a855f7','#c084fc','#3b82f6','#60a5fa'];
 const PERIODS = [
@@ -57,7 +47,7 @@ export default function DashboardPage() {
   const rawTrend = stats?.stock_trend || [];
   const allTrend = rawTrend.map(row => ({
     date: row.date?.slice(5) || row.date,
-    qty:  parseInt(row.total_quantity || 0),
+    qty:  parseInt(row.qty || 0),
   }));
 
   const periodDays = { '7d': 7, '14d': 14, '30d': 30 };
@@ -109,7 +99,7 @@ export default function DashboardPage() {
                   Stock Activity
                 </h3>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--text2)' }}>
-                  Units added to inventory
+                  Units restocked (last 30 days)
                 </p>
               </div>
               {/* Period selector */}
@@ -199,40 +189,48 @@ export default function DashboardPage() {
               <div className="flex items-center justify-center h-44"><Spinner /></div>
             ) : hasCat ? (
               <>
-                <ResponsiveContainer width="100%" height={150}>
-                  <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-                    <Pie
-                      data={categoryData}
-                      cx="50%" cy="50%"
-                      innerRadius={44} outerRadius={66}
-                      paddingAngle={3}
-                      dataKey="value"
-                      strokeWidth={0}
-                      label={false}>
-                      {categoryData.map((_, i) => (
-                        <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Pie
-                      data={[{ value: 1 }]}
-                      cx="50%" cy="50%"
-                      innerRadius={0} outerRadius={0}
-                      dataKey="value"
-                      label={<DonutLabel total={totalUnits} />}
-                      labelLine={false}
-                    />
-                    <Tooltip
-                      formatter={(v, n) => [`${v} units`, n]}
-                      contentStyle={{
-                        background: 'var(--surface)',
-                        border: '1px solid var(--border2)',
-                        borderRadius: '10px',
-                        fontSize: '11px',
-                        color: 'var(--text)',
-                      }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
+                {/* Donut chart with absolute overlay for centre label */}
+                <div style={{ position: 'relative', height: '150px' }}>
+                  <ResponsiveContainer width="100%" height={150}>
+                    <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+                      <Pie
+                        data={categoryData}
+                        cx="50%" cy="50%"
+                        innerRadius={44} outerRadius={66}
+                        paddingAngle={3}
+                        dataKey="value"
+                        strokeWidth={0}
+                        isAnimationActive={false}>
+                        {categoryData.map((_, i) => (
+                          <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        formatter={(v, n) => [`${v} units`, n]}
+                        contentStyle={{
+                          background: 'var(--surface)',
+                          border: '1px solid var(--border2)',
+                          borderRadius: '10px',
+                          fontSize: '11px',
+                          color: 'var(--text)',
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  {/* Centre label — absolute overlay, zero crash risk */}
+                  <div style={{
+                    position: 'absolute', top: '50%', left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    textAlign: 'center', pointerEvents: 'none',
+                  }}>
+                    <p style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: 'var(--text)', lineHeight: 1 }}>
+                      {totalUnits}
+                    </p>
+                    <p style={{ margin: 0, fontSize: '10px', color: 'var(--text3)', marginTop: '3px' }}>
+                      units
+                    </p>
+                  </div>
+                </div>
 
                 {/* Legend */}
                 <div className="space-y-1.5 mt-3">

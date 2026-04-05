@@ -208,22 +208,28 @@ const getLowStockItems = async (userId, limit = 5) => {
 };
 
 const getStockTrend = async (userId) => {
+  // Track restock + new item transactions — shows real stock movement
+  // This is what makes the chart go UP when user adds stock
   const result = await db.query(
-    `SELECT DATE(created_at) AS date, COUNT(*) AS items_added, SUM(quantity) AS total_quantity
-     FROM inventory_items
-     WHERE user_id = $1 AND is_active = TRUE AND created_at > NOW() - INTERVAL '30 days'
-     GROUP BY DATE(created_at) ORDER BY date ASC`,
+    `SELECT
+       DATE(created_at) AS date,
+       COALESCE(SUM(quantity) FILTER (WHERE type IN ('restock','adjustment') AND quantity > 0), 0) AS qty_added,
+       COUNT(*) FILTER (WHERE type = 'sale') AS sales_count
+     FROM transactions
+     WHERE user_id = $1 AND created_at > NOW() - INTERVAL '30 days'
+     GROUP BY DATE(created_at)
+     ORDER BY date ASC`,
     [userId]
   );
 
-  // Fill missing dates with 0 — same fix as analytics trend
+  // Fill all 30 days — missing dates get 0
   const dataMap = {};
   for (const row of result.rows) {
     const key = String(row.date).slice(0, 10);
     dataMap[key] = {
-      date:          key,
-      items_added:   parseInt(row.items_added)    || 0,
-      total_quantity: parseInt(row.total_quantity) || 0,
+      date:       key,
+      qty:        parseInt(row.qty_added)    || 0,
+      sales:      parseInt(row.sales_count)  || 0,
     };
   }
 
@@ -233,7 +239,7 @@ const getStockTrend = async (userId) => {
     const dt  = new Date(now);
     dt.setDate(dt.getDate() - d);
     const key = dt.toISOString().slice(0, 10);
-    filled.push(dataMap[key] || { date: key, items_added: 0, total_quantity: 0 });
+    filled.push(dataMap[key] || { date: key, qty: 0, sales: 0 });
   }
   return filled;
 };
