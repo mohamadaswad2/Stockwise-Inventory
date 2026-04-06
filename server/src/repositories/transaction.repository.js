@@ -82,35 +82,41 @@ const getRevenueTrend = async (userId, period = '1m') => {
   const interval = periodToInterval(period);
   const days     = periodToDays(period);
   
-  // Use hour grouping for 1h, day grouping for <= 30 days, week for longer periods
-  const groupBy  = period === '1h' ? 'hour' : 
-                   ['24h','7d','1m'].includes(period) ? 'day' : 'week';
-  const dataPoints = period === '1h' ? 12 : // 12 x 5-min intervals for 1 hour
-                     period === '24h' ? 24 : // 24 hours
-                     period === '7d' ? 7 :   // 7 days
-                     period === '1m' ? 30 :  // 30 days
-                     Math.floor(days);       // Other periods
+  // Use appropriate grouping based on period
+  let groupBy, dateFormat, dataPoints;
+  
+  if (period === '1h') {
+    groupBy = "DATE_TRUNC('hour', created_at)";
+    dateFormat = 'YYYY-MM-DD HH24:MI:SS';
+    dataPoints = 12;
+  } else if (['24h', '7d', '1m'].includes(period)) {
+    groupBy = "DATE_TRUNC('day', created_at)";
+    dateFormat = 'YYYY-MM-DD';
+    dataPoints = period === '24h' ? 24 : (period === '7d' ? 7 : 30);
+  } else {
+    groupBy = "DATE_TRUNC('week', created_at)";
+    dateFormat = 'YYYY-MM-DD';
+    dataPoints = Math.floor(days / 7);
+  }
 
   // Query actual data
   const result = await db.query(`
     SELECT
-      ${period === '1h' ? "DATE_TRUNC('hour', created_at)::timestamp" : "DATE_TRUNC('${groupBy}', created_at)::date"} AS date,
+      TO_CHAR(${groupBy}, '${dateFormat}') AS date,
       COALESCE(SUM(quantity * unit_price)              FILTER (WHERE type='sale'), 0) AS revenue,
       COALESCE(SUM(quantity * (unit_price-cost_price)) FILTER (WHERE type='sale'), 0) AS profit,
       COALESCE(SUM(quantity * cost_price)              FILTER (WHERE type='sale'), 0) AS cost,
       COUNT(*) FILTER (WHERE type='sale') AS transactions
     FROM transactions
     WHERE user_id = $1 AND created_at > NOW() - INTERVAL '${interval}'
-    GROUP BY ${period === '1h' ? "DATE_TRUNC('hour', created_at)" : "DATE_TRUNC('${groupBy}', created_at)"}
-    ORDER BY date ASC`, [userId]
+    GROUP BY ${groupBy}
+    ORDER BY ${groupBy} ASC`, [userId]
   );
 
   // Build a complete date/time series — fill missing dates with 0
   const dataMap = {};
   for (const row of result.rows) {
-    const key = row.date instanceof Date
-      ? (period === '1h' ? row.date.toISOString().slice(0, 13) : row.date.toISOString().slice(0, 10))
-      : String(row.date).slice(0, period === '1h' ? 13 : 10);
+    const key = row.date;
     dataMap[key] = {
       date:         key,
       revenue:      Math.max(0, parseFloat(row.revenue)     || 0),
@@ -125,32 +131,30 @@ const getRevenueTrend = async (userId, period = '1m') => {
   const now    = new Date();
 
   if (period === '1h') {
-    // Generate hourly intervals for the last hour
+    // Generate hourly intervals for the last 12 hours
     for (let i = dataPoints - 1; i >= 0; i--) {
       const dt = new Date(now);
       dt.setHours(dt.getHours() - i);
-      const key = dt.toISOString().slice(0, 13); // YYYY-MM-DDTHH
+      dt.setMinutes(0, 0, 0); // Round to hour
+      const key = dt.toISOString().slice(0, 16).replace('T', ' '); // YYYY-MM-DD HH:MI
       filled.push(dataMap[key] || {
         date: key, revenue: 0, profit: 0, cost: 0, transactions: 0,
       });
     }
-  } else if (groupBy === 'day') {
-    for (let d = days - 1; d >= 0; d--) {
+  } else if (['24h', '7d', '1m'].includes(period)) {
+    for (let d = dataPoints - 1; d >= 0; d--) {
       const dt  = new Date(now);
       dt.setDate(dt.getDate() - d);
-      const key = dt.toISOString().slice(0, 10);
+      dt.setHours(0, 0, 0, 0); // Round to day
+      const key = dt.toISOString().slice(0, 10); // YYYY-MM-DD
       filled.push(dataMap[key] || {
         date: key, revenue: 0, profit: 0, cost: 0, transactions: 0,
       });
     }
   } else {
-    // For week grouping — use actual query results (already sparse by week)
-    // Just ensure values are valid numbers
+    // For week grouping — use actual query results
     for (const row of result.rows) {
-      const key = row.date instanceof Date
-        ? row.date.toISOString().slice(0, 10)
-        : String(row.date).slice(0, 10);
-      filled.push(dataMap[key]);
+      filled.push(dataMap[row.date]);
     }
   }
 
