@@ -18,12 +18,12 @@ import { getAnalytics } from '../../services/transaction.service';
 import toast from 'react-hot-toast';
 
 const PERIODS = [
-  { key: '24h',  label: '24H',    advanced: false },
-  { key: '7d',   label: '7D',     advanced: false },
-  { key: '1m',   label: '1M',     advanced: false },
-  { key: '2m',   label: '2M',     advanced: true  },
-  { key: '3m',   label: '3M',     advanced: true  },
-  { key: 'year', label: 'Year',   advanced: true  },
+  { key: 'today', label: 'Today',  advanced: false },
+  { key: '7d',    label: '7D',     advanced: false },
+  { key: '1m',    label: '1M',     advanced: false },
+  { key: '2m',    label: '2M',     advanced: true  },
+  { key: '3m',    label: '3M',     advanced: true  },
+  { key: 'year',  label: 'Year',   advanced: true  },
 ];
 const ADVANCED_PLANS = ['premium', 'deluxe'];
 
@@ -72,7 +72,7 @@ function ChartTooltip({ active, payload, label, formatFn }) {
 export default function AnalyticsPage() {
   const { user }               = useAuth();
   const { formatFull, format } = useCurrency();
-  const [period,  setPeriod]   = useState('1m');
+  const [period,  setPeriod]   = useState('today');
   const [data,    setData]     = useState(null);
   const [loading, setLoading]  = useState(true);
 
@@ -164,7 +164,7 @@ export default function AnalyticsPage() {
             <Link href="/settings/billing"
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold"
               style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--accent3)', border: '1px solid rgba(99,102,241,0.2)' }}>
-              <Lock size={11} /> Unlock 2M, 3M, Year
+              <Lock size={11} /> Unlock 2M, 3M, Year →
             </Link>
           )}
         </div>

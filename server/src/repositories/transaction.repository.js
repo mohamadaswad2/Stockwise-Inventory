@@ -1,28 +1,45 @@
 const db = require('../config/database');
 
-const periodToInterval = (period) => {
-  const map = { '24h':'24 hours','7d':'7 days','1m':'30 days','2m':'60 days','3m':'90 days','year':'365 days' };
-  return map[period] || '30 days';
+// ─────────────────────────────────────────────────────────────────────────────
+// PERIOD FILTER HELPER
+// "today" → DATE_TRUNC('day', NOW()) — dari 00:00 hari ini sahaja
+// "7d"    → NOW() - 7 days (rolling)
+// Lain-lain → rolling interval seperti biasa
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Returns SQL WHERE clause fragment for created_at filter
+const periodFilter = (period) => {
+  if (period === 'today') {
+    // Dari 00:00 hari ini — BUKAN rolling 24 jam
+    return `created_at >= DATE_TRUNC('day', NOW())`;
+  }
+  const map = {
+    '7d': '7 days', '1m': '30 days',
+    '2m': '60 days', '3m': '90 days', 'year': '365 days',
+  };
+  const interval = map[period] || '30 days';
+  return `created_at > NOW() - INTERVAL '${interval}'`;
 };
 
+// Days count for filling date range
 const periodToDays = (period) => {
-  const map = { '24h':1,'7d':7,'1m':30,'2m':60,'3m':90,'year':365 };
+  if (period === 'today') return 1;
+  const map = { '7d':7,'1m':30,'2m':60,'3m':90,'year':365 };
   return map[period] || 30;
+};
+
+// Group by day or week
+const periodGroupBy = (period) => {
+  return ['today','7d','1m'].includes(period) ? 'day' : 'week';
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // COST-ONLY LOGIC:
 // Bila unit_price = 0 → transaksi "cost-only" (item percuma / kos operasi)
-//   revenue = 0
+//   revenue = 0  (unit_price=0 already gives 0)
 //   cost    = quantity * cost_price  (tetap dikira)
-//   profit  = 0  (BUKAN negatif — ini bukan rugi, hanya kos)
+//   profit  = 0  (BUKAN negatif)
 //   margin  = 0%
-//
-// SQL helper:
-//   CASE WHEN unit_price > 0
-//     THEN (quantity * (unit_price - cost_price))
-//     ELSE 0
-//   END  AS profit
 // ─────────────────────────────────────────────────────────────────────────────
 
 const create = async (userId, { itemId, type, quantity, unitPrice, costPrice, note }) => {
@@ -62,7 +79,6 @@ const findAll = async (userId, { page = 1, limit = 20, type, itemId, dateFrom, d
     db.query(
       `SELECT t.*,
               (t.quantity * t.unit_price) AS total,
-              -- cost-only: profit = 0 when unit_price = 0
               CASE WHEN t.unit_price > 0
                 THEN (t.quantity * (t.unit_price - t.cost_price))
                 ELSE 0
@@ -77,72 +93,68 @@ const findAll = async (userId, { page = 1, limit = 20, type, itemId, dateFrom, d
 };
 
 const getSalesSummary = async (userId, period = '1m') => {
-  const interval = periodToInterval(period);
+  const filter = periodFilter(period);
   const result = await db.query(`
     SELECT
-      -- revenue: normal (unit_price=0 contributes 0 naturally)
-      COALESCE(SUM(quantity * unit_price) FILTER (WHERE type='sale'), 0)   AS total_revenue,
-      COALESCE(SUM(quantity)              FILTER (WHERE type='sale'), 0)   AS total_units_sold,
-      COUNT(*)                            FILTER (WHERE type='sale')       AS total_transactions,
+      COALESCE(SUM(quantity * unit_price) FILTER (WHERE type='sale'), 0) AS total_revenue,
+      COALESCE(SUM(quantity)              FILTER (WHERE type='sale'), 0) AS total_units_sold,
+      COUNT(*)                            FILTER (WHERE type='sale')     AS total_transactions,
 
+      -- Period-specific metrics
       COALESCE(SUM(quantity * unit_price)
-        FILTER (WHERE type='sale' AND created_at > NOW()-INTERVAL '${interval}'), 0) AS revenue_period,
+        FILTER (WHERE type='sale' AND ${filter}), 0) AS revenue_period,
 
-      -- profit: cost-only transactions (unit_price=0) contribute 0, not negative
+      -- Profit: cost-only (unit_price=0) contributes 0, not negative
       COALESCE(SUM(
         CASE WHEN unit_price > 0
           THEN quantity * (unit_price - cost_price)
-          ELSE 0
-        END
-      ) FILTER (WHERE type='sale' AND created_at > NOW()-INTERVAL '${interval}'), 0) AS profit_period,
+          ELSE 0 END
+      ) FILTER (WHERE type='sale' AND ${filter}), 0) AS profit_period,
 
-      -- cost: always tracked regardless of unit_price
+      -- Cost: always tracked
       COALESCE(SUM(quantity * cost_price)
-        FILTER (WHERE type='sale' AND created_at > NOW()-INTERVAL '${interval}'), 0) AS cost_period,
+        FILTER (WHERE type='sale' AND ${filter}), 0) AS cost_period,
 
+      -- Fixed reference periods for Sales page cards
       COALESCE(SUM(quantity * unit_price)
-        FILTER (WHERE type='sale' AND created_at > NOW()-INTERVAL '30 days'), 0) AS revenue_30d,
+        FILTER (WHERE type='sale' AND created_at > NOW() - INTERVAL '30 days'), 0) AS revenue_30d,
       COALESCE(SUM(quantity * unit_price)
-        FILTER (WHERE type='sale' AND created_at > NOW()-INTERVAL '7 days'),  0) AS revenue_7d
+        FILTER (WHERE type='sale' AND created_at > NOW() - INTERVAL '7 days'), 0)  AS revenue_7d
     FROM transactions WHERE user_id = $1`, [userId]
   );
   return result.rows[0];
 };
 
 const getRevenueTrend = async (userId, period = '1m') => {
-  const interval = periodToInterval(period);
-  const days     = periodToDays(period);
-  const groupBy  = ['24h','7d','1m'].includes(period) ? 'day' : 'week';
+  const filter  = periodFilter(period);
+  const days    = periodToDays(period);
+  const groupBy = periodGroupBy(period);
 
   const result = await db.query(`
     SELECT
       DATE_TRUNC('${groupBy}', created_at)::date AS date,
-      -- revenue
       COALESCE(SUM(quantity * unit_price) FILTER (WHERE type='sale'), 0) AS revenue,
-      -- profit: cost-only = 0
       COALESCE(SUM(
         CASE WHEN unit_price > 0
           THEN quantity * (unit_price - cost_price)
-          ELSE 0
-        END
+          ELSE 0 END
       ) FILTER (WHERE type='sale'), 0) AS profit,
-      -- cost: always tracked
       COALESCE(SUM(quantity * cost_price) FILTER (WHERE type='sale'), 0) AS cost,
       COUNT(*) FILTER (WHERE type='sale') AS transactions
     FROM transactions
-    WHERE user_id = $1 AND created_at > NOW() - INTERVAL '${interval}'
+    WHERE user_id = $1 AND ${filter}
     GROUP BY DATE_TRUNC('${groupBy}', created_at)
     ORDER BY date ASC`, [userId]
   );
 
-  // Fill complete date range
+  // Normalize all values — profit never negative (cost-only = 0)
   const dataMap = {};
   for (const row of result.rows) {
     const key = String(row.date).slice(0, 10);
     dataMap[key] = {
       date:         key,
       revenue:      Math.max(0, parseFloat(row.revenue) || 0),
-      profit:       Math.max(0, parseFloat(row.profit)  || 0), // never negative (cost-only = 0)
+      profit:       Math.max(0, parseFloat(row.profit)  || 0),
       cost:         Math.max(0, parseFloat(row.cost)    || 0),
       transactions: parseInt(row.transactions)           || 0,
     };
@@ -159,6 +171,7 @@ const getRevenueTrend = async (userId, period = '1m') => {
       filled.push(dataMap[key] || { date: key, revenue: 0, profit: 0, cost: 0, transactions: 0 });
     }
   } else {
+    // Week grouping — use actual rows (already sparse)
     for (const row of result.rows) {
       const key = String(row.date).slice(0, 10);
       filled.push(dataMap[key]);
@@ -169,34 +182,31 @@ const getRevenueTrend = async (userId, period = '1m') => {
 };
 
 const getTopItems = async (userId, period = '1m', limit = 20) => {
-  const interval = periodToInterval(period);
+  const filter = periodFilter(period);
   const result = await db.query(`
     SELECT
       i.id, i.name, i.sku, i.unit, i.price, i.cost_price,
-      SUM(t.quantity)                                   AS units_sold,
-      SUM(t.quantity * t.unit_price)                    AS revenue,
-      SUM(t.quantity * t.cost_price)                    AS total_cost,
-      -- profit: cost-only transactions contribute 0, not negative
+      SUM(t.quantity)                AS units_sold,
+      SUM(t.quantity * t.unit_price) AS revenue,
+      SUM(t.quantity * t.cost_price) AS total_cost,
+      -- profit: cost-only = 0
       SUM(
         CASE WHEN t.unit_price > 0
           THEN t.quantity * (t.unit_price - t.cost_price)
-          ELSE 0
-        END
-      )                                                 AS profit,
-      -- margin: only calculated when there is actual revenue
+          ELSE 0 END
+      ) AS profit,
+      -- margin: 0 when no revenue
       CASE WHEN SUM(t.quantity * t.unit_price) > 0
         THEN ROUND(
           SUM(CASE WHEN t.unit_price > 0
             THEN t.quantity * (t.unit_price - t.cost_price)
-            ELSE 0
-          END)
+            ELSE 0 END)
           / SUM(t.quantity * t.unit_price) * 100, 1)
         ELSE 0
-      END                                               AS margin_pct
+      END AS margin_pct
     FROM transactions t
     JOIN inventory_items i ON i.id = t.item_id
-    WHERE t.user_id = $1 AND t.type = 'sale'
-      AND t.created_at > NOW() - INTERVAL '${interval}'
+    WHERE t.user_id = $1 AND t.type = 'sale' AND ${filter}
     GROUP BY i.id, i.name, i.sku, i.unit, i.price, i.cost_price
     ORDER BY revenue DESC
     LIMIT $2`, [userId, limit]
@@ -205,20 +215,17 @@ const getTopItems = async (userId, period = '1m', limit = 20) => {
 };
 
 const getItemSalesHistory = async (userId, itemId, period = '1m') => {
-  const interval = periodToInterval(period);
+  const filter = periodFilter(period);
   const result = await db.query(`
     SELECT
       t.id, t.quantity, t.unit_price, t.cost_price,
       (t.quantity * t.unit_price) AS total,
-      -- profit: cost-only = 0
       CASE WHEN t.unit_price > 0
         THEN t.quantity * (t.unit_price - t.cost_price)
-        ELSE 0
-      END AS profit,
+        ELSE 0 END AS profit,
       t.note, t.created_at, i.name AS item_name, i.unit
     FROM transactions t JOIN inventory_items i ON i.id = t.item_id
-    WHERE t.user_id = $1 AND t.item_id = $2 AND t.type = 'sale'
-      AND t.created_at > NOW() - INTERVAL '${interval}'
+    WHERE t.user_id = $1 AND t.item_id = $2 AND t.type = 'sale' AND ${filter}
     ORDER BY t.created_at DESC`, [userId, itemId]
   );
   return result.rows;

@@ -2,7 +2,9 @@ const transactionRepo = require('../repositories/transaction.repository');
 const inventoryRepo   = require('../repositories/inventory.repository');
 const AppError = require('../utils/AppError');
 
-const ANALYTICS_PLANS = ['premium', 'deluxe'];
+const ANALYTICS_PLANS  = ['premium', 'deluxe'];
+const VALID_PERIODS    = ['today','7d','1m','2m','3m','year'];
+const ADVANCED_PERIODS = ['2m','3m','year'];
 
 const recordTransaction = async (userId, data) => {
   const { itemId, type, quantity } = data;
@@ -16,7 +18,7 @@ const recordTransaction = async (userId, data) => {
     type,
     quantity,
     unitPrice: data.unitPrice ?? item.price,
-    costPrice: data.costPrice ?? item.cost_price ?? 0, // required for profit tracking
+    costPrice: data.costPrice ?? item.cost_price ?? 0,
     note:      data.note,
   });
 };
@@ -32,17 +34,13 @@ const getTopItems = (userId, period = '1m') =>
 const getRevenueTrend = (userId, period = '1m') =>
   transactionRepo.getRevenueTrend(userId, period);
 
-// getAnalytics — 3 params: userId, userPlan, period
-// userPlan gates advanced periods (2m, 3m, year)
 const getAnalytics = async (userId, userPlan, period = '1m') => {
-  const isAdvanced    = ANALYTICS_PLANS.includes(userPlan);
-  const validPeriods  = ['24h','7d','1m','2m','3m','year'];
-  const advancedPeriods = ['2m','3m','year'];
+  const isAdvanced = ANALYTICS_PLANS.includes(userPlan);
 
-  if (!validPeriods.includes(period))
+  if (!VALID_PERIODS.includes(period))
     throw new AppError('Invalid period.', 400);
 
-  if (advancedPeriods.includes(period) && !isAdvanced)
+  if (ADVANCED_PERIODS.includes(period) && !isAdvanced)
     throw new AppError('Extended analytics require Premium or Deluxe plan.', 403);
 
   const [summary, trend, topItems] = await Promise.all([
