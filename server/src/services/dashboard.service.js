@@ -9,9 +9,13 @@ const getStats = async (userId) => {
   ]);
 
   return {
-    stats,
-    low_stock_items: lowStockItems,
-    stock_trend: stockTrend,
+    total_items:        parseInt(stats.total_items),
+    total_quantity:     parseInt(stats.total_quantity),
+    total_value:        parseFloat(stats.total_value).toFixed(2),
+    low_stock_count:    parseInt(stats.low_stock_count),
+    out_of_stock_count: parseInt(stats.out_of_stock_count),
+    low_stock_items:    lowStockItems,
+    stock_trend:        stockTrend,
     category_breakdown: categoryBreakdown,
   };
 };

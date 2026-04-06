@@ -26,22 +26,8 @@ const recordTransaction = async (userId, data) => {
 };
 
 const getTransactions    = (userId, query) => transactionRepo.findAll(userId, query);
-const getSalesSummary    = (userId, period = '1m') => transactionRepo.getSalesSummary(userId, period);
-const getTopItems        = (userId, period = '1m') => transactionRepo.getTopItems(userId, period);
-const getRevenueTrend    = (userId, period = '1m') => transactionRepo.getRevenueTrend(userId, period);
+const getSalesSummary    = (userId)         => transactionRepo.getSalesSummary(userId);
+const getTopItems        = (userId)         => transactionRepo.getTopItems(userId);
+const getRevenueTrend    = (userId, days)   => transactionRepo.getRevenueTrend(userId, days);
 
-const getAnalytics = async (userId, period = '1m') => {
-  const [summary, topItems, trend] = await Promise.all([
-    getSalesSummary(userId, period),
-    getTopItems(userId, period),
-    getRevenueTrend(userId, period),
-  ]);
-  
-  return {
-    summary,
-    topItems,
-    trend,
-  };
-};
-
-module.exports = { recordTransaction, getTransactions, getSalesSummary, getTopItems, getRevenueTrend, getAnalytics };
+module.exports = { recordTransaction, getTransactions, getSalesSummary, getTopItems, getRevenueTrend };

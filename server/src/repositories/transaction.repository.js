@@ -69,7 +69,7 @@ const getSalesSummary = async (userId, period = '1m') => {
       COALESCE(SUM(quantity * (unit_price - cost_price)) FILTER (WHERE type='sale' AND created_at > NOW()-INTERVAL '${interval}'), 0) AS profit_period,
       COALESCE(SUM(quantity * cost_price) FILTER (WHERE type='sale' AND created_at > NOW()-INTERVAL '${interval}'), 0) AS cost_period,
       COALESCE(SUM(quantity * unit_price) FILTER (WHERE type='sale' AND created_at > NOW()-INTERVAL '30 days'), 0) AS revenue_30d,
-      COALESCE(SUM(quantity * unit_price) FILTER (WHERE type='sale' AND created_at > NOW()-INTERVAL '7 days'), 0) AS revenue_7d
+      COALESCE(SUM(quantity * unit_price) FILTER (WHERE type='sale' AND created_at > NOW()-INTERVAL '7 days'),  0) AS revenue_7d
     FROM transactions WHERE user_id = $1`, [userId]
   );
   return result.rows[0];
