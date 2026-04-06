@@ -45,25 +45,30 @@ export default function DashboardPage() {
   const [activePeriod, setActivePeriod] = useState('30d');
 
   const rawTrend = stats?.stock_trend || [];
+
+  // Backend returns 30 days always — map fields, ensure numbers
   const allTrend = rawTrend.map(row => ({
-    date: row.date?.slice(5) || row.date,
-    qty:  parseInt(row.qty || 0),
+    date:    row.date?.slice(5) || String(row.date || '').slice(5),
+    qty:     Math.max(0, parseInt(row.qty     || row.qty_in  || 0)),
+    qty_out: Math.max(0, parseInt(row.qty_out || 0)),
   }));
 
+  // Slice by period — 30d = all 30 rows, 7d = last 7, 14d = last 14
   const periodDays = { '7d': 7, '14d': 14, '30d': 30 };
-  const stockTrend = allTrend.slice(-periodDays[activePeriod]);
-  const chartData  = stockTrend.length === 1
-    ? [{ ...stockTrend[0] }, { ...stockTrend[0] }]
-    : stockTrend;
+  const chartData  = allTrend.slice(-periodDays[activePeriod]);
 
+  // Category data — max 5, only non-zero
   const categoryData = (stats?.category_breakdown || [])
     .filter(r => parseInt(r.total_quantity) > 0)
     .slice(0, 5)
     .map(row => ({ name: row.name, value: parseInt(row.total_quantity || 0) }));
 
   const totalUnits = categoryData.reduce((s, d) => s + d.value, 0);
-  const hasStock   = chartData.length >= 2;
-  const hasCat     = categoryData.length > 0;
+
+  // hasStock = true if we have data rows AND at least one non-zero value
+  const hasActivity = chartData.some(d => d.qty > 0 || d.qty_out > 0);
+  const hasStock    = chartData.length >= 2 && hasActivity;
+  const hasCat      = categoryData.length > 0;
 
   return (
     <ProtectedRoute>
@@ -99,7 +104,7 @@ export default function DashboardPage() {
                   Stock Activity
                 </h3>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--text2)' }}>
-                  Units restocked (last 30 days)
+                  Stock added per day
                 </p>
               </div>
               {/* Period selector */}
@@ -167,10 +172,15 @@ export default function DashboardPage() {
               <div className="flex flex-col items-center justify-center h-52"
                 style={{ color: 'var(--text3)' }}>
                 <Package size={32} className="mb-2 opacity-30" />
-                <p className="text-sm">No stock activity yet.</p>
-                <Link href="/inventory" className="text-xs mt-2 font-medium"
+                <p className="text-sm font-medium" style={{ color: 'var(--text2)' }}>
+                  No stock activity in this period
+                </p>
+                <p className="text-xs mt-1 text-center px-4" style={{ color: 'var(--text3)' }}>
+                  Chart updates when you add items or restock
+                </p>
+                <Link href="/inventory" className="text-xs mt-3 font-semibold"
                   style={{ color: 'var(--accent3)' }}>
-                  Add your first item →
+                  Go to Inventory →
                 </Link>
               </div>
             )}

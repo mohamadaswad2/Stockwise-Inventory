@@ -208,38 +208,59 @@ const getLowStockItems = async (userId, limit = 5) => {
 };
 
 const getStockTrend = async (userId) => {
-  // Track restock + new item transactions — shows real stock movement
-  // This is what makes the chart go UP when user adds stock
-  const result = await db.query(
-    `SELECT
-       DATE(created_at) AS date,
-       COALESCE(SUM(quantity) FILTER (WHERE type IN ('restock','adjustment') AND quantity > 0), 0) AS qty_added,
-       COUNT(*) FILTER (WHERE type = 'sale') AS sales_count
-     FROM transactions
-     WHERE user_id = $1 AND created_at > NOW() - INTERVAL '30 days'
-     GROUP BY DATE(created_at)
-     ORDER BY date ASC`,
-    [userId]
-  );
+  // TWO sources of data combined:
+  // 1. inventory_items.created_at — when user added items via "Add Item" form
+  // 2. transactions — restock, sale, adjustment activity
+  // This ensures chart shows data regardless of which method user used
 
-  // Fill all 30 days — missing dates get 0
+  const [itemsResult, txResult] = await Promise.all([
+    // Source 1: items created each day
+    db.query(
+      `SELECT DATE(created_at) AS date,
+              COALESCE(SUM(quantity), 0) AS qty_in
+       FROM inventory_items
+       WHERE user_id = $1 AND is_active = TRUE
+         AND created_at > NOW() - INTERVAL '30 days'
+       GROUP BY DATE(created_at)`,
+      [userId]
+    ),
+    // Source 2: transaction activity (restock adds, sale deducts)
+    db.query(
+      `SELECT DATE(created_at) AS date,
+              COALESCE(SUM(quantity) FILTER (WHERE type IN ('restock','adjustment') AND quantity > 0), 0) AS qty_in,
+              COALESCE(SUM(quantity) FILTER (WHERE type = 'sale'), 0) AS qty_out
+       FROM transactions
+       WHERE user_id = $1
+         AND created_at > NOW() - INTERVAL '30 days'
+       GROUP BY DATE(created_at)`,
+      [userId]
+    ),
+  ]);
+
+  // Merge both sources by date
   const dataMap = {};
-  for (const row of result.rows) {
+
+  for (const row of itemsResult.rows) {
     const key = String(row.date).slice(0, 10);
-    dataMap[key] = {
-      date:       key,
-      qty:        parseInt(row.qty_added)    || 0,
-      sales:      parseInt(row.sales_count)  || 0,
-    };
+    if (!dataMap[key]) dataMap[key] = { date: key, qty: 0, qty_out: 0 };
+    dataMap[key].qty += parseInt(row.qty_in) || 0;
   }
 
+  for (const row of txResult.rows) {
+    const key = String(row.date).slice(0, 10);
+    if (!dataMap[key]) dataMap[key] = { date: key, qty: 0, qty_out: 0 };
+    dataMap[key].qty     += parseInt(row.qty_in)  || 0;
+    dataMap[key].qty_out += parseInt(row.qty_out) || 0;
+  }
+
+  // Fill complete 30-day range — missing dates = 0
   const filled = [];
   const now    = new Date();
   for (let d = 29; d >= 0; d--) {
     const dt  = new Date(now);
     dt.setDate(dt.getDate() - d);
     const key = dt.toISOString().slice(0, 10);
-    filled.push(dataMap[key] || { date: key, qty: 0, sales: 0 });
+    filled.push(dataMap[key] || { date: key, qty: 0, qty_out: 0 });
   }
   return filled;
 };
