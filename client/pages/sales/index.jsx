@@ -175,17 +175,20 @@ export default function SalesPage() {
                     <XAxis dataKey="date"
                       tick={{ fill: 'var(--text3)', fontSize: 10 }}
                       tickFormatter={d => d?.slice(5)}
-                      axisLine={false} tickLine={false} tickMargin={8} />
+                      axisLine={false} tickLine={false} tickMargin={8}
+                      interval="preserveStartEnd" />
                     <YAxis
                       tick={{ fill: 'var(--text3)', fontSize: 10 }}
                       axisLine={false} tickLine={false}
                       tickFormatter={v => format(v, 0)}
-                      width={52} tickMargin={4} />
+                      width={52} tickMargin={4}
+                      domain={['auto', 'auto']} />
                     <Tooltip content={<ChartTooltip formatFn={format} />}
                       cursor={{ stroke: 'var(--border2)', strokeWidth: 1 }} />
                     <Area type="monotone" dataKey="revenue" name="Revenue"
                       stroke="#22c55e" strokeWidth={2.5} fill="url(#salesGrad)"
-                      dot={false} activeDot={{ r: 4, fill: '#22c55e', strokeWidth: 0 }} />
+                      dot={false} activeDot={{ r: 4, fill: '#22c55e', strokeWidth: 0 }}
+                      isAnimationActive={false} />
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (

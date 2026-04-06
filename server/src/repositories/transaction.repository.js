@@ -132,13 +132,13 @@ const getRevenueTrend = async (userId, period = '1m') => {
   const now    = new Date();
 
   if (period === '1h') {
-    // Generate hourly intervals for the last hour (not 12 hours)
-    for (let i = 0; i < 12; i++) {
+    // Generate 5-minute intervals for the last hour
+    for (let i = 11; i >= 0; i--) {
       const dt = new Date(now);
-      dt.setMinutes(dt.getMinutes() - (i * 5)); // 5-minute intervals
+      dt.setMinutes(dt.getMinutes() - (i * 5));
       dt.setSeconds(0, 0); // Round to minute
       const key = dt.toISOString().slice(0, 16).replace('T', ' '); // YYYY-MM-DD HH:MI
-      filled.unshift(dataMap[key] || {
+      filled.push(dataMap[key] || {
         date: key, revenue: 0, profit: 0, cost: 0, transactions: 0,
       });
     }
