@@ -43,7 +43,7 @@ const PERIODS = [
 export default function DashboardPage() {
   const { user }           = useAuth();
   const { stats, loading, fetchStats } = useDashboard();
-  const [activePeriod, setActivePeriod] = useState('1d');
+  const [activePeriod, setActivePeriod] = useState('1h');
   const [lastUpdate, setLastUpdate] = useState(new Date());
 
   // Realtime polling - refresh based on period

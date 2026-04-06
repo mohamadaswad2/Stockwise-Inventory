@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -32,21 +32,48 @@ export default function SalesPage() {
   const { formatFull, format } = useCurrency();
   const [data,    setData]    = useState(null);
   const [loading, setLoading] = useState(true);
+  const [activePeriod, setActivePeriod] = useState('1d');
+  const [lastUpdate, setLastUpdate] = useState(new Date());
 
+  // Realtime polling - refresh based on period
   useEffect(() => {
-    getSalesSummary('1m')
-      .then(r => setData(r.data.data))
-      .catch(() => toast.error('Failed to load sales data.'))
-      .finally(() => setLoading(false));
-  }, []);
+    const intervalMs = activePeriod === '1h' ? 30000 : // 30 seconds for 1 hour
+                       activePeriod === '1d' ? 60000 : // 1 minute for 1 day
+                       300000; // 5 minutes for other periods
+
+    const interval = setInterval(() => {
+      fetchSalesData();
+      setLastUpdate(new Date());
+    }, intervalMs);
+
+    return () => clearInterval(interval);
+  }, [activePeriod]);
+
+  // Initial fetch and period change handler
+  useEffect(() => {
+    fetchSalesData();
+  }, [activePeriod]);
+
+  const fetchSalesData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await getSalesSummary(activePeriod);
+      setData(res.data.data);
+    } catch (error) {
+      toast.error('Failed to load sales data.');
+    } finally {
+      setLoading(false);
+    }
+  }, [activePeriod]);
 
   const s        = data?.sales;
   const topItems = data?.topItems || [];
   const trend    = data?.trend    || [];
-  const totRev   = Number(s?.total_revenue    || 0);
-  const totRev30 = Number(s?.revenue_30d      || 0);
-  const totUnits = Number(s?.total_units_sold || 0);
-  const totTx    = Number(s?.total_transactions || 0);
+  const totRev   = Number(s?.total_revenue    || 0);  // Total Revenue (all time)
+  const todayRev = Number(s?.revenue_period    || 0);  // Today Sales (based on period)
+  const rev30d   = Number(s?.revenue_30d       || 0);  // 30 Day Sales
+  const totUnits = Number(s?.total_units_sold || 0);   // Units Sold (all time)
+  const totTx    = Number(s?.total_transactions || 0); // Total Transactions (all time)
 
   return (
     <ProtectedRoute>
@@ -56,7 +83,14 @@ export default function SalesPage() {
         <div className="flex items-start justify-between mb-5 gap-4">
           <div>
             <h1 className="text-xl font-bold" style={{ color: 'var(--text)' }}>Sales</h1>
-            <p className="text-sm mt-0.5" style={{ color: 'var(--text2)' }}>Last 30 days overview</p>
+            <p className="text-sm mt-0.5" style={{ color: 'var(--text2)' }}>
+              {activePeriod === '1h' ? 'Last hour (realtime)' : 
+               activePeriod === '1d' ? 'Last 24 hours' : 
+               activePeriod === '7d' ? 'Last 7 days' :
+               activePeriod === '30d' ? 'Last 30 days' : 
+               'Sales overview'} • 
+              Last updated: {lastUpdate.toLocaleTimeString()}
+            </p>
           </div>
           <Link href="/analytics" className="btn-secondary text-sm flex items-center gap-2">
             <BarChart2 size={14} /> Full Analytics
@@ -72,9 +106,9 @@ export default function SalesPage() {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               {[
                 { icon: DollarSign,  label: 'Total Revenue', value: formatFull(totRev),    bg: 'rgba(34,197,94,0.12)',  c: 'var(--green)' },
-                { icon: TrendingUp,  label: 'Last 30 Days',  value: formatFull(totRev30),  bg: 'rgba(99,102,241,0.12)', c: 'var(--accent3)' },
-                { icon: ShoppingBag, label: 'Transactions',  value: totTx,                  bg: 'rgba(245,158,11,0.12)', c: 'var(--orange)' },
-                { icon: Package,     label: 'Units Sold',    value: totUnits,               bg: 'rgba(168,85,247,0.12)', c: 'var(--purple)' },
+                { icon: TrendingUp,  label: 'Today Sales',    value: formatFull(todayRev), bg: 'rgba(99,102,241,0.12)', c: 'var(--accent3)' },
+                { icon: ShoppingBag, label: '30 Day Sales',   value: formatFull(rev30d),   bg: 'rgba(245,158,11,0.12)', c: 'var(--orange)' },
+                { icon: Package,     label: 'Units Sold',    value: totUnits,            bg: 'rgba(168,85,247,0.12)', c: 'var(--purple)' },
               ].map(({ icon: Icon, label, value, bg, c }) => (
                 <div key={label} className="card p-4">
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-3" style={{ background: bg }}>
@@ -88,9 +122,43 @@ export default function SalesPage() {
 
             {/* Revenue chart */}
             <div className="card p-5">
-              <h3 className="text-sm font-bold mb-4" style={{ color: 'var(--text)' }}>
-                Revenue — Last 30 Days
-              </h3>
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h3 className="text-sm font-bold" style={{ color: 'var(--text)' }}>
+                    Revenue Trend
+                  </h3>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--text2)' }}>
+                    {activePeriod === '1h' ? 'Last hour (realtime)' : 
+                     activePeriod === '1d' ? 'Last 24 hours' : 
+                     activePeriod === '7d' ? 'Last 7 days' :
+                     activePeriod === '30d' ? 'Last 30 days' : 
+                     'Revenue overview'}
+                  </p>
+                </div>
+                {/* Period selector */}
+                <div className="flex gap-1 rounded-xl p-1" style={{ background: 'var(--surface2)' }}>
+                  {[
+                    { key: '1h', label: '1H' },
+                    { key: '1d', label: '1D' },
+                    { key: '7d', label: '7D' },
+                    { key: '30d', label: '30D' },
+                  ].map(({ key, label }) => (
+                    <button
+                      key={key}
+                      onClick={() => setActivePeriod(key)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-150"
+                      style={{
+                        background: activePeriod === key
+                          ? 'linear-gradient(135deg,var(--accent),var(--accent2))'
+                          : 'transparent',
+                        color: activePeriod === key ? '#fff' : 'var(--text2)',
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               {trend.length > 0 ? (
                 /* KEY FIX: top:10 right:20 so line never clips */
                 <ResponsiveContainer width="100%" height={200}>

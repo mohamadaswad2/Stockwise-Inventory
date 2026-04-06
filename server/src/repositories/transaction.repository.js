@@ -1,12 +1,14 @@
 const db = require('../config/database');
 
 const periodToInterval = (period) => {
-  const map = { '24h':'24 hours','7d':'7 days','1m':'30 days','2m':'60 days','3m':'90 days','year':'365 days' };
+  const map = { 
+    '1h':'1 hour','24h':'24 hours','7d':'7 days','1m':'30 days','2m':'60 days','3m':'90 days','year':'365 days' 
+  };
   return map[period] || '30 days';
 };
 
 const periodToDays = (period) => {
-  const map = { '24h':1,'7d':7,'1m':30,'2m':60,'3m':90,'year':365 };
+  const map = { '1h':0.04,'24h':1,'7d':7,'1m':30,'2m':60,'3m':90,'year':365 };
   return map[period] || 30;
 };
 
@@ -69,7 +71,8 @@ const getSalesSummary = async (userId, period = '1m') => {
       COALESCE(SUM(quantity * (unit_price - cost_price)) FILTER (WHERE type='sale' AND created_at > NOW()-INTERVAL '${interval}'), 0) AS profit_period,
       COALESCE(SUM(quantity * cost_price) FILTER (WHERE type='sale' AND created_at > NOW()-INTERVAL '${interval}'), 0) AS cost_period,
       COALESCE(SUM(quantity * unit_price) FILTER (WHERE type='sale' AND created_at > NOW()-INTERVAL '30 days'), 0) AS revenue_30d,
-      COALESCE(SUM(quantity * unit_price) FILTER (WHERE type='sale' AND created_at > NOW()-INTERVAL '7 days'),  0) AS revenue_7d
+      COALESCE(SUM(quantity * unit_price) FILTER (WHERE type='sale' AND created_at > NOW()-INTERVAL '7 days'),  0) AS revenue_7d,
+      COALESCE(SUM(quantity * unit_price) FILTER (WHERE type='sale' AND created_at > NOW()-INTERVAL '24 hours'), 0) AS revenue_24h
     FROM transactions WHERE user_id = $1`, [userId]
   );
   return result.rows[0];
@@ -78,30 +81,36 @@ const getSalesSummary = async (userId, period = '1m') => {
 const getRevenueTrend = async (userId, period = '1m') => {
   const interval = periodToInterval(period);
   const days     = periodToDays(period);
-  // Use day grouping for <= 30 days, week for longer periods
-  const groupBy  = ['24h','7d','1m'].includes(period) ? 'day' : 'week';
+  
+  // Use hour grouping for 1h, day grouping for <= 30 days, week for longer periods
+  const groupBy  = period === '1h' ? 'hour' : 
+                   ['24h','7d','1m'].includes(period) ? 'day' : 'week';
+  const dataPoints = period === '1h' ? 12 : // 12 x 5-min intervals for 1 hour
+                     period === '24h' ? 24 : // 24 hours
+                     period === '7d' ? 7 :   // 7 days
+                     period === '1m' ? 30 :  // 30 days
+                     Math.floor(days);       // Other periods
 
   // Query actual data
   const result = await db.query(`
     SELECT
-      DATE_TRUNC('${groupBy}', created_at)::date AS date,
+      ${period === '1h' ? "DATE_TRUNC('hour', created_at)::timestamp" : "DATE_TRUNC('${groupBy}', created_at)::date"} AS date,
       COALESCE(SUM(quantity * unit_price)              FILTER (WHERE type='sale'), 0) AS revenue,
       COALESCE(SUM(quantity * (unit_price-cost_price)) FILTER (WHERE type='sale'), 0) AS profit,
       COALESCE(SUM(quantity * cost_price)              FILTER (WHERE type='sale'), 0) AS cost,
       COUNT(*) FILTER (WHERE type='sale') AS transactions
     FROM transactions
     WHERE user_id = $1 AND created_at > NOW() - INTERVAL '${interval}'
-    GROUP BY DATE_TRUNC('${groupBy}', created_at)
+    GROUP BY ${period === '1h' ? "DATE_TRUNC('hour', created_at)" : "DATE_TRUNC('${groupBy}', created_at)"}
     ORDER BY date ASC`, [userId]
   );
 
-  // Build a complete date series — fill missing dates with 0
-  // This prevents gaps that cause chart spikes
+  // Build a complete date/time series — fill missing dates with 0
   const dataMap = {};
   for (const row of result.rows) {
     const key = row.date instanceof Date
-      ? row.date.toISOString().slice(0, 10)
-      : String(row.date).slice(0, 10);
+      ? (period === '1h' ? row.date.toISOString().slice(0, 13) : row.date.toISOString().slice(0, 10))
+      : String(row.date).slice(0, period === '1h' ? 13 : 10);
     dataMap[key] = {
       date:         key,
       revenue:      Math.max(0, parseFloat(row.revenue)     || 0),
@@ -111,11 +120,21 @@ const getRevenueTrend = async (userId, period = '1m') => {
     };
   }
 
-  // Generate full date range
+  // Generate full date/time range
   const filled = [];
   const now    = new Date();
 
-  if (groupBy === 'day') {
+  if (period === '1h') {
+    // Generate hourly intervals for the last hour
+    for (let i = dataPoints - 1; i >= 0; i--) {
+      const dt = new Date(now);
+      dt.setHours(dt.getHours() - i);
+      const key = dt.toISOString().slice(0, 13); // YYYY-MM-DDTHH
+      filled.push(dataMap[key] || {
+        date: key, revenue: 0, profit: 0, cost: 0, transactions: 0,
+      });
+    }
+  } else if (groupBy === 'day') {
     for (let d = days - 1; d >= 0; d--) {
       const dt  = new Date(now);
       dt.setDate(dt.getDate() - d);
