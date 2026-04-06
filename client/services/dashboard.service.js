@@ -3,4 +3,4 @@
  */
 import api from './api';
 
-export const getDashboardStats = (period = '30d') => api.get('/dashboard/stats', { params: { period } });
+export const getDashboardStats = () => api.get('/dashboard/stats');

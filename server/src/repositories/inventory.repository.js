@@ -207,128 +207,61 @@ const getLowStockItems = async (userId, limit = 5) => {
   return result.rows;
 };
 
-const getStockTrend = async (userId, period = '30d') => {
-  // Determine time range based on period
-  const timeRange = period === '1h' ? '1 hour' :
-                   period === '1d' ? '24 hours' :
-                   period === '7d' ? '7 days' : '30 days';
-  
-  const intervalType = period === '1h' ? 'hour' : 'day';
-  const dataPoints = period === '1h' ? 12 : // 12 x 5-min intervals for 1 hour
-                     period === '1d' ? 24 : // 24 hours
-                     period === '7d' ? 7 :  // 7 days
-                     30; // 30 days
+const getStockTrend = async (userId) => {
+  // TWO sources of data combined:
+  // 1. inventory_items.created_at — when user added items via "Add Item" form
+  // 2. transactions — restock, sale, adjustment activity
+  // This ensures chart shows data regardless of which method user used
 
-  const [itemsResult, txResult, currentStockResult] = await Promise.all([
-    // Source 1: items created by time period
+  const [itemsResult, txResult] = await Promise.all([
+    // Source 1: items created each day
     db.query(
-      intervalType === 'hour' 
-        ? `SELECT DATE_TRUNC('hour', created_at) AS date,
-                COALESCE(SUM(quantity), 0) AS qty_in
-         FROM inventory_items
-         WHERE user_id = $1 AND is_active = TRUE
-           AND created_at > NOW() - INTERVAL '${timeRange}'
-         GROUP BY DATE_TRUNC('hour', created_at)
-         ORDER BY date DESC`
-        : `SELECT DATE(created_at) AS date,
-                COALESCE(SUM(quantity), 0) AS qty_in
-         FROM inventory_items
-         WHERE user_id = $1 AND is_active = TRUE
-           AND created_at > NOW() - INTERVAL '${timeRange}'
-         GROUP BY DATE(created_at)
-         ORDER BY date DESC`,
-      [userId]
-    ),
-    // Source 2: transaction activity
-    db.query(
-      intervalType === 'hour'
-        ? `SELECT DATE_TRUNC('hour', created_at) AS date,
-                COALESCE(SUM(quantity) FILTER (WHERE type IN ('restock','adjustment') AND quantity > 0), 0) AS qty_in,
-                COALESCE(SUM(quantity) FILTER (WHERE type = 'sale'), 0) AS qty_out
-         FROM transactions
-         WHERE user_id = $1
-           AND created_at > NOW() - INTERVAL '${timeRange}'
-         GROUP BY DATE_TRUNC('hour', created_at)
-         ORDER BY date DESC`
-        : `SELECT DATE(created_at) AS date,
-                COALESCE(SUM(quantity) FILTER (WHERE type IN ('restock','adjustment') AND quantity > 0), 0) AS qty_in,
-                COALESCE(SUM(quantity) FILTER (WHERE type = 'sale'), 0) AS qty_out
-         FROM transactions
-         WHERE user_id = $1
-           AND created_at > NOW() - INTERVAL '${timeRange}'
-         GROUP BY DATE(created_at)
-         ORDER BY date DESC`,
-      [userId]
-    ),
-    // Source 3: Current stock for fallback
-    db.query(
-      `SELECT COALESCE(SUM(quantity), 0) AS total_current_stock
+      `SELECT DATE(created_at) AS date,
+              COALESCE(SUM(quantity), 0) AS qty_in
        FROM inventory_items
-       WHERE user_id = $1 AND is_active = TRUE`,
+       WHERE user_id = $1 AND is_active = TRUE
+         AND created_at > NOW() - INTERVAL '30 days'
+       GROUP BY DATE(created_at)`,
+      [userId]
+    ),
+    // Source 2: transaction activity (restock adds, sale deducts)
+    db.query(
+      `SELECT DATE(created_at) AS date,
+              COALESCE(SUM(quantity) FILTER (WHERE type IN ('restock','adjustment') AND quantity > 0), 0) AS qty_in,
+              COALESCE(SUM(quantity) FILTER (WHERE type = 'sale'), 0) AS qty_out
+       FROM transactions
+       WHERE user_id = $1
+         AND created_at > NOW() - INTERVAL '30 days'
+       GROUP BY DATE(created_at)`,
       [userId]
     ),
   ]);
 
-  // Merge data by date/hour
+  // Merge both sources by date
   const dataMap = {};
 
   for (const row of itemsResult.rows) {
-    const key = String(row.date).slice(0, intervalType === 'hour' ? 13 : 10);
+    const key = String(row.date).slice(0, 10);
     if (!dataMap[key]) dataMap[key] = { date: key, qty: 0, qty_out: 0 };
     dataMap[key].qty += parseInt(row.qty_in) || 0;
   }
 
   for (const row of txResult.rows) {
-    const key = String(row.date).slice(0, intervalType === 'hour' ? 13 : 10);
+    const key = String(row.date).slice(0, 10);
     if (!dataMap[key]) dataMap[key] = { date: key, qty: 0, qty_out: 0 };
     dataMap[key].qty     += parseInt(row.qty_in)  || 0;
     dataMap[key].qty_out += parseInt(row.qty_out) || 0;
   }
 
-  // Fill time range with missing periods
+  // Fill complete 30-day range — missing dates = 0
   const filled = [];
-  const now = new Date();
-  const totalStock = parseInt(currentStockResult.rows[0]?.total_current_stock || 0);
-  
-  for (let i = dataPoints - 1; i >= 0; i--) {
-    const dt = new Date(now);
-    
-    if (intervalType === 'hour') {
-      dt.setHours(dt.getHours() - i);
-      const key = dt.toISOString().slice(0, 13); // YYYY-MM-DDTHH
-      const existingData = dataMap[key];
-      
-      if (existingData) {
-        filled.push(existingData);
-      } else if (totalStock > 0 && i === 0) {
-        // Show current stock in latest hour if no recent activity
-        filled.push({ 
-          date: key, 
-          qty: Math.max(1, Math.floor(totalStock / 12)), 
-          qty_out: 0 
-        });
-      } else {
-        filled.push({ date: key, qty: 0, qty_out: 0 });
-      }
-    } else {
-      dt.setDate(dt.getDate() - i);
-      const key = dt.toISOString().slice(0, 10);
-      const existingData = dataMap[key];
-      
-      if (existingData) {
-        filled.push(existingData);
-      } else if (totalStock > 0) {
-        filled.push({ 
-          date: key, 
-          qty: Math.max(1, Math.floor(totalStock / dataPoints)), 
-          qty_out: 0 
-        });
-      } else {
-        filled.push({ date: key, qty: 0, qty_out: 0 });
-      }
-    }
+  const now    = new Date();
+  for (let d = 29; d >= 0; d--) {
+    const dt  = new Date(now);
+    dt.setDate(dt.getDate() - d);
+    const key = dt.toISOString().slice(0, 10);
+    filled.push(dataMap[key] || { date: key, qty: 0, qty_out: 0 });
   }
-  
   return filled;
 };
 
