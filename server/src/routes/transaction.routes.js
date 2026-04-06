@@ -6,6 +6,5 @@ router.use(authenticate);
 router.post('/',        txController.record);
 router.get('/',         txController.list);
 router.get('/summary',  txController.summary);
-router.get('/analytics', txController.analytics);
 
 module.exports = router;

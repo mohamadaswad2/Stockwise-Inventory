@@ -82,7 +82,7 @@ export default function AnalyticsPage() {
     setLoading(true);
     try {
       const res = await getAnalytics(p);
-      setData(res.data);
+      setData(res.data.data);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to load analytics.');
     } finally { setLoading(false); }
