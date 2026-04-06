@@ -1,10 +1,10 @@
 const inventoryRepository = require('../repositories/inventory.repository');
 
-const getStats = async (userId) => {
+const getStats = async (userId, period = '30d') => {
   const [stats, lowStockItems, stockTrend, categoryBreakdown] = await Promise.all([
     inventoryRepository.getDashboardStats(userId),
     inventoryRepository.getLowStockItems(userId, 10),
-    inventoryRepository.getStockTrend(userId),
+    inventoryRepository.getStockTrend(userId, period),
     inventoryRepository.getCategoryBreakdown(userId),
   ]);
 

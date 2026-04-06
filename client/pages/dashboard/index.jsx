@@ -34,15 +34,36 @@ function ChartTooltip({ active, payload, label }) {
 
 const DONUT_COLORS = ['#6366f1','#8b5cf6','#a855f7','#c084fc','#3b82f6','#60a5fa'];
 const PERIODS = [
-  { key: '7d',  label: '7D' },
-  { key: '14d', label: '14D' },
+  { key: '1h',  label: '1H' },
+  { key: '1d',  label: '1D' },
+  { key: '7d', label: '7D' },
   { key: '30d', label: '30D' },
 ];
 
 export default function DashboardPage() {
   const { user }           = useAuth();
-  const { stats, loading } = useDashboard();
-  const [activePeriod, setActivePeriod] = useState('30d');
+  const { stats, loading, fetchStats } = useDashboard();
+  const [activePeriod, setActivePeriod] = useState('1d');
+  const [lastUpdate, setLastUpdate] = useState(new Date());
+
+  // Realtime polling - refresh based on period
+  useEffect(() => {
+    const intervalMs = activePeriod === '1h' ? 30000 : // 30 seconds for 1 hour
+                       activePeriod === '1d' ? 60000 : // 1 minute for 1 day
+                       300000; // 5 minutes for 7d/30d
+
+    const interval = setInterval(() => {
+      fetchStats(activePeriod);
+      setLastUpdate(new Date());
+    }, intervalMs);
+
+    return () => clearInterval(interval);
+  }, [activePeriod, fetchStats]);
+
+  // Initial fetch and period change handler
+  useEffect(() => {
+    fetchStats(activePeriod);
+  }, [activePeriod]);
 
   const rawTrend = stats?.stock_trend || [];
 
@@ -53,9 +74,11 @@ export default function DashboardPage() {
     qty_out: Math.max(0, parseInt(row.qty_out || 0)),
   }));
 
-  // Slice by period — 30d = all 30 rows, 7d = last 7, 14d = last 14
-  const periodDays = { '7d': 7, '14d': 14, '30d': 30 };
-  const chartData  = allTrend.slice(-periodDays[activePeriod]);
+  // Slice by period — handle different time ranges
+  const periodDays = { '1h': 0.04, '1d': 1, '7d': 7, '30d': 30 }; // 1h = 1 hour ≈ 0.04 days
+  const chartData  = activePeriod === '1h' 
+    ? allTrend.slice(-12) // Last 12 data points for hourly view
+    : allTrend.slice(-Math.floor(periodDays[activePeriod] * (activePeriod === '1d' ? 24 : 1)));
 
   // Category data — max 5, only non-zero
   const categoryData = (stats?.category_breakdown || [])
@@ -104,7 +127,12 @@ export default function DashboardPage() {
                   Stock Activity
                 </h3>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--text2)' }}>
-                  Stock added per day
+                  {activePeriod === '1h' ? 'Last hour (realtime)' : 
+                   activePeriod === '1d' ? 'Last 24 hours' : 
+                   `Last ${activePeriod.replace('d', ' days')}`}
+                </p>
+                <p className="text-xs mt-1" style={{ color: 'var(--text3)' }}>
+                  Last updated: {lastUpdate.toLocaleTimeString()}
                 </p>
               </div>
               {/* Period selector */}
