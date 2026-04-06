@@ -1,6 +1,6 @@
 import Head from 'next/head';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, TrendingUp, ArrowRight, Package, ShoppingCart } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
