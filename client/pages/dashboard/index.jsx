@@ -1,6 +1,6 @@
 import Head from 'next/head';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Plus, TrendingUp, ArrowRight, Package, ShoppingCart } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
@@ -33,21 +33,29 @@ function ChartTooltip({ active, payload, label }) {
 // No DonutCentreLabel component needed — use absolute div overlay instead
 
 const DONUT_COLORS = ['#6366f1','#8b5cf6','#a855f7','#c084fc','#3b82f6','#60a5fa'];
+const PERIODS = [
+  { key: '7d',  label: '7D' },
+  { key: '14d', label: '14D' },
+  { key: '30d', label: '30D' },
+];
 
 export default function DashboardPage() {
   const { user }           = useAuth();
   const { stats, loading } = useDashboard();
+  const [activePeriod, setActivePeriod] = useState('30d');
 
   const rawTrend = stats?.stock_trend || [];
 
-  // Transform data for chart
+  // Backend returns 30 days always — map fields, ensure numbers
   const allTrend = rawTrend.map(row => ({
-    date: row.date,
-    qty: Math.max(0, parseInt(row.qty || 0)),
+    date:    row.date?.slice(5) || String(row.date || '').slice(5),
+    qty:     Math.max(0, parseInt(row.qty     || row.qty_in  || 0)),
     qty_out: Math.max(0, parseInt(row.qty_out || 0)),
   }));
 
-  const chartData = allTrend.slice(-30); // Last 30 data points
+  // Slice by period — 30d = all 30 rows, 7d = last 7, 14d = last 14
+  const periodDays = { '7d': 7, '14d': 14, '30d': 30 };
+  const chartData  = allTrend.slice(-periodDays[activePeriod]);
 
   // Category data — max 5, only non-zero
   const categoryData = (stats?.category_breakdown || [])
@@ -96,15 +104,30 @@ export default function DashboardPage() {
                   Stock Activity
                 </h3>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--text2)' }}>
-                  Last 30 days
+                  Stock added per day
                 </p>
+              </div>
+              {/* Period selector */}
+              <div className="flex gap-1 rounded-xl p-1" style={{ background: 'var(--surface2)' }}>
+                {PERIODS.map(({ key, label }) => (
+                  <button key={key} onClick={() => setActivePeriod(key)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-150"
+                    style={{
+                      background: activePeriod === key
+                        ? 'linear-gradient(135deg,var(--accent),var(--accent2))'
+                        : 'transparent',
+                      color: activePeriod === key ? '#fff' : 'var(--text2)',
+                    }}>
+                    {label}
+                  </button>
+                ))}
               </div>
             </div>
 
             {loading ? (
               <div className="flex items-center justify-center h-52"><Spinner /></div>
             ) : hasStock ? (
-              <ResponsiveContainer width="100%" height={220}>
+              <ResponsiveContainer width="100%" height={220} key={activePeriod}>
                 <AreaChart
                   data={chartData}
                   margin={{ top: 16, right: 24, left: 0, bottom: 0 }}>
