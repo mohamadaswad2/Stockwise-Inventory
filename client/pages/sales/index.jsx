@@ -70,7 +70,7 @@ export default function SalesPage() {
   const topItems = data?.topItems || [];
   const trend    = data?.trend    || [];
   const totRev   = Number(s?.total_revenue    || 0);  // Total Revenue (all time)
-  const todayRev = Number(s?.revenue_period    || 0);  // Today Sales (based on period)
+  const todayProfit = Number(s?.profit_period || s?.total_profit || 0);  // Total Profit (based on period)
   const rev30d   = Number(s?.revenue_30d       || 0);  // 30 Day Sales
   const totUnits = Number(s?.total_units_sold || 0);   // Units Sold (all time)
   const totTx    = Number(s?.total_transactions || 0); // Total Transactions (all time)
@@ -106,7 +106,7 @@ export default function SalesPage() {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               {[
                 { icon: DollarSign,  label: 'Total Revenue', value: formatFull(totRev),    bg: 'rgba(34,197,94,0.12)',  c: 'var(--green)' },
-                { icon: TrendingUp,  label: 'Today Sales',    value: formatFull(todayRev), bg: 'rgba(99,102,241,0.12)', c: 'var(--accent3)' },
+                { icon: TrendingUp,  label: 'Total Profit',    value: formatFull(todayProfit), bg: 'rgba(99,102,241,0.12)', c: 'var(--accent3)' },
                 { icon: ShoppingBag, label: '30 Day Sales',   value: formatFull(rev30d),   bg: 'rgba(245,158,11,0.12)', c: 'var(--orange)' },
                 { icon: Package,     label: 'Units Sold',    value: totUnits,            bg: 'rgba(168,85,247,0.12)', c: 'var(--purple)' },
               ].map(({ icon: Icon, label, value, bg, c }) => (

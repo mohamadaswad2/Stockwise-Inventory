@@ -67,11 +67,12 @@ const getSalesSummary = async (userId, period = '1m') => {
       COALESCE(SUM(quantity * unit_price) FILTER (WHERE type='sale'), 0)   AS total_revenue,
       COALESCE(SUM(quantity)              FILTER (WHERE type='sale'), 0)   AS total_units_sold,
       COUNT(*)                            FILTER (WHERE type='sale')       AS total_transactions,
+      COALESCE(SUM(quantity * (unit_price - cost_price)) FILTER (WHERE type='sale'), 0) AS total_profit,
       COALESCE(SUM(quantity * unit_price) FILTER (WHERE type='sale' AND created_at > NOW()-INTERVAL '${interval}'), 0) AS revenue_period,
       COALESCE(SUM(quantity * (unit_price - cost_price)) FILTER (WHERE type='sale' AND created_at > NOW()-INTERVAL '${interval}'), 0) AS profit_period,
       COALESCE(SUM(quantity * cost_price) FILTER (WHERE type='sale' AND created_at > NOW()-INTERVAL '${interval}'), 0) AS cost_period,
       COALESCE(SUM(quantity * unit_price) FILTER (WHERE type='sale' AND created_at > NOW()-INTERVAL '30 days'), 0) AS revenue_30d,
-      COALESCE(SUM(quantity * unit_price) FILTER (WHERE type='sale' AND created_at > NOW()-INTERVAL '7 days'),  0) AS revenue_7d,
+      COALESCE(SUM(quantity * unit_price) FILTER (WHERE type='sale' AND created_at > NOW()-INTERVAL '7 days'), 0) AS revenue_7d,
       COALESCE(SUM(quantity * unit_price) FILTER (WHERE type='sale' AND created_at > NOW()-INTERVAL '24 hours'), 0) AS revenue_24h
     FROM transactions WHERE user_id = $1`, [userId]
   );
@@ -131,13 +132,13 @@ const getRevenueTrend = async (userId, period = '1m') => {
   const now    = new Date();
 
   if (period === '1h') {
-    // Generate hourly intervals for the last 12 hours
-    for (let i = dataPoints - 1; i >= 0; i--) {
+    // Generate hourly intervals for the last hour (not 12 hours)
+    for (let i = 0; i < 12; i++) {
       const dt = new Date(now);
-      dt.setHours(dt.getHours() - i);
-      dt.setMinutes(0, 0, 0); // Round to hour
+      dt.setMinutes(dt.getMinutes() - (i * 5)); // 5-minute intervals
+      dt.setSeconds(0, 0); // Round to minute
       const key = dt.toISOString().slice(0, 16).replace('T', ' '); // YYYY-MM-DD HH:MI
-      filled.push(dataMap[key] || {
+      filled.unshift(dataMap[key] || {
         date: key, revenue: 0, profit: 0, cost: 0, transactions: 0,
       });
     }
