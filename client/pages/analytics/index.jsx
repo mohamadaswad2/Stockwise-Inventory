@@ -216,13 +216,25 @@ export default function AnalyticsPage() {
                     <CartesianGrid stroke="var(--surface3)" strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="date"
                       tick={{ fill: 'var(--text3)', fontSize: 10 }}
-                      tickFormatter={d => d?.slice(5)}
-                      axisLine={false} tickLine={false} tickMargin={8}
-                      interval="preserveStartEnd" />
+                      tickFormatter={(d) => {
+                        if (!d) return d;
+
+                        const hour = parseInt(d.split(':')[0], 10);
+
+                        if (hour === 0) return '12AM';
+                        if (hour < 12) return `${hour}AM`;
+                        if (hour === 12) return '12PM';
+                        return `${hour - 12}PM`;
+                      }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickMargin={8}
+                      interval="preserveStartEnd"
+                    />
                     <YAxis
                       tick={{ fill: 'var(--text3)', fontSize: 10 }}
                       axisLine={false} tickLine={false}
-                      tickFormatter={v => format(v, 0)}
+                      tickFormatter={d => d}
                       width={56} tickMargin={4}
                       domain={['auto', 'auto']} />
                     <Tooltip content={<ChartTooltip formatFn={format} />}
