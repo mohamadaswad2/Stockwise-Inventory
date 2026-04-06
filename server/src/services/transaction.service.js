@@ -26,8 +26,27 @@ const recordTransaction = async (userId, data) => {
 };
 
 const getTransactions    = (userId, query) => transactionRepo.findAll(userId, query);
-const getSalesSummary    = (userId)         => transactionRepo.getSalesSummary(userId);
-const getTopItems        = (userId)         => transactionRepo.getTopItems(userId);
-const getRevenueTrend    = (userId, days)   => transactionRepo.getRevenueTrend(userId, days);
+const getSalesSummary    = (userId, period) => transactionRepo.getSalesSummary(userId, period);
+const getTopItems        = (userId, period) => transactionRepo.getTopItems(userId, period);
+const getRevenueTrend    = (userId, period) => transactionRepo.getRevenueTrend(userId, period);
 
-module.exports = { recordTransaction, getTransactions, getSalesSummary, getTopItems, getRevenueTrend };
+// Analytics for Analytics page - reuse existing functions
+const getAnalytics = async (userId, period = '1m') => {
+  const [sales, topItems, trend] = await Promise.all([
+    getSalesSummary(userId, period),
+    getTopItems(userId, period),
+    getRevenueTrend(userId, period)
+  ]);
+  
+  // Transform to match frontend expectation
+  const summary = {
+    revenue_period: sales.revenue_period || 0,
+    profit_period: sales.profit_period || 0,
+    cost_period: sales.cost_period || 0,
+    total_transactions: sales.total_transactions || 0
+  };
+  
+  return { summary, topItems, trend };
+};
+
+module.exports = { recordTransaction, getTransactions, getSalesSummary, getTopItems, getRevenueTrend, getAnalytics };
