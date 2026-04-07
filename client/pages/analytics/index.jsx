@@ -104,12 +104,14 @@ export default function AnalyticsPage() {
     ? ((Number(s.profit_period) / Number(s.revenue_period)) * 100).toFixed(1)
     : 0;
 
-  // Chart data — check if any non-zero value exists
-  const trendData   = data?.trend || [];
-  const hasChartData = trendData.length >= 2 &&
-    trendData.some(d => d.revenue > 0 || d.profit > 0 || d.cost > 0);
-  // When all zero, use [0,1] so chart renders a visible baseline instead of invisible flat
-  const yDomain = hasChartData ? ['auto', 'auto'] : [0, 1];
+  // Chart data
+  const trendData = data?.trend || [];
+  // Always render chart if we have >= 2 points (today = 24 always, 7d = 7, etc.)
+  // yDomain: use [0,1] when all zero so baseline is visible (not invisible flat)
+  const hasAnyValue = trendData.some(d =>
+    (d.revenue || 0) > 0 || (d.profit || 0) > 0 || (d.cost || 0) > 0
+  );
+  const yDomain = hasAnyValue ? ['auto', 'auto'] : [0, 1];
 
   const exportAnalytics = () => {
     if (!data?.topItems?.length) { toast.error('No data to export.'); return; }
