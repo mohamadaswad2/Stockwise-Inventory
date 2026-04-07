@@ -26,7 +26,9 @@ const periodToDays = (period) => {
 };
 
 const periodGroupBy = (period) => {
-  return ['today','7d','1m'].includes(period) ? 'day' : 'week';
+  if (period === 'today') return 'hour';  // hourly for today
+  if (['7d','1m'].includes(period)) return 'day';
+  return 'week';
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -133,7 +135,11 @@ const getRevenueTrend = async (userId, period = '1m') => {
 
   const result = await db.query(`
     SELECT
-      DATE_TRUNC('${groupBy}', created_at)::date AS date,
+      -- For hour grouping, keep full timestamp; for day/week, cast to date
+      CASE WHEN '${groupBy}' = 'hour'
+        THEN TO_CHAR(DATE_TRUNC('hour', created_at), 'YYYY-MM-DD HH24:00')
+        ELSE DATE_TRUNC('${groupBy}', created_at)::date::text
+      END AS date,
       COALESCE(SUM(quantity * unit_price)
         FILTER (WHERE type='sale'), 0) AS revenue,
       COALESCE(SUM(
@@ -147,14 +153,17 @@ const getRevenueTrend = async (userId, period = '1m') => {
     FROM transactions
     WHERE user_id = $1 AND ${filter}
     GROUP BY DATE_TRUNC('${groupBy}', created_at)
-    ORDER BY date ASC`, [userId]
+    ORDER BY DATE_TRUNC('${groupBy}', created_at) ASC`, [userId]
   );
 
   const dataMap = {};
   for (const row of result.rows) {
-    const key = String(row.date).slice(0, 10);
+    // For hourly: key = full "YYYY-MM-DD HH:00" string
+    // For daily/weekly: key = "YYYY-MM-DD" only
+    const rawDate = String(row.date);
+    const key = groupBy === 'hour' ? rawDate : rawDate.slice(0, 10);
     dataMap[key] = {
-      date:         key,
+      date:         groupBy === 'hour' ? rawDate.slice(11, 16) : rawDate.slice(0, 10),
       revenue:      Math.max(0, parseFloat(row.revenue) || 0),
       profit:       Math.max(0, parseFloat(row.profit)  || 0),
       cost:         Math.max(0, parseFloat(row.cost)    || 0),
@@ -165,7 +174,28 @@ const getRevenueTrend = async (userId, period = '1m') => {
   const filled = [];
   const now    = new Date();
 
-  if (groupBy === 'day') {
+  if (groupBy === 'hour') {
+    // Today: fill each hour from 00:00 to current hour
+    const currentHour = now.getHours();
+    const todayStr    = now.toISOString().slice(0, 10);
+    for (let h = 0; h <= currentHour; h++) {
+      const hourStr = String(h).padStart(2, '0');
+      // Key matches TO_CHAR output: 'YYYY-MM-DD HH24:00'
+      const key     = `${todayStr} ${hourStr}:00`;
+      const entry   = dataMap[key];
+      filled.push(entry || {
+        date: `${hourStr}:00`, revenue: 0, profit: 0, cost: 0, transactions: 0,
+      });
+    }
+    // Recharts needs min 2 points — always ensure this
+    while (filled.length < 2) {
+      const lastHour = filled.length;
+      filled.push({
+        date: `${String(lastHour).padStart(2,'0')}:00`,
+        revenue: 0, profit: 0, cost: 0, transactions: 0,
+      });
+    }
+  } else if (groupBy === 'day') {
     for (let d = days - 1; d >= 0; d--) {
       const dt  = new Date(now);
       dt.setDate(dt.getDate() - d);
@@ -173,6 +203,7 @@ const getRevenueTrend = async (userId, period = '1m') => {
       filled.push(dataMap[key] || { date: key, revenue: 0, profit: 0, cost: 0, transactions: 0 });
     }
   } else {
+    // Week grouping — use actual query rows
     for (const row of result.rows) {
       const key = String(row.date).slice(0, 10);
       filled.push(dataMap[key]);

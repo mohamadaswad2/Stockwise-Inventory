@@ -104,6 +104,13 @@ export default function AnalyticsPage() {
     ? ((Number(s.profit_period) / Number(s.revenue_period)) * 100).toFixed(1)
     : 0;
 
+  // Chart data — check if any non-zero value exists
+  const trendData   = data?.trend || [];
+  const hasChartData = trendData.length >= 2 &&
+    trendData.some(d => d.revenue > 0 || d.profit > 0 || d.cost > 0);
+  // When all zero, use [0,1] so chart renders a visible baseline instead of invisible flat
+  const yDomain = hasChartData ? ['auto', 'auto'] : [0, 1];
+
   const exportAnalytics = () => {
     if (!data?.topItems?.length) { toast.error('No data to export.'); return; }
     const headers = ['Item','SKU','Units Sold','Revenue','Cost','Profit','Margin %'];
@@ -191,15 +198,15 @@ export default function AnalyticsPage() {
                     Revenue vs Profit vs Cost
                   </h3>
                   <p className="text-xs mt-0.5" style={{ color: 'var(--text2)' }}>
-                    {PERIODS.find(p => p.key === period)?.label} breakdown
+                    {period === 'today' ? 'Hourly breakdown (today)' : `${PERIODS.find(p => p.key === period)?.label} breakdown`}
                   </p>
                 </div>
               </div>
 
-              {data?.trend?.length > 0 ? (
+              {trendData.length >= 2 ? (
                 <ResponsiveContainer width="100%" height={260} key={period}>
                   <AreaChart
-                    data={data.trend}
+                    data={trendData}
                     margin={{ top: 16, right: 24, left: 0, bottom: 0 }}>
                     <defs>
                       {[
@@ -216,7 +223,13 @@ export default function AnalyticsPage() {
                     <CartesianGrid stroke="var(--surface3)" strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="date"
                       tick={{ fill: 'var(--text3)', fontSize: 10 }}
-                      tickFormatter={d => d?.slice(5)}
+                      tickFormatter={d => {
+                        if (!d) return '';
+                        // Hourly format: "08:00" — already short, show as-is
+                        if (d.includes(':')) return d;
+                        // Date format: "2024-03-15" → show MM-DD
+                        return d.slice(5);
+                      }}
                       axisLine={false} tickLine={false} tickMargin={8}
                       interval="preserveStartEnd" />
                     <YAxis
@@ -224,7 +237,7 @@ export default function AnalyticsPage() {
                       axisLine={false} tickLine={false}
                       tickFormatter={v => format(v, 0)}
                       width={56} tickMargin={4}
-                      domain={['auto', 'auto']} />
+                      domain={yDomain} />
                     <Tooltip content={<ChartTooltip formatFn={format} />}
                       cursor={{ stroke: 'var(--border2)', strokeWidth: 1 }} />
                     <Legend iconType="circle" iconSize={7}
@@ -246,7 +259,9 @@ export default function AnalyticsPage() {
               ) : (
                 <div className="flex flex-col items-center justify-center h-40" style={{ color: 'var(--text3)' }}>
                   <BarChart2 size={32} className="mb-2 opacity-20" />
-                  <p className="text-sm">No sales data for this period.</p>
+                  <p className="text-sm">
+                    {period === 'today' ? 'No sales recorded yet today.' : 'No sales data for this period.'}
+                  </p>
                   <Link href="/inventory" className="text-xs mt-2 font-medium" style={{ color: 'var(--accent3)' }}>
                     Record your first sale →
                   </Link>

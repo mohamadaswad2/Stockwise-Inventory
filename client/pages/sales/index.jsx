@@ -91,33 +91,39 @@ export default function SalesPage() {
               <h3 className="text-sm font-bold mb-4" style={{ color: 'var(--text)' }}>
                 Revenue — Last 30 Days
               </h3>
-              {trend.length > 0 ? (
-                /* KEY FIX: top:10 right:20 so line never clips */
-                <ResponsiveContainer width="100%" height={200}>
+              {trend.length >= 2 ? (
+                <ResponsiveContainer width="100%" height={200} key="sales-trend">
                   <AreaChart
                     data={trend}
-                    margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                    margin={{ top: 16, right: 24, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%"  stopColor="#22c55e" stopOpacity={0.3} />
+                        <stop offset="5%"  stopColor="#22c55e" stopOpacity={0.2} />
                         <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid stroke="var(--surface3)" strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="date"
                       tick={{ fill: 'var(--text3)', fontSize: 10 }}
-                      tickFormatter={d => d?.slice(5)}
-                      axisLine={false} tickLine={false} tickMargin={8} />
+                      tickFormatter={d => {
+                        if (!d) return '';
+                        if (d.includes(':')) return d;
+                        return d.slice(5);
+                      }}
+                      axisLine={false} tickLine={false} tickMargin={8}
+                      interval="preserveStartEnd" />
                     <YAxis
                       tick={{ fill: 'var(--text3)', fontSize: 10 }}
                       axisLine={false} tickLine={false}
                       tickFormatter={v => format(v, 0)}
-                      width={52} tickMargin={4} />
+                      width={56} tickMargin={4}
+                      domain={trend.some(d => d.revenue > 0) ? ['auto','auto'] : [0, 1]} />
                     <Tooltip content={<ChartTooltip formatFn={format} />}
                       cursor={{ stroke: 'var(--border2)', strokeWidth: 1 }} />
                     <Area type="monotone" dataKey="revenue" name="Revenue"
-                      stroke="#22c55e" strokeWidth={2.5} fill="url(#salesGrad)"
-                      dot={false} activeDot={{ r: 4, fill: '#22c55e', strokeWidth: 0 }} />
+                      stroke="#22c55e" strokeWidth={1.5} fill="url(#salesGrad)"
+                      dot={false} activeDot={{ r: 3, fill: '#22c55e', strokeWidth: 0 }}
+                      isAnimationActive={false} />
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (
