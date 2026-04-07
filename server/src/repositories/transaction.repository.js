@@ -1,45 +1,38 @@
 const db = require('../config/database');
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PERIOD FILTER HELPER
-// "today" → DATE_TRUNC('day', NOW()) — dari 00:00 hari ini sahaja
-// "7d"    → NOW() - 7 days (rolling)
-// Lain-lain → rolling interval seperti biasa
+// periodFilter(period, alias)
+// alias = table alias untuk created_at column
+// Default alias = '' (untuk query tanpa JOIN)
+// Guna alias = 't' untuk query yang ada JOIN dengan table lain
 // ─────────────────────────────────────────────────────────────────────────────
-
-// Returns SQL WHERE clause fragment for created_at filter
-const periodFilter = (period) => {
+const periodFilter = (period, alias = '') => {
+  const col = alias ? `${alias}.created_at` : 'created_at';
   if (period === 'today') {
-    // Dari 00:00 hari ini — BUKAN rolling 24 jam
-    return `created_at >= DATE_TRUNC('day', NOW())`;
+    return `${col} >= DATE_TRUNC('day', NOW())`;
   }
   const map = {
     '7d': '7 days', '1m': '30 days',
     '2m': '60 days', '3m': '90 days', 'year': '365 days',
   };
   const interval = map[period] || '30 days';
-  return `created_at > NOW() - INTERVAL '${interval}'`;
+  return `${col} > NOW() - INTERVAL '${interval}'`;
 };
 
-// Days count for filling date range
 const periodToDays = (period) => {
   if (period === 'today') return 1;
   const map = { '7d':7,'1m':30,'2m':60,'3m':90,'year':365 };
   return map[period] || 30;
 };
 
-// Group by day or week
 const periodGroupBy = (period) => {
   return ['today','7d','1m'].includes(period) ? 'day' : 'week';
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // COST-ONLY LOGIC:
-// Bila unit_price = 0 → transaksi "cost-only" (item percuma / kos operasi)
-//   revenue = 0  (unit_price=0 already gives 0)
-//   cost    = quantity * cost_price  (tetap dikira)
-//   profit  = 0  (BUKAN negatif)
-//   margin  = 0%
+// unit_price = 0 → item percuma / kos operasi
+//   revenue = 0, cost = qty * cost_price, profit = 0 (bukan negatif)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const create = async (userId, { itemId, type, quantity, unitPrice, costPrice, note }) => {
@@ -54,7 +47,8 @@ const create = async (userId, { itemId, type, quantity, unitPrice, costPrice, no
     const delta = (type === 'sale' || type === 'usage') ? -Math.abs(quantity) : Math.abs(quantity);
     const itemRes = await client.query(
       `UPDATE inventory_items SET quantity = GREATEST(0, quantity + $1), updated_at = NOW()
-       WHERE id = $2 AND user_id = $3 RETURNING id, name, quantity, low_stock_threshold, unit`,
+       WHERE id = $2 AND user_id = $3
+       RETURNING id, name, quantity, low_stock_threshold, unit`,
       [delta, itemId, userId]
     );
     if (!itemRes.rows[0]) throw new Error('Item not found.');
@@ -84,62 +78,71 @@ const findAll = async (userId, { page = 1, limit = 20, type, itemId, dateFrom, d
                 ELSE 0
               END AS profit,
               i.name AS item_name, i.sku, i.unit
-       FROM transactions t JOIN inventory_items i ON i.id = t.item_id
-       WHERE ${where} ORDER BY t.created_at DESC LIMIT $${i} OFFSET $${i+1}`,
+       FROM transactions t
+       JOIN inventory_items i ON i.id = t.item_id
+       WHERE ${where}
+       ORDER BY t.created_at DESC
+       LIMIT $${i} OFFSET $${i+1}`,
       [...vals, limit, offset]
     ),
   ]);
   return { transactions: rowRes.rows, total: parseInt(countRes.rows[0].count), page, limit };
 };
 
+// getSalesSummary — NO JOIN, table = transactions only → no alias needed
 const getSalesSummary = async (userId, period = '1m') => {
-  const filter = periodFilter(period);
+  const filter   = periodFilter(period);       // no alias — single table query
+  const filter30 = periodFilter('1m');         // hardcoded 30d reference
+  const filter7  = `created_at > NOW() - INTERVAL '7 days'`;
+
   const result = await db.query(`
     SELECT
       COALESCE(SUM(quantity * unit_price) FILTER (WHERE type='sale'), 0) AS total_revenue,
       COALESCE(SUM(quantity)              FILTER (WHERE type='sale'), 0) AS total_units_sold,
       COUNT(*)                            FILTER (WHERE type='sale')     AS total_transactions,
 
-      -- Period-specific metrics
       COALESCE(SUM(quantity * unit_price)
         FILTER (WHERE type='sale' AND ${filter}), 0) AS revenue_period,
 
-      -- Profit: cost-only (unit_price=0) contributes 0, not negative
       COALESCE(SUM(
         CASE WHEN unit_price > 0
           THEN quantity * (unit_price - cost_price)
           ELSE 0 END
       ) FILTER (WHERE type='sale' AND ${filter}), 0) AS profit_period,
 
-      -- Cost: always tracked
       COALESCE(SUM(quantity * cost_price)
         FILTER (WHERE type='sale' AND ${filter}), 0) AS cost_period,
 
-      -- Fixed reference periods for Sales page cards
       COALESCE(SUM(quantity * unit_price)
-        FILTER (WHERE type='sale' AND created_at > NOW() - INTERVAL '30 days'), 0) AS revenue_30d,
+        FILTER (WHERE type='sale' AND ${filter30}), 0) AS revenue_30d,
+
       COALESCE(SUM(quantity * unit_price)
-        FILTER (WHERE type='sale' AND created_at > NOW() - INTERVAL '7 days'), 0)  AS revenue_7d
-    FROM transactions WHERE user_id = $1`, [userId]
+        FILTER (WHERE type='sale' AND ${filter7}), 0) AS revenue_7d
+
+    FROM transactions
+    WHERE user_id = $1`, [userId]
   );
   return result.rows[0];
 };
 
+// getRevenueTrend — NO JOIN → no alias needed
 const getRevenueTrend = async (userId, period = '1m') => {
-  const filter  = periodFilter(period);
+  const filter  = periodFilter(period);        // no alias
   const days    = periodToDays(period);
   const groupBy = periodGroupBy(period);
 
   const result = await db.query(`
     SELECT
       DATE_TRUNC('${groupBy}', created_at)::date AS date,
-      COALESCE(SUM(quantity * unit_price) FILTER (WHERE type='sale'), 0) AS revenue,
+      COALESCE(SUM(quantity * unit_price)
+        FILTER (WHERE type='sale'), 0) AS revenue,
       COALESCE(SUM(
         CASE WHEN unit_price > 0
           THEN quantity * (unit_price - cost_price)
           ELSE 0 END
       ) FILTER (WHERE type='sale'), 0) AS profit,
-      COALESCE(SUM(quantity * cost_price) FILTER (WHERE type='sale'), 0) AS cost,
+      COALESCE(SUM(quantity * cost_price)
+        FILTER (WHERE type='sale'), 0) AS cost,
       COUNT(*) FILTER (WHERE type='sale') AS transactions
     FROM transactions
     WHERE user_id = $1 AND ${filter}
@@ -147,7 +150,6 @@ const getRevenueTrend = async (userId, period = '1m') => {
     ORDER BY date ASC`, [userId]
   );
 
-  // Normalize all values — profit never negative (cost-only = 0)
   const dataMap = {};
   for (const row of result.rows) {
     const key = String(row.date).slice(0, 10);
@@ -171,7 +173,6 @@ const getRevenueTrend = async (userId, period = '1m') => {
       filled.push(dataMap[key] || { date: key, revenue: 0, profit: 0, cost: 0, transactions: 0 });
     }
   } else {
-    // Week grouping — use actual rows (already sparse)
     for (const row of result.rows) {
       const key = String(row.date).slice(0, 10);
       filled.push(dataMap[key]);
@@ -181,21 +182,21 @@ const getRevenueTrend = async (userId, period = '1m') => {
   return filled;
 };
 
+// getTopItems — HAS JOIN with inventory_items → MUST use alias 't'
 const getTopItems = async (userId, period = '1m', limit = 20) => {
-  const filter = periodFilter(period);
+  const filter = periodFilter(period, 't');    // alias 't' — JOIN query
+
   const result = await db.query(`
     SELECT
       i.id, i.name, i.sku, i.unit, i.price, i.cost_price,
       SUM(t.quantity)                AS units_sold,
       SUM(t.quantity * t.unit_price) AS revenue,
       SUM(t.quantity * t.cost_price) AS total_cost,
-      -- profit: cost-only = 0
       SUM(
         CASE WHEN t.unit_price > 0
           THEN t.quantity * (t.unit_price - t.cost_price)
           ELSE 0 END
       ) AS profit,
-      -- margin: 0 when no revenue
       CASE WHEN SUM(t.quantity * t.unit_price) > 0
         THEN ROUND(
           SUM(CASE WHEN t.unit_price > 0
@@ -206,7 +207,9 @@ const getTopItems = async (userId, period = '1m', limit = 20) => {
       END AS margin_pct
     FROM transactions t
     JOIN inventory_items i ON i.id = t.item_id
-    WHERE t.user_id = $1 AND t.type = 'sale' AND ${filter}
+    WHERE t.user_id = $1
+      AND t.type = 'sale'
+      AND ${filter}
     GROUP BY i.id, i.name, i.sku, i.unit, i.price, i.cost_price
     ORDER BY revenue DESC
     LIMIT $2`, [userId, limit]
@@ -214,8 +217,10 @@ const getTopItems = async (userId, period = '1m', limit = 20) => {
   return result.rows;
 };
 
+// getItemSalesHistory — HAS JOIN → MUST use alias 't'
 const getItemSalesHistory = async (userId, itemId, period = '1m') => {
-  const filter = periodFilter(period);
+  const filter = periodFilter(period, 't');    // alias 't' — JOIN query
+
   const result = await db.query(`
     SELECT
       t.id, t.quantity, t.unit_price, t.cost_price,
@@ -224,11 +229,19 @@ const getItemSalesHistory = async (userId, itemId, period = '1m') => {
         THEN t.quantity * (t.unit_price - t.cost_price)
         ELSE 0 END AS profit,
       t.note, t.created_at, i.name AS item_name, i.unit
-    FROM transactions t JOIN inventory_items i ON i.id = t.item_id
-    WHERE t.user_id = $1 AND t.item_id = $2 AND t.type = 'sale' AND ${filter}
+    FROM transactions t
+    JOIN inventory_items i ON i.id = t.item_id
+    WHERE t.user_id = $1
+      AND t.item_id = $2
+      AND t.type = 'sale'
+      AND ${filter}
     ORDER BY t.created_at DESC`, [userId, itemId]
   );
   return result.rows;
 };
 
-module.exports = { create, findAll, getSalesSummary, getRevenueTrend, getTopItems, getItemSalesHistory };
+module.exports = {
+  create, findAll,
+  getSalesSummary, getRevenueTrend,
+  getTopItems, getItemSalesHistory,
+};
