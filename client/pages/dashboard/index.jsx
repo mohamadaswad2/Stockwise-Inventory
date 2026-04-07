@@ -65,10 +65,12 @@ export default function DashboardPage() {
 
   const totalUnits = categoryData.reduce((s, d) => s + d.value, 0);
 
-  // hasStock = true if we have data rows AND at least one non-zero value
+  // Always render chart when we have 30 days of data
+  // Even if all-zero (no activity this period), show flat baseline — not empty state
   const hasActivity = chartData.some(d => d.qty > 0 || d.qty_out > 0);
-  const hasStock    = chartData.length >= 2 && hasActivity;
+  const hasStock    = chartData.length >= 2; // render always, hasActivity only affects yDomain
   const hasCat      = categoryData.length > 0;
+  const stockYDomain = hasActivity ? ['auto', 'auto'] : [0, 1];
 
   return (
     <ProtectedRoute>
@@ -149,7 +151,7 @@ export default function DashboardPage() {
                     axisLine={false} tickLine={false}
                     allowDecimals={false}
                     width={40} tickMargin={4}
-                    domain={['auto', 'auto']}
+                    domain={stockYDomain}
                   />
                   <Tooltip
                     content={<ChartTooltip />}

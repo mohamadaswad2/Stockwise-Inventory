@@ -3,7 +3,7 @@ import Head from 'next/head';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { DollarSign, ShoppingBag, TrendingUp, Package, ArrowRight, BarChart2 } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import ProtectedRoute from '../../components/layout/ProtectedRoute';
 import AppLayout from '../../components/layout/AppLayout';
 import Spinner from '../../components/ui/Spinner';
@@ -92,15 +92,21 @@ export default function SalesPage() {
                 Revenue — Last 30 Days
               </h3>
               {trend.length >= 2 ? (
-                <ResponsiveContainer width="100%" height={200} key="sales-trend">
+                <ResponsiveContainer width="100%" height={220} key="sales-trend">
                   <AreaChart
                     data={trend}
                     margin={{ top: 16, right: 24, left: 0, bottom: 0 }}>
                     <defs>
-                      <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%"  stopColor="#22c55e" stopOpacity={0.2} />
-                        <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
-                      </linearGradient>
+                      {[
+                        { id: 'sRev',    color: '#22c55e' },
+                        { id: 'sProfit', color: '#6366f1' },
+                        { id: 'sCost',   color: '#f59e0b' },
+                      ].map(({ id, color }) => (
+                        <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%"  stopColor={color} stopOpacity={0.2} />
+                          <stop offset="95%" stopColor={color} stopOpacity={0} />
+                        </linearGradient>
+                      ))}
                     </defs>
                     <CartesianGrid stroke="var(--surface3)" strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="date"
@@ -117,12 +123,22 @@ export default function SalesPage() {
                       axisLine={false} tickLine={false}
                       tickFormatter={v => format(v, 0)}
                       width={56} tickMargin={4}
-                      domain={trend.some(d => d.revenue > 0) ? ['auto','auto'] : [0, 1]} />
+                      domain={trend.some(d => (d.revenue||0) > 0) ? ['auto','auto'] : [0, 1]} />
                     <Tooltip content={<ChartTooltip formatFn={format} />}
                       cursor={{ stroke: 'var(--border2)', strokeWidth: 1 }} />
+                    <Legend iconType="circle" iconSize={7}
+                      formatter={v => <span style={{ fontSize: 11, color: 'var(--text2)' }}>{v}</span>} />
                     <Area type="monotone" dataKey="revenue" name="Revenue"
-                      stroke="#22c55e" strokeWidth={1.5} fill="url(#salesGrad)"
+                      stroke="#22c55e" strokeWidth={1.5} fill="url(#sRev)"
                       dot={false} activeDot={{ r: 3, fill: '#22c55e', strokeWidth: 0 }}
+                      isAnimationActive={false} />
+                    <Area type="monotone" dataKey="profit" name="Profit"
+                      stroke="#6366f1" strokeWidth={1.5} fill="url(#sProfit)"
+                      dot={false} activeDot={{ r: 3, fill: '#6366f1', strokeWidth: 0 }}
+                      isAnimationActive={false} />
+                    <Area type="monotone" dataKey="cost" name="Cost"
+                      stroke="#f59e0b" strokeWidth={1.5} fill="url(#sCost)"
+                      dot={false} activeDot={{ r: 3, fill: '#f59e0b', strokeWidth: 0 }}
                       isAnimationActive={false} />
                   </AreaChart>
                 </ResponsiveContainer>
