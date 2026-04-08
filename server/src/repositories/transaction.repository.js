@@ -168,7 +168,9 @@ const getRevenueTrend = async (userId, period = '1m') => {
   for (const row of rows) {
     const b   = row.bucket; // Date object from pg driver
     const key = b instanceof Date ? b.toISOString() : String(b);
-    dataMap[key.slice(0, isToday ? 16 : 10)] = {
+    // isToday: store as 13 chars 'YYYY-MM-DDTHH' to match lookup key format
+    // daily:   store as 10 chars 'YYYY-MM-DD'
+    dataMap[key.slice(0, isToday ? 13 : 10)] = {
       revenue:      Math.max(0, parseFloat(row.revenue)      || 0),
       profit:       Math.max(0, parseFloat(row.profit)       || 0),
       cost:         Math.max(0, parseFloat(row.cost)         || 0),
