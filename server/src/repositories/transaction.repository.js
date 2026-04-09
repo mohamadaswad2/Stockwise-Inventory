@@ -158,7 +158,8 @@ const getRevenueTrend = async (userId, period = '1m', tz = 'UTC') => {
       COALESCE(SUM(revenue), 0)  AS revenue,
       COALESCE(SUM(profit),  0)  AS profit,
       COALESCE(SUM(cost),    0)  AS cost,
-      COALESCE(SUM(tx_count), 0) AS transactions
+      COALESCE(SUM(tx_count), 0)  AS transactions,
+      COALESCE(SUM(qty_added), 0) AS qty_added
     FROM (
       SELECT
         DATE_TRUNC('${truncBy}', created_at AT TIME ZONE '${safeTz}') AS bucket,
@@ -166,7 +167,9 @@ const getRevenueTrend = async (userId, period = '1m', tz = 'UTC') => {
         CASE WHEN type = 'sale' AND unit_price > 0
           THEN quantity * (unit_price - cost_price)             ELSE 0 END AS profit,
         CASE WHEN type = 'sale' THEN quantity * cost_price      ELSE 0 END AS cost,
-        CASE WHEN type = 'sale' THEN 1                          ELSE 0 END AS tx_count
+        CASE WHEN type = 'sale' THEN 1                          ELSE 0 END AS tx_count,
+        CASE WHEN type IN ('restock','adjustment') AND quantity > 0
+          THEN quantity                                         ELSE 0 END AS qty_added
       FROM transactions
       WHERE user_id = $1 AND ${filter}
     ) sub
@@ -203,6 +206,7 @@ const getRevenueTrend = async (userId, period = '1m', tz = 'UTC') => {
       profit:       Math.max(0, parseFloat(row.profit)       || 0),
       cost:         Math.max(0, parseFloat(row.cost)         || 0),
       transactions: Math.max(0, parseInt(row.transactions)   || 0),
+      qty_added:    Math.max(0, parseInt(row.qty_added)      || 0),
     };
   }
 
@@ -244,7 +248,7 @@ const getRevenueTrend = async (userId, period = '1m', tz = 'UTC') => {
         profit:       entry?.profit       ?? 0,
         cost:         entry?.cost         ?? 0,
         transactions: entry?.transactions ?? 0,
-        // Mark future hours so frontend can style differently
+        qty_added:    entry?.qty_added    ?? 0,
         isFuture:     h > currentLocalHour,
       });
     }
@@ -276,6 +280,7 @@ const getRevenueTrend = async (userId, period = '1m', tz = 'UTC') => {
         profit:       dataMap[key]?.profit       ?? 0,
         cost:         dataMap[key]?.cost         ?? 0,
         transactions: dataMap[key]?.transactions ?? 0,
+        qty_added:    dataMap[key]?.qty_added    ?? 0,
       });
     }
   } else {
@@ -289,10 +294,11 @@ const getRevenueTrend = async (userId, period = '1m', tz = 'UTC') => {
         profit:       Math.max(0, parseFloat(row.profit)     || 0),
         cost:         Math.max(0, parseFloat(row.cost)       || 0),
         transactions: Math.max(0, parseInt(row.transactions) || 0),
+        qty_added:    Math.max(0, parseInt(row.qty_added)    || 0),
       });
     }
     while (filled.length < 2) {
-      filled.push({ date: '', revenue: 0, profit: 0, cost: 0, transactions: 0 });
+      filled.push({ date: '', revenue: 0, profit: 0, cost: 0, transactions: 0, qty_added: 0 });
     }
   }
 

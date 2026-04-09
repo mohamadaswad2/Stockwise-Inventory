@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Plus, ArrowRight, Package, ShoppingCart } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
-  ResponsiveContainer, PieChart, Pie, Cell,
+  Legend, ResponsiveContainer, PieChart, Pie, Cell,
 } from 'recharts';
 import ProtectedRoute from '../../components/layout/ProtectedRoute';
 import AppLayout from '../../components/layout/AppLayout';
@@ -14,17 +14,24 @@ import { useDashboard } from '../../hooks/useDashboard';
 import { useAuth } from '../../contexts/AuthContext';
 import Spinner from '../../components/ui/Spinner';
 import { getAnalytics } from '../../services/transaction.service';
+import { useCurrency } from '../../contexts/CurrencyContext';
 
-function ChartTooltip({ active, payload, label }) {
+function ChartTooltip({ active, payload, label, isToday, formatFn }) {
   if (!active || !payload?.length) return null;
   return (
     <div className="card px-3 py-2 text-xs shadow-lg"
       style={{ border: '1px solid var(--border2)' }}>
-      <p className="font-bold mb-1" style={{ color: 'var(--text)' }}>{label}</p>
+      <p className="font-bold mb-1.5" style={{ color: 'var(--text)' }}>{label}</p>
       {payload.map(p => (
-        <p key={p.name} style={{ color: p.color }}>
-          {p.name}: <strong>{p.value}</strong>
-        </p>
+        <div key={p.name} className="flex items-center justify-between gap-3 mb-0.5">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
+            <span style={{ color: 'var(--text2)' }}>{p.name}</span>
+          </span>
+          <span className="font-bold" style={{ color: p.color }}>
+            {p.dataKey === 'revenue' ? formatFn(p.value) : `${p.value} units`}
+          </span>
+        </div>
       ))}
     </div>
   );
@@ -32,53 +39,48 @@ function ChartTooltip({ active, payload, label }) {
 
 const DONUT_COLORS = ['#6366f1','#8b5cf6','#a855f7','#c084fc','#3b82f6','#60a5fa'];
 
-// TODAY uses Analytics trend (revenue/hourly) — 7D/30D use Stock trend (units/daily)
 const PERIODS = [
   { key: 'today', label: 'Today' },
-  { key: '7d',   label: '7D'   },
-  { key: '30d',  label: '30D'  },
+  { key: '7d',    label: '7D'   },
+  { key: '30d',   label: '30D'  },
 ];
 
+// 30d maps to '1m' for backend (which we keep in VALID_PERIODS for summary endpoint)
+// but getAnalytics accepts '7d' directly
+// For 30D we pass '7d' × extra days — actually backend has no '30d' period
+// Map dashboard period → backend period
+const PERIOD_MAP = { 'today': 'today', '7d': '7d', '30d': '7d' };
+// For 30D we want 30 days — use a separate approach: pass '1m' but we removed 1m
+// Solution: keep '1m' in backend for dashboard use, just hide from analytics UI
+// Dashboard calls: today → 'today', 7d → '7d', 30d → '3m' (90d) is too much
+// Better: add a dashboard-specific param or keep '1m' in VALID_PERIODS
+// DECISION: Keep '1m' in backend VALID_PERIODS (used by dashboard + sales page)
+// Analytics UI shows [Today, 7D, 3M] only — hiding 1m from UI not from backend
+
 export default function DashboardPage() {
-  const { user }           = useAuth();
-  const { stats, loading } = useDashboard();
+  const { user }             = useAuth();
+  const { stats, loading }   = useDashboard();
+  const { format, formatFull } = useCurrency();
   const [activePeriod, setActivePeriod] = useState('today');
+  const [chartData,    setChartData]    = useState([]);
+  const [chartLoading, setChartLoading] = useState(false);
 
-  // TODAY: revenue trend from analytics (hourly)
-  const [todayTrend,        setTodayTrend]        = useState([]);
-  const [todayTrendLoading, setTodayTrendLoading] = useState(false);
-
-  const loadTodayTrend = useCallback(async () => {
-    setTodayTrendLoading(true);
+  // Single unified data fetch — same API for all 3 periods
+  const loadChart = useCallback(async (period) => {
+    setChartLoading(true);
     try {
-      const res = await getAnalytics('today');
-      setTodayTrend(res.data.data?.trend || []);
+      // Map '30d' → '1m' for backend (30 days daily)
+      const backendPeriod = period === '30d' ? '1m' : period;
+      const res = await getAnalytics(backendPeriod);
+      setChartData(res.data.data?.trend || []);
     } catch {
-      setTodayTrend([]);
+      setChartData([]);
     } finally {
-      setTodayTrendLoading(false);
+      setChartLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    if (activePeriod === 'today') loadTodayTrend();
-  }, [activePeriod, loadTodayTrend]);
-
-  // 7D / 30D: stock units from getStockTrend
-  const rawTrend = stats?.stock_trend || [];
-  const allTrend = rawTrend.map(row => ({
-    date:    row.date?.slice(5) || String(row.date || '').slice(5),
-    qty:     Math.max(0, parseInt(row.qty || row.qty_in || 0)),
-    qty_out: Math.max(0, parseInt(row.qty_out || 0)),
-  }));
-
-  const periodDays = { '7d': 7, '30d': 30 };
-
-  // Build chartData depending on active period
-  const isToday  = activePeriod === 'today';
-  const chartData = isToday
-    ? todayTrend          // { date:'HH:00', revenue, profit, cost }
-    : allTrend.slice(-periodDays[activePeriod]);  // { date:'MM-DD', qty, qty_out }
+  useEffect(() => { loadChart(activePeriod); }, [activePeriod, loadChart]);
 
   // Category data
   const categoryData = (stats?.category_breakdown || [])
@@ -87,30 +89,29 @@ export default function DashboardPage() {
     .map(row => ({ name: row.name, value: parseInt(row.total_quantity || 0) }));
 
   const totalUnits = categoryData.reduce((s, d) => s + d.value, 0);
-
-  // Chart render logic
-  const chartLoading = loading || (isToday && todayTrendLoading);
-
-  const hasAnyValue = isToday
-    ? chartData.some(d => (d.revenue || 0) > 0)
-    : chartData.some(d => d.qty > 0);
-
-  const hasStock   = chartData.length >= 2;
-  const yDomain    = hasAnyValue ? ['auto', 'auto'] : [0, 1];
   const hasCat     = categoryData.length > 0;
+  const isToday    = activePeriod === 'today';
 
-  // XAxis formatter — today shows HH:00, others show MM-DD
-  const xFormatter = isToday
-    ? (d => d)                          // already 'HH:00'
-    : (d => d?.slice(0, 5) || d);      // 'YYYY-MM-DD' → 'MM-DD' but slice(5) already done
+  // Chart values
+  const hasRevenue   = chartData.some(d => (d.revenue   || 0) > 0);
+  const hasQtyAdded  = chartData.some(d => (d.qty_added || 0) > 0);
+  const hasAnyValue  = hasRevenue || hasQtyAdded;
+  const hasStock     = chartData.length >= 2;
 
-  // dataKey and label for Area
-  const areaDataKey = isToday ? 'revenue' : 'qty';
-  const areaName    = isToday ? 'Revenue' : 'Units Added';
-  const areaColor   = isToday ? '#22c55e' : '#6366f1';
+  // XAxis formatter
+  const xFormatter = d => {
+    if (!d) return '';
+    if (d.includes(':')) return d;          // HH:00 for today
+    return d.slice(5);                      // MM-DD for daily
+  };
+
+  // Y-axis: show flat baseline when no data
+  const yRevenueDomain  = hasRevenue  ? ['auto', 'auto'] : [0, 1];
+  const yQtyDomain      = hasQtyAdded ? ['auto', 'auto'] : [0, 1];
+
   const chartSubtitle = isToday
-    ? 'Revenue by hour (today)'
-    : 'Stock added per day';
+    ? 'Revenue & stock added by hour (today)'
+    : `Revenue & stock added — ${activePeriod === '7d' ? 'last 7 days' : 'last 30 days'}`;
 
   return (
     <ProtectedRoute>
@@ -138,7 +139,7 @@ export default function DashboardPage() {
         {/* ── Charts ── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-5">
 
-          {/* Stock / Revenue Trend — 2/3 */}
+          {/* Stock Activity Chart — 2/3 */}
           <div className="lg:col-span-2 card p-5">
             <div className="flex items-start justify-between mb-4">
               <div>
@@ -170,13 +171,15 @@ export default function DashboardPage() {
               <div className="flex items-center justify-center h-52"><Spinner /></div>
             ) : hasStock ? (
               <ResponsiveContainer width="100%" height={220} key={activePeriod}>
-                <AreaChart
-                  data={chartData}
-                  margin={{ top: 16, right: 24, left: 0, bottom: 0 }}>
+                <AreaChart data={chartData} margin={{ top: 16, right: 24, left: 0, bottom: 0 }}>
                   <defs>
-                    <linearGradient id="dashGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%"  stopColor={areaColor} stopOpacity={0.2} />
-                      <stop offset="95%" stopColor={areaColor} stopOpacity={0} />
+                    <linearGradient id="gradRevenue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor="#22c55e" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="gradQty" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor="#6366f1" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid stroke="var(--surface3)" strokeDasharray="3 3" vertical={false} />
@@ -187,26 +190,44 @@ export default function DashboardPage() {
                     axisLine={false} tickLine={false} tickMargin={8}
                     interval="preserveStartEnd"
                   />
+                  {/* Left YAxis — Revenue (RM) */}
                   <YAxis
+                    yAxisId="revenue"
+                    orientation="left"
+                    tick={{ fill: 'var(--text3)', fontSize: 10 }}
+                    axisLine={false} tickLine={false}
+                    tickFormatter={v => format(v, 0)}
+                    width={48} tickMargin={4}
+                    domain={yRevenueDomain}
+                  />
+                  {/* Right YAxis — Units */}
+                  <YAxis
+                    yAxisId="qty"
+                    orientation="right"
                     tick={{ fill: 'var(--text3)', fontSize: 10 }}
                     axisLine={false} tickLine={false}
                     allowDecimals={false}
-                    width={40} tickMargin={4}
-                    domain={yDomain}
+                    width={32} tickMargin={4}
+                    domain={yQtyDomain}
                   />
                   <Tooltip
-                    content={<ChartTooltip />}
+                    content={<ChartTooltip isToday={isToday} formatFn={format} />}
                     cursor={{ stroke: 'var(--border2)', strokeWidth: 1 }}
                   />
+                  <Legend iconType="circle" iconSize={7}
+                    formatter={v => <span style={{ fontSize: 11, color: 'var(--text2)' }}>{v}</span>} />
                   <Area
-                    type="monotone"
-                    dataKey={areaDataKey}
-                    name={areaName}
-                    stroke={areaColor}
-                    strokeWidth={1.5}
-                    fill="url(#dashGrad)"
-                    dot={false}
-                    activeDot={{ r: 3, fill: areaColor, strokeWidth: 0 }}
+                    yAxisId="revenue"
+                    type="monotone" dataKey="revenue" name="Revenue"
+                    stroke="#22c55e" strokeWidth={1.5} fill="url(#gradRevenue)"
+                    dot={false} activeDot={{ r: 3, fill: '#22c55e', strokeWidth: 0 }}
+                    isAnimationActive={false}
+                  />
+                  <Area
+                    yAxisId="qty"
+                    type="monotone" dataKey="qty_added" name="Stock Added"
+                    stroke="#6366f1" strokeWidth={1.5} fill="url(#gradQty)"
+                    dot={false} activeDot={{ r: 3, fill: '#6366f1', strokeWidth: 0 }}
                     isAnimationActive={false}
                   />
                 </AreaChart>
@@ -216,12 +237,10 @@ export default function DashboardPage() {
                 style={{ color: 'var(--text3)' }}>
                 <Package size={32} className="mb-2 opacity-30" />
                 <p className="text-sm font-medium" style={{ color: 'var(--text2)' }}>
-                  {isToday ? 'No sales today yet.' : 'No stock activity in this period.'}
+                  No activity in this period
                 </p>
                 <p className="text-xs mt-1 text-center px-4" style={{ color: 'var(--text3)' }}>
-                  {isToday
-                    ? 'Chart shows hourly revenue as sales come in.'
-                    : 'Chart updates when you add items or restock.'}
+                  Chart updates when you record sales or add stock
                 </p>
                 <Link href="/inventory" className="text-xs mt-3 font-semibold"
                   style={{ color: 'var(--accent3)' }}>
@@ -231,7 +250,7 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* Category Donut — 1/3 (unchanged) */}
+          {/* Category Donut — 1/3 */}
           <div className="card p-5">
             <h3 className="text-sm font-bold mb-0.5" style={{ color: 'var(--text)' }}>
               By Category
@@ -239,7 +258,6 @@ export default function DashboardPage() {
             <p className="text-xs mb-3" style={{ color: 'var(--text2)' }}>
               Stock distribution
             </p>
-
             {loading ? (
               <div className="flex items-center justify-center h-44"><Spinner /></div>
             ) : hasCat ? (
@@ -248,13 +266,10 @@ export default function DashboardPage() {
                   <ResponsiveContainer width="100%" height={150}>
                     <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
                       <Pie
-                        data={categoryData}
-                        cx="50%" cy="50%"
+                        data={categoryData} cx="50%" cy="50%"
                         innerRadius={44} outerRadius={66}
-                        paddingAngle={3}
-                        dataKey="value"
-                        strokeWidth={0}
-                        isAnimationActive={false}>
+                        paddingAngle={3} dataKey="value"
+                        strokeWidth={0} isAnimationActive={false}>
                         {categoryData.map((_, i) => (
                           <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />
                         ))}
@@ -262,11 +277,8 @@ export default function DashboardPage() {
                       <Tooltip
                         formatter={(v, n) => [`${v} units`, n]}
                         contentStyle={{
-                          background: 'var(--surface)',
-                          border: '1px solid var(--border2)',
-                          borderRadius: '10px',
-                          fontSize: '11px',
-                          color: 'var(--text)',
+                          background: 'var(--surface)', border: '1px solid var(--border2)',
+                          borderRadius: '10px', fontSize: '11px', color: 'var(--text)',
                         }}
                       />
                     </PieChart>
@@ -339,7 +351,7 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        {/* Low stock table */}
+        {/* Low stock */}
         <div className="mt-4">
           <LowStockTable items={stats?.low_stock_items ?? []} />
         </div>

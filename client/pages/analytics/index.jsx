@@ -18,12 +18,9 @@ import { getAnalytics } from '../../services/transaction.service';
 import toast from 'react-hot-toast';
 
 const PERIODS = [
-  { key: 'today', label: 'Today',  advanced: false },
-  { key: '7d',    label: '7D',     advanced: false },
-  { key: '1m',    label: '1M',     advanced: false },
-  { key: '2m',    label: '2M',     advanced: true  },
-  { key: '3m',    label: '3M',     advanced: true  },
-  { key: 'year',  label: 'Year',   advanced: true  },
+  { key: 'today', label: 'Today', advanced: false },
+  { key: '7d',    label: '7D',    advanced: false },
+  { key: '3m',    label: '3M',    advanced: true  },
 ];
 const ADVANCED_PLANS = ['premium', 'deluxe'];
 
@@ -104,14 +101,12 @@ export default function AnalyticsPage() {
     ? ((Number(s.profit_period) / Number(s.revenue_period)) * 100).toFixed(1)
     : 0;
 
-  // Chart data
-  const trendData = data?.trend || [];
-  // Always render chart if we have >= 2 points (today = 24 always, 7d = 7, etc.)
-  // yDomain: use [0,1] when all zero so baseline is visible (not invisible flat)
-  const hasAnyValue = trendData.some(d =>
-    (d.revenue || 0) > 0 || (d.profit || 0) > 0 || (d.cost || 0) > 0
-  );
-  const yDomain = hasAnyValue ? ['auto', 'auto'] : [0, 1];
+  // Chart data — check if any non-zero value exists
+  const trendData   = data?.trend || [];
+  const hasChartData = trendData.length >= 2 &&
+    trendData.some(d => d.revenue > 0 || d.profit > 0 || d.cost > 0);
+  // When all zero, use [0,1] so chart renders a visible baseline instead of invisible flat
+  const yDomain = hasChartData ? ['auto', 'auto'] : [0, 1];
 
   const exportAnalytics = () => {
     if (!data?.topItems?.length) { toast.error('No data to export.'); return; }
@@ -173,7 +168,7 @@ export default function AnalyticsPage() {
             <Link href="/settings/billing"
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold"
               style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--accent3)', border: '1px solid rgba(99,102,241,0.2)' }}>
-              <Lock size={11} /> Unlock 2M, 3M, Year →
+              <Lock size={11} /> Unlock 3M
             </Link>
           )}
         </div>

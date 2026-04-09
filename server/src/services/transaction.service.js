@@ -3,8 +3,9 @@ const inventoryRepo   = require('../repositories/inventory.repository');
 const AppError = require('../utils/AppError');
 
 const ANALYTICS_PLANS  = ['premium', 'deluxe'];
-const VALID_PERIODS    = ['today','7d','1m','2m','3m','year'];
-const ADVANCED_PERIODS = ['2m','3m','year'];
+// '1m' kept for backward compat (sales page summary endpoint)
+const VALID_PERIODS    = ['today','7d','1m','3m'];
+const ADVANCED_PERIODS = ['3m'];
 
 const recordTransaction = async (userId, data) => {
   const { itemId, type, quantity } = data;
