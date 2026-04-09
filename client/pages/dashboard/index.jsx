@@ -1,7 +1,7 @@
 import Head from 'next/head';
 import Link from 'next/link';
-import { useState } from 'react';
-import { Plus, TrendingUp, ArrowRight, Package, ShoppingCart } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Plus, ArrowRight, Package, ShoppingCart } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
   ResponsiveContainer, PieChart, Pie, Cell,
@@ -13,8 +13,8 @@ import LowStockTable from '../../components/dashboard/LowStockTable';
 import { useDashboard } from '../../hooks/useDashboard';
 import { useAuth } from '../../contexts/AuthContext';
 import Spinner from '../../components/ui/Spinner';
+import { getAnalytics } from '../../services/transaction.service';
 
-// Custom tooltip — clean dark card
 function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   return (
@@ -30,34 +30,57 @@ function ChartTooltip({ active, payload, label }) {
   );
 }
 
-// No DonutCentreLabel component needed — use absolute div overlay instead
-
 const DONUT_COLORS = ['#6366f1','#8b5cf6','#a855f7','#c084fc','#3b82f6','#60a5fa'];
+
+// TODAY uses Analytics trend (revenue/hourly) — 7D/30D use Stock trend (units/daily)
 const PERIODS = [
-  { key: '7d',  label: '7D' },
-  { key: '14d', label: '14D' },
-  { key: '30d', label: '30D' },
+  { key: 'today', label: 'Today' },
+  { key: '7d',   label: '7D'   },
+  { key: '30d',  label: '30D'  },
 ];
 
 export default function DashboardPage() {
   const { user }           = useAuth();
   const { stats, loading } = useDashboard();
-  const [activePeriod, setActivePeriod] = useState('30d');
+  const [activePeriod, setActivePeriod] = useState('today');
 
+  // TODAY: revenue trend from analytics (hourly)
+  const [todayTrend,        setTodayTrend]        = useState([]);
+  const [todayTrendLoading, setTodayTrendLoading] = useState(false);
+
+  const loadTodayTrend = useCallback(async () => {
+    setTodayTrendLoading(true);
+    try {
+      const res = await getAnalytics('today');
+      setTodayTrend(res.data.data?.trend || []);
+    } catch {
+      setTodayTrend([]);
+    } finally {
+      setTodayTrendLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activePeriod === 'today') loadTodayTrend();
+  }, [activePeriod, loadTodayTrend]);
+
+  // 7D / 30D: stock units from getStockTrend
   const rawTrend = stats?.stock_trend || [];
-
-  // Backend returns 30 days always — map fields, ensure numbers
   const allTrend = rawTrend.map(row => ({
     date:    row.date?.slice(5) || String(row.date || '').slice(5),
-    qty:     Math.max(0, parseInt(row.qty     || row.qty_in  || 0)),
+    qty:     Math.max(0, parseInt(row.qty || row.qty_in || 0)),
     qty_out: Math.max(0, parseInt(row.qty_out || 0)),
   }));
 
-  // Slice by period — 30d = all 30 rows, 7d = last 7, 14d = last 14
-  const periodDays = { '7d': 7, '14d': 14, '30d': 30 };
-  const chartData  = allTrend.slice(-periodDays[activePeriod]);
+  const periodDays = { '7d': 7, '30d': 30 };
 
-  // Category data — max 5, only non-zero
+  // Build chartData depending on active period
+  const isToday  = activePeriod === 'today';
+  const chartData = isToday
+    ? todayTrend          // { date:'HH:00', revenue, profit, cost }
+    : allTrend.slice(-periodDays[activePeriod]);  // { date:'MM-DD', qty, qty_out }
+
+  // Category data
   const categoryData = (stats?.category_breakdown || [])
     .filter(r => parseInt(r.total_quantity) > 0)
     .slice(0, 5)
@@ -65,12 +88,29 @@ export default function DashboardPage() {
 
   const totalUnits = categoryData.reduce((s, d) => s + d.value, 0);
 
-  // Always render chart when we have 30 days of data
-  // Even if all-zero (no activity this period), show flat baseline — not empty state
-  const hasActivity = chartData.some(d => d.qty > 0 || d.qty_out > 0);
-  const hasStock    = chartData.length >= 2; // render always, hasActivity only affects yDomain
-  const hasCat      = categoryData.length > 0;
-  const stockYDomain = hasActivity ? ['auto', 'auto'] : [0, 1];
+  // Chart render logic
+  const chartLoading = loading || (isToday && todayTrendLoading);
+
+  const hasAnyValue = isToday
+    ? chartData.some(d => (d.revenue || 0) > 0)
+    : chartData.some(d => d.qty > 0);
+
+  const hasStock   = chartData.length >= 2;
+  const yDomain    = hasAnyValue ? ['auto', 'auto'] : [0, 1];
+  const hasCat     = categoryData.length > 0;
+
+  // XAxis formatter — today shows HH:00, others show MM-DD
+  const xFormatter = isToday
+    ? (d => d)                          // already 'HH:00'
+    : (d => d?.slice(0, 5) || d);      // 'YYYY-MM-DD' → 'MM-DD' but slice(5) already done
+
+  // dataKey and label for Area
+  const areaDataKey = isToday ? 'revenue' : 'qty';
+  const areaName    = isToday ? 'Revenue' : 'Units Added';
+  const areaColor   = isToday ? '#22c55e' : '#6366f1';
+  const chartSubtitle = isToday
+    ? 'Revenue by hour (today)'
+    : 'Stock added per day';
 
   return (
     <ProtectedRoute>
@@ -98,7 +138,7 @@ export default function DashboardPage() {
         {/* ── Charts ── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-5">
 
-          {/* Stock Trend — 2/3 */}
+          {/* Stock / Revenue Trend — 2/3 */}
           <div className="lg:col-span-2 card p-5">
             <div className="flex items-start justify-between mb-4">
               <div>
@@ -106,7 +146,7 @@ export default function DashboardPage() {
                   Stock Activity
                 </h3>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--text2)' }}>
-                  Stock added per day
+                  {chartSubtitle}
                 </p>
               </div>
               {/* Period selector */}
@@ -126,7 +166,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {loading ? (
+            {chartLoading ? (
               <div className="flex items-center justify-center h-52"><Spinner /></div>
             ) : hasStock ? (
               <ResponsiveContainer width="100%" height={220} key={activePeriod}>
@@ -135,14 +175,15 @@ export default function DashboardPage() {
                   margin={{ top: 16, right: 24, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="dashGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%"  stopColor="#6366f1" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                      <stop offset="5%"  stopColor={areaColor} stopOpacity={0.2} />
+                      <stop offset="95%" stopColor={areaColor} stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid stroke="var(--surface3)" strokeDasharray="3 3" vertical={false} />
                   <XAxis
                     dataKey="date"
                     tick={{ fill: 'var(--text3)', fontSize: 10 }}
+                    tickFormatter={xFormatter}
                     axisLine={false} tickLine={false} tickMargin={8}
                     interval="preserveStartEnd"
                   />
@@ -151,7 +192,7 @@ export default function DashboardPage() {
                     axisLine={false} tickLine={false}
                     allowDecimals={false}
                     width={40} tickMargin={4}
-                    domain={stockYDomain}
+                    domain={yDomain}
                   />
                   <Tooltip
                     content={<ChartTooltip />}
@@ -159,13 +200,13 @@ export default function DashboardPage() {
                   />
                   <Area
                     type="monotone"
-                    dataKey="qty"
-                    name="Units"
-                    stroke="#6366f1"
+                    dataKey={areaDataKey}
+                    name={areaName}
+                    stroke={areaColor}
                     strokeWidth={1.5}
                     fill="url(#dashGrad)"
                     dot={false}
-                    activeDot={{ r: 3, fill: '#6366f1', strokeWidth: 0 }}
+                    activeDot={{ r: 3, fill: areaColor, strokeWidth: 0 }}
                     isAnimationActive={false}
                   />
                 </AreaChart>
@@ -175,10 +216,12 @@ export default function DashboardPage() {
                 style={{ color: 'var(--text3)' }}>
                 <Package size={32} className="mb-2 opacity-30" />
                 <p className="text-sm font-medium" style={{ color: 'var(--text2)' }}>
-                  No stock activity in this period
+                  {isToday ? 'No sales today yet.' : 'No stock activity in this period.'}
                 </p>
                 <p className="text-xs mt-1 text-center px-4" style={{ color: 'var(--text3)' }}>
-                  Chart updates when you add items or restock
+                  {isToday
+                    ? 'Chart shows hourly revenue as sales come in.'
+                    : 'Chart updates when you add items or restock.'}
                 </p>
                 <Link href="/inventory" className="text-xs mt-3 font-semibold"
                   style={{ color: 'var(--accent3)' }}>
@@ -188,7 +231,7 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* Category Donut — 1/3 */}
+          {/* Category Donut — 1/3 (unchanged) */}
           <div className="card p-5">
             <h3 className="text-sm font-bold mb-0.5" style={{ color: 'var(--text)' }}>
               By Category
@@ -201,7 +244,6 @@ export default function DashboardPage() {
               <div className="flex items-center justify-center h-44"><Spinner /></div>
             ) : hasCat ? (
               <>
-                {/* Donut chart with absolute overlay for centre label */}
                 <div style={{ position: 'relative', height: '150px' }}>
                   <ResponsiveContainer width="100%" height={150}>
                     <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
@@ -229,7 +271,6 @@ export default function DashboardPage() {
                       />
                     </PieChart>
                   </ResponsiveContainer>
-                  {/* Centre label — absolute overlay, zero crash risk */}
                   <div style={{
                     position: 'absolute', top: '50%', left: '50%',
                     transform: 'translate(-50%, -50%)',
@@ -243,8 +284,6 @@ export default function DashboardPage() {
                     </p>
                   </div>
                 </div>
-
-                {/* Legend */}
                 <div className="space-y-1.5 mt-3">
                   {categoryData.map((d, i) => {
                     const pct = totalUnits > 0 ? ((d.value / totalUnits) * 100).toFixed(0) : 0;
