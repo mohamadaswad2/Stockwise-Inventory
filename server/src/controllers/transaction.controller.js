@@ -1,6 +1,15 @@
 const txService = require('../services/transaction.service');
 const { success, created } = require('../utils/response');
 
+// Validate IANA timezone string — prevent SQL injection
+// Only allow format like 'Asia/Kuala_Lumpur', 'UTC', 'America/New_York'
+const sanitizeTz = (tz) => {
+  if (!tz || typeof tz !== 'string') return 'UTC';
+  // IANA timezone: letters, digits, underscore, slash, hyphen only
+  if (/^[A-Za-z0-9_/+-]{1,50}$/.test(tz)) return tz;
+  return 'UTC';
+};
+
 const record = async (req, res, next) => {
   try {
     created(res, await txService.recordTransaction(req.user.id, req.body), 'Transaction recorded.');
@@ -15,11 +24,12 @@ const list = async (req, res, next) => {
 
 const summary = async (req, res, next) => {
   try {
-    const { period = '1m' } = req.query;
+    const { period = '1m', tz } = req.query;
+    const safeTz = sanitizeTz(tz);
     const [sales, topItems, trend] = await Promise.all([
-      txService.getSalesSummary(req.user.id, period),
-      txService.getTopItems(req.user.id, period),
-      txService.getRevenueTrend(req.user.id, period),
+      txService.getSalesSummary(req.user.id, period, safeTz),
+      txService.getTopItems(req.user.id, period, safeTz),
+      txService.getRevenueTrend(req.user.id, period, safeTz),
     ]);
     success(res, { sales, topItems, trend });
   } catch (err) { next(err); }
@@ -27,16 +37,17 @@ const summary = async (req, res, next) => {
 
 const analytics = async (req, res, next) => {
   try {
-    const { period = '1m' } = req.query;
-    // Pass req.user.plan for plan gating
-    success(res, await txService.getAnalytics(req.user.id, req.user.plan, period));
+    const { period = '1m', tz } = req.query;
+    const safeTz = sanitizeTz(tz);
+    success(res, await txService.getAnalytics(req.user.id, req.user.plan, period, safeTz));
   } catch (err) { next(err); }
 };
 
 const itemAnalytics = async (req, res, next) => {
   try {
-    const { period = '1m' } = req.query;
-    success(res, { history: await txService.getItemAnalytics(req.user.id, req.params.itemId, period) });
+    const { period = '1m', tz } = req.query;
+    const safeTz = sanitizeTz(tz);
+    success(res, { history: await txService.getItemAnalytics(req.user.id, req.params.itemId, period, safeTz) });
   } catch (err) { next(err); }
 };
 

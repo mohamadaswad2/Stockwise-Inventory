@@ -25,16 +25,16 @@ const recordTransaction = async (userId, data) => {
 
 const getTransactions = (userId, query) => transactionRepo.findAll(userId, query);
 
-const getSalesSummary = (userId, period = '1m') =>
-  transactionRepo.getSalesSummary(userId, period);
+const getSalesSummary = (userId, period = '1m', tz = 'UTC') =>
+  transactionRepo.getSalesSummary(userId, period, tz);
 
-const getTopItems = (userId, period = '1m') =>
-  transactionRepo.getTopItems(userId, period);
+const getTopItems = (userId, period = '1m', tz = 'UTC') =>
+  transactionRepo.getTopItems(userId, period, 20, tz);
 
-const getRevenueTrend = (userId, period = '1m') =>
-  transactionRepo.getRevenueTrend(userId, period);
+const getRevenueTrend = (userId, period = '1m', tz = 'UTC') =>
+  transactionRepo.getRevenueTrend(userId, period, tz);
 
-const getAnalytics = async (userId, userPlan, period = '1m') => {
+const getAnalytics = async (userId, userPlan, period = '1m', tz = 'UTC') => {
   const isAdvanced = ANALYTICS_PLANS.includes(userPlan);
 
   if (!VALID_PERIODS.includes(period))
@@ -44,16 +44,16 @@ const getAnalytics = async (userId, userPlan, period = '1m') => {
     throw new AppError('Extended analytics require Premium or Deluxe plan.', 403);
 
   const [summary, trend, topItems] = await Promise.all([
-    transactionRepo.getSalesSummary(userId, period),
-    transactionRepo.getRevenueTrend(userId, period),
-    transactionRepo.getTopItems(userId, period, 20),
+    transactionRepo.getSalesSummary(userId, period, tz),
+    transactionRepo.getRevenueTrend(userId, period, tz),
+    transactionRepo.getTopItems(userId, period, 20, tz),
   ]);
 
   return { summary, trend, topItems, period, isAdvanced };
 };
 
-const getItemAnalytics = async (userId, itemId, period = '1m') =>
-  transactionRepo.getItemSalesHistory(userId, itemId, period);
+const getItemAnalytics = async (userId, itemId, period = '1m', tz = 'UTC') =>
+  transactionRepo.getItemSalesHistory(userId, itemId, period, tz);
 
 module.exports = {
   recordTransaction, getTransactions,

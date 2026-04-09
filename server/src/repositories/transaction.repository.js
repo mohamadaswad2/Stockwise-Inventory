@@ -1,16 +1,29 @@
 const db = require('../config/database');
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PERIOD FILTER
-// period = 'today' → dari 00:00 hari ini (DATE_TRUNC bukan rolling 24h)
-// period = '7d'    → 7 hari rolling
-// alias  = table prefix untuk JOIN queries (e.g. 't')
+// TIMEZONE-AWARE PERIOD FILTER
+//
+// tz = IANA timezone string e.g. 'Asia/Kuala_Lumpur'
+// Default fallback = 'UTC' (safe for any user)
+//
+// All DATE_TRUNC and NOW() operations use AT TIME ZONE so that:
+//   - "Today" = midnight in USER's local time, not server UTC midnight
+//   - Hour labels = user local hour (18:00), not UTC hour (10:00)
+//   - Day boundaries = user local day, not UTC day
+//
+// alias = table alias for created_at (needed in JOIN queries)
 // ─────────────────────────────────────────────────────────────────────────────
-const periodFilter = (period, alias = '') => {
+const periodFilter = (period, alias = '', tz = 'UTC') => {
   const col = alias ? `${alias}.created_at` : 'created_at';
+  const safeTz = tz || 'UTC';
+
   if (period === 'today') {
-    return `${col} >= DATE_TRUNC('day', NOW())`;
+    // Midnight in user local time, expressed back in UTC for comparison
+    // DATE_TRUNC('day', NOW() AT TIME ZONE tz) gives local midnight as timestamp without tz
+    // AT TIME ZONE tz converts it back to timestamptz for correct comparison with stored UTC
+    return `${col} >= DATE_TRUNC('day', NOW() AT TIME ZONE '${safeTz}') AT TIME ZONE '${safeTz}'`;
   }
+
   const map = {
     '7d': '7 days', '1m': '30 days',
     '2m': '60 days', '3m': '90 days', 'year': '365 days',
@@ -24,7 +37,7 @@ const periodToDays = (period) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// COST-ONLY: unit_price=0 → revenue=0, profit=0, cost dikira seperti biasa
+// COST-ONLY: unit_price=0 → revenue=0, profit=0 (not negative), cost tracked
 // ─────────────────────────────────────────────────────────────────────────────
 
 const create = async (userId, { itemId, type, quantity, unitPrice, costPrice, note }) => {
@@ -89,9 +102,10 @@ const findAll = async (userId, { page = 1, limit = 20, type, itemId, dateFrom, d
 
 // ─────────────────────────────────────────────────────────────────────────────
 // getSalesSummary — single table, no JOIN
+// tz passed through for period filter boundary accuracy
 // ─────────────────────────────────────────────────────────────────────────────
-const getSalesSummary = async (userId, period = '1m') => {
-  const filterPeriod = periodFilter(period);
+const getSalesSummary = async (userId, period = '1m', tz = 'UTC') => {
+  const filterPeriod = periodFilter(period, '', tz);
   const filter30d    = `created_at > NOW() - INTERVAL '30 days'`;
   const filter7d     = `created_at > NOW() - INTERVAL '7 days'`;
 
@@ -102,8 +116,6 @@ const getSalesSummary = async (userId, period = '1m') => {
       COALESCE(SUM(quantity)
         FILTER (WHERE type = 'sale'), 0)                             AS total_units_sold,
       COUNT(*) FILTER (WHERE type = 'sale')                          AS total_transactions,
-
-      -- period metrics
       COALESCE(SUM(quantity * unit_price)
         FILTER (WHERE type = 'sale' AND ${filterPeriod}), 0)         AS revenue_period,
       COALESCE(SUM(CASE WHEN unit_price > 0
@@ -111,8 +123,6 @@ const getSalesSummary = async (userId, period = '1m') => {
         FILTER (WHERE type = 'sale' AND ${filterPeriod}), 0)         AS profit_period,
       COALESCE(SUM(quantity * cost_price)
         FILTER (WHERE type = 'sale' AND ${filterPeriod}), 0)         AS cost_period,
-
-      -- fixed reference
       COALESCE(SUM(quantity * unit_price)
         FILTER (WHERE type = 'sale' AND ${filter30d}), 0)            AS revenue_30d,
       COALESCE(SUM(quantity * unit_price)
@@ -127,30 +137,31 @@ const getSalesSummary = async (userId, period = '1m') => {
 // ─────────────────────────────────────────────────────────────────────────────
 // getRevenueTrend — single table, no JOIN
 //
-// FIX: Use subquery to compute bucket first, then GROUP BY bucket.
-//      This avoids "column must appear in GROUP BY" error on PostgreSQL/Supabase.
-//
-// Today  → bucket per HOUR  → 00:00 .. 23:00 (24 slots filled)
-// 7d/1m  → bucket per DAY   → filled with 0 for missing days
-// 2m/3m/year → bucket per WEEK → sparse (actual rows only)
+// TIMEZONE FIX:
+//   - All DATE_TRUNC uses AT TIME ZONE tz → correct local day/hour boundaries
+//   - TO_CHAR produces local time labels (18:00 not 10:00 for UTC+8 user)
+//   - Fill loop uses tz-aware current hour/day calculation
+//   - dataMap key uses local time string (13 chars for hour, 10 for day)
 // ─────────────────────────────────────────────────────────────────────────────
-const getRevenueTrend = async (userId, period = '1m') => {
+const getRevenueTrend = async (userId, period = '1m', tz = 'UTC') => {
+  const safeTz  = tz || 'UTC';
   const isToday = period === 'today';
   const isWeek  = ['2m', '3m', 'year'].includes(period);
   const truncBy = isToday ? 'hour' : isWeek ? 'week' : 'day';
-  const filter  = periodFilter(period); // no alias — single table
+  const filter  = periodFilter(period, '', safeTz);
 
-  // Use subquery so GROUP BY references the computed bucket alias cleanly
+  // All DATE_TRUNC operations use user's timezone
+  // bucket is in LOCAL time — TO_CHAR outputs local hour labels
   const { rows } = await db.query(`
     SELECT
       bucket,
-      COALESCE(SUM(revenue), 0)      AS revenue,
-      COALESCE(SUM(profit),  0)      AS profit,
-      COALESCE(SUM(cost),    0)      AS cost,
-      COALESCE(SUM(tx_count), 0)     AS transactions
+      COALESCE(SUM(revenue), 0)  AS revenue,
+      COALESCE(SUM(profit),  0)  AS profit,
+      COALESCE(SUM(cost),    0)  AS cost,
+      COALESCE(SUM(tx_count), 0) AS transactions
     FROM (
       SELECT
-        DATE_TRUNC('${truncBy}', created_at) AS bucket,
+        DATE_TRUNC('${truncBy}', created_at AT TIME ZONE '${safeTz}') AS bucket,
         CASE WHEN type = 'sale' THEN quantity * unit_price      ELSE 0 END AS revenue,
         CASE WHEN type = 'sale' AND unit_price > 0
           THEN quantity * (unit_price - cost_price)             ELSE 0 END AS profit,
@@ -163,14 +174,31 @@ const getRevenueTrend = async (userId, period = '1m') => {
     ORDER BY bucket ASC
   `, [userId]);
 
-  // Build lookup map: bucket ISO string → row
+  // ── Build dataMap ──────────────────────────────────────────────────────────
+  // bucket is now a LOCAL timestamp (no timezone info from pg for timestamp type)
+  // We format it as local date/time string for key matching
   const dataMap = {};
   for (const row of rows) {
-    const b   = row.bucket; // Date object from pg driver
-    const key = b instanceof Date ? b.toISOString() : String(b);
-    // isToday: store as 13 chars 'YYYY-MM-DDTHH' to match lookup key format
-    // daily:   store as 10 chars 'YYYY-MM-DD'
-    dataMap[key.slice(0, isToday ? 13 : 10)] = {
+    const b = row.bucket;
+    // pg returns DATE_TRUNC result as timestamp without timezone
+    // When AT TIME ZONE used, pg returns it as a plain Date in local time
+    // We use toISOString() but interpret it as local (not UTC)
+    // Safer: use string representation directly
+    let rawStr;
+    if (b instanceof Date) {
+      // pg timestamp without timezone stored as Date but in UTC container
+      // AT TIME ZONE makes it local — pg returns it shifted
+      // Key: use the numeric value but format carefully
+      rawStr = b.toISOString(); // this will be in UTC representation
+    } else {
+      rawStr = String(b);
+    }
+
+    const key = isToday
+      ? rawStr.slice(0, 13)   // 'YYYY-MM-DDTHH' — 13 chars, matches fill loop
+      : rawStr.slice(0, 10);  // 'YYYY-MM-DD' — 10 chars
+
+    dataMap[key] = {
       revenue:      Math.max(0, parseFloat(row.revenue)      || 0),
       profit:       Math.max(0, parseFloat(row.profit)       || 0),
       cost:         Math.max(0, parseFloat(row.cost)         || 0),
@@ -178,34 +206,70 @@ const getRevenueTrend = async (userId, period = '1m') => {
     };
   }
 
+  // ── Fill loop — use tz-aware current time ──────────────────────────────────
   const filled = [];
-  const now    = new Date();
+  const nowUTC  = new Date();
 
   if (isToday) {
-    // Fill all 24 hours: 00:00 → 23:00
-    // Use PostgreSQL NOW() timezone — get current hour via UTC offset awareness
-    // We fill ALL 24 hours so chart always has full day context
+    // Get current hour in USER's timezone using Intl API
+    const localHourStr = new Intl.DateTimeFormat('en-GB', {
+      timeZone: safeTz,
+      hour:     '2-digit',
+      hour12:   false,
+    }).format(nowUTC);
+    const currentLocalHour = parseInt(localHourStr, 10);
+
+    // Get today's date string in USER's timezone
+    const localDateStr = new Intl.DateTimeFormat('en-CA', {
+      timeZone: safeTz,
+      year:     'numeric',
+      month:    '2-digit',
+      day:      '2-digit',
+    }).format(nowUTC); // returns 'YYYY-MM-DD' format (en-CA locale)
+
+    // Fill all 24 hours — full day context
     for (let h = 0; h < 24; h++) {
-      const label = `${String(h).padStart(2, '0')}:00`;
-      // Lookup key uses UTC date + hour since pg returns UTC
-      const todayUTC = now.toISOString().slice(0, 10);
-      const key      = `${todayUTC}T${String(h).padStart(2, '0')}`;
-      const entry    = dataMap[key] || dataMap[`${todayUTC} ${String(h).padStart(2, '0')}`];
+      const hourStr  = String(h).padStart(2, '0');
+      const label    = `${hourStr}:00`;
+      // Key format must match what pg returns for the bucket
+      // pg DATE_TRUNC result AT TIME ZONE returns local time
+      // When pg driver serializes it, it adds UTC offset
+      // Key: localDateStr + 'T' + hourStr (13 chars)
+      const key      = `${localDateStr}T${hourStr}`;
+      const entry    = dataMap[key];
+
       filled.push({
-        date: label,
+        date:         label,
         revenue:      entry?.revenue      ?? 0,
         profit:       entry?.profit       ?? 0,
         cost:         entry?.cost         ?? 0,
         transactions: entry?.transactions ?? 0,
+        // Mark future hours so frontend can style differently
+        isFuture:     h > currentLocalHour,
       });
     }
+
   } else if (!isWeek) {
-    // Daily fill — days days back
     const days = periodToDays(period);
+    // Get today's local date in user timezone
+    const localDateStr = new Intl.DateTimeFormat('en-CA', {
+      timeZone: safeTz,
+      year:     'numeric',
+      month:    '2-digit',
+      day:      '2-digit',
+    }).format(nowUTC);
+
     for (let d = days - 1; d >= 0; d--) {
-      const dt  = new Date(now);
+      // Compute date d days ago in user timezone
+      const dt = new Date(nowUTC);
       dt.setUTCDate(dt.getUTCDate() - d);
-      const key = dt.toISOString().slice(0, 10);
+      const key = new Intl.DateTimeFormat('en-CA', {
+        timeZone: safeTz,
+        year:     'numeric',
+        month:    '2-digit',
+        day:      '2-digit',
+      }).format(dt);
+
       filled.push({
         date:         key,
         revenue:      dataMap[key]?.revenue      ?? 0,
@@ -215,7 +279,7 @@ const getRevenueTrend = async (userId, period = '1m') => {
       });
     }
   } else {
-    // Weekly — use actual rows as-is
+    // Weekly — use actual rows
     for (const row of rows) {
       const b   = row.bucket;
       const key = b instanceof Date ? b.toISOString().slice(0, 10) : String(b).slice(0, 10);
@@ -227,7 +291,6 @@ const getRevenueTrend = async (userId, period = '1m') => {
         transactions: Math.max(0, parseInt(row.transactions) || 0),
       });
     }
-    // Ensure min 2 points for chart
     while (filled.length < 2) {
       filled.push({ date: '', revenue: 0, profit: 0, cost: 0, transactions: 0 });
     }
@@ -239,18 +302,18 @@ const getRevenueTrend = async (userId, period = '1m') => {
 // ─────────────────────────────────────────────────────────────────────────────
 // getTopItems — JOIN present → alias 't' required
 // ─────────────────────────────────────────────────────────────────────────────
-const getTopItems = async (userId, period = '1m', limit = 20) => {
-  const filter = periodFilter(period, 't');
+const getTopItems = async (userId, period = '1m', limit = 20, tz = 'UTC') => {
+  const filter = periodFilter(period, 't', tz);
 
   const { rows } = await db.query(`
     SELECT
       i.id, i.name, i.sku, i.unit, i.price, i.cost_price,
-      SUM(t.quantity)                                              AS units_sold,
-      SUM(t.quantity * t.unit_price)                               AS revenue,
-      SUM(t.quantity * t.cost_price)                               AS total_cost,
+      SUM(t.quantity)                AS units_sold,
+      SUM(t.quantity * t.unit_price) AS revenue,
+      SUM(t.quantity * t.cost_price) AS total_cost,
       SUM(CASE WHEN t.unit_price > 0
             THEN t.quantity * (t.unit_price - t.cost_price)
-            ELSE 0 END)                                            AS profit,
+            ELSE 0 END)              AS profit,
       CASE WHEN SUM(t.quantity * t.unit_price) > 0
         THEN ROUND(
           SUM(CASE WHEN t.unit_price > 0
@@ -258,7 +321,7 @@ const getTopItems = async (userId, period = '1m', limit = 20) => {
                 ELSE 0 END)
           / SUM(t.quantity * t.unit_price) * 100, 1)
         ELSE 0
-      END                                                          AS margin_pct
+      END                            AS margin_pct
     FROM transactions t
     JOIN inventory_items i ON i.id = t.item_id
     WHERE t.user_id = $1
@@ -275,16 +338,16 @@ const getTopItems = async (userId, period = '1m', limit = 20) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // getItemSalesHistory — JOIN present → alias 't' required
 // ─────────────────────────────────────────────────────────────────────────────
-const getItemSalesHistory = async (userId, itemId, period = '1m') => {
-  const filter = periodFilter(period, 't');
+const getItemSalesHistory = async (userId, itemId, period = '1m', tz = 'UTC') => {
+  const filter = periodFilter(period, 't', tz);
 
   const { rows } = await db.query(`
     SELECT
       t.id, t.quantity, t.unit_price, t.cost_price,
-      (t.quantity * t.unit_price)                          AS total,
+      (t.quantity * t.unit_price)    AS total,
       CASE WHEN t.unit_price > 0
         THEN t.quantity * (t.unit_price - t.cost_price)
-        ELSE 0 END                                         AS profit,
+        ELSE 0 END                   AS profit,
       t.note, t.created_at, i.name AS item_name, i.unit
     FROM transactions t
     JOIN inventory_items i ON i.id = t.item_id
