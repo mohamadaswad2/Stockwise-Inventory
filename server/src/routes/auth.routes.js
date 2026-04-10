@@ -15,7 +15,7 @@ const loginSchema = Joi.object({ email: Joi.string().email().required(), passwor
 
 router.post('/register',             validate(registerSchema), c.register);
 router.post('/verify-email',         c.verifyEmail);
-router.post('/resend-verification',  c.resendVerify);
+router.post('/resend-verification',  c.resendVerification);
 router.post('/login',                validate(loginSchema), c.login);
 router.post('/forgot-password',      c.forgotPassword);
 router.post('/reset-password',       c.resetPassword);
