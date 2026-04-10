@@ -6,6 +6,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import * as authService from '../services/auth.service';
+import api, { setLoggingIn } from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -34,13 +35,19 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = useCallback(async (credentials) => {
-    const res = await authService.login(credentials);
-    const { user: u, token: t } = res.data.data;
-    localStorage.setItem('token', t);
-    localStorage.setItem('user', JSON.stringify(u));
-    setToken(t);
-    setUser(u);
-    return u;
+    // Set flag so 401 interceptor doesn't fire during login
+    setLoggingIn(true);
+    try {
+      const res = await authService.login(credentials);
+      const { user: u, token: t } = res.data.data;
+      localStorage.setItem('token', t);
+      localStorage.setItem('user', JSON.stringify(u));
+      setToken(t);
+      setUser(u);
+      return u;
+    } finally {
+      setLoggingIn(false);
+    }
   }, []);
 
   const register = useCallback(async (data) => {
@@ -62,18 +69,8 @@ export function AuthProvider({ children }) {
     router.push('/auth/login');
   }, [router]);
 
-  // Refresh user data from server (e.g. after Stripe payment)
-  const refreshUser = useCallback(async () => {
-    try {
-      const res = await authService.getProfile();
-      const u   = res.data.data.user;
-      localStorage.setItem('user', JSON.stringify(u));
-      setUser(u);
-    } catch (_) {}
-  }, []);
-
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout, refreshUser, isAuthenticated: !!token }}>
+    <AuthContext.Provider value={{ user, token, loading, login, register, logout, isAuthenticated: !!token }}>
       {children}
     </AuthContext.Provider>
   );
