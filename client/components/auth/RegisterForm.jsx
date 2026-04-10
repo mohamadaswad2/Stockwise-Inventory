@@ -120,6 +120,9 @@ export default function RegisterForm() {
     e.preventDefault();
     if (!isStrong) { toast.error('Please meet all password requirements.'); return; }
 
+    // Debug: log token value
+    console.log('Submit - SITE_KEY:', !!SITE_KEY, '| captchaToken:', captchaToken ? 'present' : 'missing');
+
     // In production, require captcha token
     if (SITE_KEY && !captchaToken) {
       toast.error('Please complete the CAPTCHA verification.');
@@ -128,7 +131,9 @@ export default function RegisterForm() {
 
     setLoading(true);
     try {
-      await authService.register({ ...form, captchaToken: captchaToken || undefined });
+      const payload = { ...form, captchaToken: captchaToken || undefined };
+      console.log('Sending payload:', { ...payload, captchaToken: payload.captchaToken ? '***token***' : 'none' });
+      await authService.register(payload);
       setStep('verify');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Registration failed.');
