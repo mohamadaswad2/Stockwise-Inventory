@@ -73,13 +73,18 @@ export default function RegisterForm() {
       if (!widgetRef.current || widgetIdRef.current !== null) return;
       if (typeof window.turnstile === 'undefined') return;
 
-      widgetIdRef.current = window.turnstile.render(widgetRef.current, {
-        sitekey:  SITE_KEY,
-        theme:    'auto',
-        callback: (token) => setCaptchaToken(token),
-        'expired-callback': () => setCaptchaToken(''),
-        'error-callback':   () => setCaptchaToken(''),
-      });
+      try {
+        widgetIdRef.current = window.turnstile.render(widgetRef.current, {
+          sitekey:  SITE_KEY,
+          theme:    'auto',
+          callback: (token) => setCaptchaToken(token),
+          'expired-callback': () => setCaptchaToken(''),
+          'error-callback':   () => setCaptchaToken(''),
+        });
+        console.log('Turnstile widget rendered');
+      } catch (err) {
+        console.error('Turnstile render error:', err);
+      }
     };
 
     // Script might already be loaded
@@ -89,7 +94,21 @@ export default function RegisterForm() {
       window.onTurnstileLoad = renderWidget;
     }
 
+    // Retry mechanism - check every 500ms for 5 seconds
+    let retries = 0;
+    const maxRetries = 10;
+    const interval = setInterval(() => {
+      if (window.turnstile && widgetIdRef.current === null && widgetRef.current) {
+        renderWidget();
+      }
+      retries++;
+      if (retries >= maxRetries || widgetIdRef.current !== null) {
+        clearInterval(interval);
+      }
+    }, 500);
+
     return () => {
+      clearInterval(interval);
       if (widgetIdRef.current !== null && window.turnstile) {
         window.turnstile.remove(widgetIdRef.current);
         widgetIdRef.current = null;
@@ -109,7 +128,7 @@ export default function RegisterForm() {
 
     setLoading(true);
     try {
-      await authService.register({ ...form, captchaToken });
+      await authService.register({ ...form, captchaToken: captchaToken || undefined });
       setStep('verify');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Registration failed.');
@@ -142,7 +161,7 @@ export default function RegisterForm() {
         <div className="relative">
           <input type={showPw ? 'text' : 'password'} className="input pr-11"
             placeholder="Create strong password"
-            value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required />
+            value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value.replace(/\s/g, '') }))} required />
           <button type="button" onClick={() => setShowPw(v => !v)}
             className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-xl"
             style={{ color: 'var(--ios-text2)' }}>
