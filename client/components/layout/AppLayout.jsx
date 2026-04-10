@@ -7,11 +7,9 @@ import {
   LogOut, Menu, X, Sun, Moon, ChevronRight, ShieldAlert, Settings,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useTheme }    from '../../contexts/ThemeContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import TrialBanner from '../ui/TrialBanner';
-import FloatingActionButton from '../ui/FloatingActionButton';
-import QuickSaleModal from '../ui/QuickSaleModal';
-import useQuickSale from '../../hooks/useQuickSale';
 
 const NAV = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -42,11 +40,9 @@ function NavLink({ href, label, icon: Icon, active, onClick }) {
 export default function AppLayout({ children }) {
   const { user, logout }   = useAuth();
   const { isDark, toggle } = useTheme();
+  const { lang, toggle: toggleLang } = useLanguage();
   const router = useRouter();
   const [sideOpen, setSideOpen] = useState(false);
-  
-  // Quick sale modal state
-  const { isModalOpen, openModal, closeModal, handleSuccess } = useQuickSale();
 
   const isAdmin   = user?.role === 'admin';
   const pageTitle = NAV.find(n => router.pathname.startsWith(n.href))?.label
@@ -116,6 +112,15 @@ export default function AppLayout({ children }) {
             {isDark ? 'Light Mode' : 'Dark Mode'}
           </button>
 
+          <button onClick={toggleLang}
+            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium transition-all"
+            style={{ color: 'var(--text2)' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface2)'; e.currentTarget.style.color = 'var(--text)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = ''; e.currentTarget.style.color = 'var(--text2)'; }}>
+            <span style={{ fontSize: '15px', lineHeight: 1 }}>{lang === 'en' ? '🇲🇾' : '🇬🇧'}</span>
+            {lang === 'en' ? 'Bahasa Malaysia' : 'English'}
+          </button>
+
           <NavLink href="/settings" label="Settings" icon={Settings}
             active={router.pathname.startsWith('/settings')}
             onClick={() => setSideOpen(false)} />
@@ -168,16 +173,6 @@ export default function AppLayout({ children }) {
           {children}
         </main>
       </div>
-
-      {/* Floating Action Button */}
-      <FloatingActionButton onClick={openModal} />
-
-      {/* Quick Sale Modal */}
-      <QuickSaleModal 
-        isOpen={isModalOpen} 
-        onClose={closeModal} 
-        onSuccess={handleSuccess}
-      />
     </div>
   );
 }

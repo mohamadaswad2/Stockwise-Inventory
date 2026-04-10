@@ -10,6 +10,7 @@ const dashboardRoutes   = require('./routes/dashboard.routes');
 const userRoutes        = require('./routes/user.routes');
 const adminRoutes       = require('./routes/admin.routes');
 const transactionRoutes = require('./routes/transaction.routes');
+const stripeRoutes      = require('./routes/stripe.routes');
 const { authenticate }  = require('./middlewares/auth.middleware');
 const appUpdateService  = require('./services/appUpdate.service');
 const { success }       = require('./utils/response');
@@ -24,6 +25,8 @@ app.use(cors({
   origin: (o, cb) => (!o || allowed.includes(o)) ? cb(null, true) : cb(new Error(`CORS: ${o}`)),
   credentials: true,
 }));
+// Stripe webhook needs raw body — MUST be before json middleware
+app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
@@ -43,6 +46,7 @@ app.use('/api/dashboard',    dashboardRoutes);
 app.use('/api/users',        userRoutes);
 app.use('/api/admin',        adminRoutes);
 app.use('/api/transactions', transactionRoutes);
+app.use('/api/stripe',       stripeRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

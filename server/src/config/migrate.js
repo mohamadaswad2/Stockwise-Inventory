@@ -52,7 +52,6 @@ const migrations = [
     UNIQUE(user_id, sku)
   )`,
 
-  // transactions — WITHOUT generated columns (safer for ALTER TABLE on existing DB)
   `CREATE TABLE IF NOT EXISTS transactions (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id     UUID          NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -61,13 +60,15 @@ const migrations = [
     quantity    INTEGER       NOT NULL,
     unit_price  NUMERIC(12,2) NOT NULL DEFAULT 0,
     cost_price  NUMERIC(12,2) NOT NULL DEFAULT 0,
+    total       NUMERIC(12,2) GENERATED ALWAYS AS (quantity * unit_price) STORED,
+    profit      NUMERIC(12,2) GENERATED ALWAYS AS (quantity * (unit_price - cost_price)) STORED,
     note        TEXT,
     created_at  TIMESTAMPTZ   NOT NULL DEFAULT NOW()
   )`,
 
   `CREATE TABLE IF NOT EXISTS csv_exports (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     exported_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`,
 
@@ -102,14 +103,13 @@ const migrations = [
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`,
 
-  // Indexes
-  `CREATE INDEX IF NOT EXISTS idx_inventory_user    ON inventory_items(user_id)`,
-  `CREATE INDEX IF NOT EXISTS idx_categories_global ON categories(name) WHERE user_id IS NULL`,
-  `CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_id)`,
-  `CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(user_id, created_at DESC)`,
-  `CREATE INDEX IF NOT EXISTS idx_csv_exports_user  ON csv_exports(user_id, exported_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS idx_inventory_user     ON inventory_items(user_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_categories_global  ON categories(name) WHERE user_id IS NULL`,
+  `CREATE INDEX IF NOT EXISTS idx_transactions_user   ON transactions(user_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_transactions_date   ON transactions(user_id, created_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS idx_csv_exports_user    ON csv_exports(user_id, exported_at DESC)`,
 
-  // Safe ALTERs for existing databases
+  // Safe ALTER
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_email_verified      BOOLEAN     NOT NULL DEFAULT FALSE`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verify_token     VARCHAR(255)`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verify_expires   TIMESTAMPTZ`,
@@ -121,35 +121,27 @@ const migrations = [
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_subscription_id VARCHAR(255)`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_language     VARCHAR(10)  NOT NULL DEFAULT 'en'`,
   `ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS cost_price   NUMERIC(12,2) NOT NULL DEFAULT 0`,
+  `ALTER TABLE transactions ADD COLUMN IF NOT EXISTS cost_price      NUMERIC(12,2) NOT NULL DEFAULT 0`,
   `ALTER TABLE categories ALTER COLUMN user_id DROP NOT NULL`,
 
-  // transactions — add cost_price safely (no generated columns via ALTER)
-  `ALTER TABLE transactions ADD COLUMN IF NOT EXISTS cost_price NUMERIC(12,2) NOT NULL DEFAULT 0`,
+  // Stripe: ensure UNIQUE on subscriptions.user_id for ON CONFLICT upsert
+  `ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id)`,
 ];
 
 async function run() {
   await testConnection();
   console.log('[Migration] Running...');
   for (const sql of migrations) {
-    try {
-      await query(sql);
-    } catch (e) {
-      const ignore = [
-        'already exists', 'does not exist',
-        'multiple primary keys', 'cannot drop',
-        'cannot be implemented', 'violates not-null',
-      ];
-      if (!ignore.some(msg => e.message.includes(msg))) {
-        console.error('[Migration] Error:', e.message);
-        throw e;
-      }
+    try { await query(sql); }
+    catch (e) {
+      if (!e.message.includes('already exists') &&
+          !e.message.includes('does not exist') &&
+          !e.message.includes('multiple primary keys') &&
+          !e.message.includes('cannot drop')) throw e;
     }
   }
   console.log('[Migration] Done ✓');
   process.exit(0);
 }
-
-run().catch(e => {
-  console.error('[Migration] FAILED:', e.message);
-  process.exit(1);
-});
+run().catch(e => { console.error('[Migration] FAILED:', e.message); process.exit(1); });

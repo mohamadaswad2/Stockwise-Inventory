@@ -1,0 +1,62 @@
+const en = {
+  // Nav
+  nav: {
+    dashboard:   'Dashboard',
+    inventory:   'Inventory',
+    sales:       'Sales',
+    analytics:   'Analytics',
+    appUpdates:  'App Updates',
+    adminPanel:  'Admin Panel',
+    settings:    'Settings',
+    signOut:     'Sign Out',
+    lightMode:   'Light Mode',
+    darkMode:    'Dark Mode',
+  },
+  // Dashboard
+  dashboard: {
+    greeting:     'Hi',
+    subtitle:     "Here's your inventory overview",
+    addItem:      'Add Item',
+    stockActivity:'Stock Activity',
+    byCategory:   'By Category',
+    stockDist:    'Stock distribution',
+    units:        'units',
+    noActivity:   'No activity in this period',
+    noActivitySub:'Chart updates when you record sales or add stock',
+    goInventory:  'Go to Inventory →',
+    manageInv:    'Manage Inventory',
+    manageInvSub: 'Add, edit, remove items',
+    viewSales:    'View Sales',
+    viewSalesSub: 'Revenue & analytics',
+    noCategories: 'No categories yet.',
+  },
+  // Inventory
+  inventory: {
+    title:        'Inventory',
+    items:        'item',
+    items_plural: 'items',
+    addItem:      'Add Item',
+    exportCsv:    'Export CSV',
+    exporting:    'Exporting…',
+    search:       'Search name or SKU…',
+    allCategories:'All categories',
+    lowStockOnly: 'Low stock only',
+    noItems:      'No items found',
+    noItemsSub:   'Add your first item to get started.',
+  },
+  // Common
+  common: {
+    save:     'Save',
+    cancel:   'Cancel',
+    delete:   'Delete',
+    edit:     'Edit',
+    loading:  'Loading…',
+    error:    'Something went wrong.',
+    today:    'Today',
+    revenue:  'Revenue',
+    profit:   'Profit',
+    cost:     'Cost',
+    units:    'Units',
+  },
+};
+export default en;

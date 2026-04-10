@@ -1,0 +1,62 @@
+const ms = {
+  // Nav
+  nav: {
+    dashboard:   'Papan Pemuka',
+    inventory:   'Inventori',
+    sales:       'Jualan',
+    analytics:   'Analitik',
+    appUpdates:  'Kemas Kini',
+    adminPanel:  'Panel Admin',
+    settings:    'Tetapan',
+    signOut:     'Log Keluar',
+    lightMode:   'Mod Cerah',
+    darkMode:    'Mod Gelap',
+  },
+  // Dashboard
+  dashboard: {
+    greeting:     'Hai',
+    subtitle:     'Berikut adalah ringkasan inventori anda',
+    addItem:      'Tambah Item',
+    stockActivity:'Aktiviti Stok',
+    byCategory:   'Mengikut Kategori',
+    stockDist:    'Agihan stok',
+    units:        'unit',
+    noActivity:   'Tiada aktiviti dalam tempoh ini',
+    noActivitySub:'Carta dikemas kini apabila anda merekod jualan atau tambah stok',
+    goInventory:  'Ke Inventori →',
+    manageInv:    'Urus Inventori',
+    manageInvSub: 'Tambah, edit, padam item',
+    viewSales:    'Lihat Jualan',
+    viewSalesSub: 'Hasil & analitik',
+    noCategories: 'Tiada kategori lagi.',
+  },
+  // Inventory
+  inventory: {
+    title:        'Inventori',
+    items:        'item',
+    items_plural: 'item',
+    addItem:      'Tambah Item',
+    exportCsv:    'Eksport CSV',
+    exporting:    'Mengeksport…',
+    search:       'Cari nama atau SKU…',
+    allCategories:'Semua kategori',
+    lowStockOnly: 'Stok rendah sahaja',
+    noItems:      'Tiada item dijumpai',
+    noItemsSub:   'Tambah item pertama anda untuk bermula.',
+  },
+  // Common
+  common: {
+    save:     'Simpan',
+    cancel:   'Batal',
+    delete:   'Padam',
+    edit:     'Edit',
+    loading:  'Memuatkan…',
+    error:    'Ralat berlaku.',
+    today:    'Hari ini',
+    revenue:  'Hasil',
+    profit:   'Untung',
+    cost:     'Kos',
+    units:    'Unit',
+  },
+};
+export default ms;
