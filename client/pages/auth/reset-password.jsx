@@ -35,7 +35,7 @@ export default function ResetPasswordPage() {
     if (!token || !email)     { toast.error('Invalid reset link.'); return; }
     setLoading(true);
     try {
-      await resetPassword({ email, token, password });
+      await resetPassword({ email, token, newPassword: password });
       setDone(true);
       toast.success('Password reset!');
     } catch (err) {
