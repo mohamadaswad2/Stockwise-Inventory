@@ -34,7 +34,10 @@ const verifyEmail = async (email, otp) => {
   if (user.is_email_verified) throw new AppError('Email already verified.', 400);
   if (!user.email_verify_token) throw new AppError('No verification pending.', 400);
   if (new Date() > new Date(user.email_verify_expires)) throw new AppError('Code expired. Request a new one.', 410);
-  if (user.email_verify_token !== String(otp)) throw new AppError('Invalid verification code.', 401);
+  // Sanitize: remove all non-digits and trim whitespace
+  const cleanOtp = String(otp).replace(/\D/g, '').trim();
+  console.log('[VerifyEmail] DB token:', user.email_verify_token, '| Received:', otp, '| Cleaned:', cleanOtp);
+  if (user.email_verify_token !== cleanOtp) throw new AppError('Invalid verification code.', 401);
   await userRepository.updateById(user.id, { is_email_verified: true, email_verify_token: null, email_verify_expires: null });
   const { password: _, ...safeUser } = { ...user, is_email_verified: true };
   return { user: safeUser, token: signToken(safeUser) };
