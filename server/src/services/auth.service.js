@@ -30,15 +30,17 @@ const register = async ({ name, email, password }) => {
 
 const verifyEmail = async (email, otp) => {
   const user = await userRepository.findByEmail(email);
+  console.log('[VerifyEmail] User found:', user ? { id: user.id, email: user.email, is_verified: user.is_email_verified, has_token: !!user.email_verify_token } : null);
   if (!user) throw new AppError('User not found.', 404);
   if (user.is_email_verified) throw new AppError('Email already verified.', 400);
   if (!user.email_verify_token) throw new AppError('No verification pending.', 400);
   if (new Date() > new Date(user.email_verify_expires)) throw new AppError('Code expired. Request a new one.', 410);
   // Sanitize: remove all non-digits and trim whitespace
   const cleanOtp = String(otp).replace(/\D/g, '').trim();
-  console.log('[VerifyEmail] DB token:', user.email_verify_token, '| Received:', otp, '| Cleaned:', cleanOtp);
+  console.log('[VerifyEmail] Comparing - DB:', user.email_verify_token, '| Input:', otp, '| Cleaned:', cleanOtp, '| Match:', user.email_verify_token === cleanOtp);
   if (user.email_verify_token !== cleanOtp) throw new AppError('Invalid verification code.', 401);
   await userRepository.updateById(user.id, { is_email_verified: true, email_verify_token: null, email_verify_expires: null });
+  console.log('[VerifyEmail] User verified successfully:', user.id);
   const { password: _, ...safeUser } = { ...user, is_email_verified: true };
   return { user: safeUser, token: signToken(safeUser) };
 };
