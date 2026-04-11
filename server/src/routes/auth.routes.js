@@ -10,6 +10,7 @@ const registerSchema = Joi.object({
   password: Joi.string().min(8).max(128)
     .pattern(/[A-Z]/).pattern(/[a-z]/).pattern(/[0-9]/).pattern(/[^A-Za-z0-9]/)
     .required(),
+  captchaToken: Joi.string().optional(), // CAPTCHA token (required in production)
 });
 const loginSchema = Joi.object({ email: Joi.string().email().required(), password: Joi.string().required() });
 
