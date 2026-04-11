@@ -1,7 +1,8 @@
 const bcrypt   = require('bcryptjs');
 const jwt      = require('jsonwebtoken');
+const crypto   = require('crypto');
 const userRepository = require('../repositories/user.repository');
-const { sendVerificationEmail } = require('../utils/email');
+const { sendVerificationEmail, sendPasswordResetEmail } = require('../utils/email');
 const AppError = require('../utils/AppError');
 
 const SALT_ROUNDS  = 12;
@@ -125,4 +126,53 @@ const getProfile = async (userId) => {
   return user;
 };
 
-module.exports = { register, verifyEmail, resendVerification, login, changePassword, getProfile };
+const forgotPassword = async (email) => {
+  const user = await userRepository.findByEmail(email);
+  // Security: don't reveal whether email exists or not
+  if (!user) {
+    console.log('[Auth] Forgot password — email not found (silent):', email);
+    return true;
+  }
+
+  const resetToken   = crypto.randomBytes(32).toString('hex');
+  const resetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+  await userRepository.updateById(user.id, {
+    reset_password_token:   resetToken,
+    reset_password_expires: resetExpires,
+  });
+
+  const resetUrl = `${process.env.CLIENT_URL}/auth/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`;
+
+  try {
+    await sendPasswordResetEmail(email, user.name, resetUrl);
+    console.log('[Auth] Reset email sent to:', email);
+  } catch (err) {
+    console.error('[Auth] Reset email failed:', err.message);
+    // Don't fail — user can retry
+  }
+
+  return true;
+};
+
+const resetPassword = async (email, token, newPassword) => {
+  const user = await userRepository.findByEmail(email);
+  if (!user || !user.reset_password_token)
+    throw new AppError('Invalid or expired reset link.', 400);
+  if (new Date() > new Date(user.reset_password_expires))
+    throw new AppError('Reset link has expired. Please request a new one.', 410);
+  if (user.reset_password_token !== token)
+    throw new AppError('Invalid reset link.', 400);
+
+  const hashed = await bcrypt.hash(newPassword, SALT_ROUNDS);
+  await userRepository.updateById(user.id, {
+    password:               hashed,
+    reset_password_token:   null,
+    reset_password_expires: null,
+  });
+
+  console.log('[Auth] Password reset for:', email);
+  return true;
+};
+
+module.exports = { register, verifyEmail, resendVerification, login, forgotPassword, resetPassword, changePassword, getProfile };
