@@ -76,9 +76,18 @@ export default function RegisterForm() {
       widgetIdRef.current = window.turnstile.render(widgetRef.current, {
         sitekey:  SITE_KEY,
         theme:    'auto',
-        callback: (token) => setCaptchaToken(token),
-        'expired-callback': () => setCaptchaToken(''),
-        'error-callback':   () => setCaptchaToken(''),
+        callback: (token) => {
+          console.log('✅ Turnstile callback received token:', token ? `length=${token.length}, preview=${token.substring(0, 10)}...` : 'EMPTY');
+          setCaptchaToken(token);
+        },
+        'expired-callback': () => {
+          console.log('⚠️ Turnstile token expired');
+          setCaptchaToken('');
+        },
+        'error-callback':   () => {
+          console.log('❌ Turnstile error');
+          setCaptchaToken('');
+        },
       });
     };
 
@@ -101,6 +110,12 @@ export default function RegisterForm() {
     e.preventDefault();
     if (!isStrong) { toast.error('Please meet all password requirements.'); return; }
 
+    // Debug: Detailed captchaToken info
+    console.log('🔍 handleSubmit - SITE_KEY exists:', !!SITE_KEY);
+    console.log('🔍 handleSubmit - captchaToken type:', typeof captchaToken);
+    console.log('🔍 handleSubmit - captchaToken length:', captchaToken ? captchaToken.length : 0);
+    console.log('🔍 handleSubmit - captchaToken value:', captchaToken ? `"${captchaToken.substring(0, 20)}..."` : 'EMPTY/NULL');
+
     // In production, require captcha token
     if (SITE_KEY && !captchaToken) {
       toast.error('Please complete the CAPTCHA verification.');
@@ -109,7 +124,10 @@ export default function RegisterForm() {
 
     setLoading(true);
     try {
-      await authService.register({ ...form, captchaToken });
+      const payload = { ...form, captchaToken };
+      console.log('📤 Sending to backend:', JSON.stringify({ ...payload, captchaToken: payload.captchaToken ? '***TOKEN_PRESENT***' : '***TOKEN_MISSING***' }));
+      console.log('📤 Actual captchaToken being sent:', payload.captchaToken ? `"${payload.captchaToken.substring(0, 30)}..."` : 'EMPTY');
+      await authService.register(payload);
       setStep('verify');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Registration failed.');
@@ -154,7 +172,17 @@ export default function RegisterForm() {
 
       {/* Cloudflare Turnstile widget — only shown in production */}
       {SITE_KEY && (
-        <div ref={widgetRef} className="flex justify-center" />
+        <div className="space-y-2">
+          <div ref={widgetRef} className="flex justify-center min-h-[65px]" />
+          {/* CAPTCHA Status Indicator */}
+          <div className="flex items-center justify-center gap-2 text-xs">
+            {captchaToken ? (
+              <span style={{ color: 'var(--ios-green)' }}>✅ CAPTCHA verified (token ready)</span>
+            ) : (
+              <span style={{ color: 'var(--ios-text3)' }}>⏳ Waiting for CAPTCHA...</span>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Trial badge */}
