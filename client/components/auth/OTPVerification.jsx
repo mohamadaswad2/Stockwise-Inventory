@@ -103,8 +103,8 @@ export default function OTPVerification({ email, onSuccess }) {
     <div className="space-y-6 animate-ios-in">
       <div className="text-center">
         <div className="w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-4"
-          style={{ background: 'var(--glow)' }}>
-          <ShieldCheck size={28} style={{ color: 'var(--accent)' }} />
+          style={{ background: 'rgba(0,122,255,0.1)' }}>
+          <ShieldCheck size={28} style={{ color: 'var(--accent3)' }} />
         </div>
         <h2 className="text-lg font-bold mb-1" style={{ color: 'var(--text)' }}>Check your email</h2>
         <p className="text-sm" style={{ color: 'var(--text2)' }}>
@@ -123,8 +123,8 @@ export default function OTPVerification({ email, onSuccess }) {
             style={{
               background: 'var(--surface2)',
               color:      'var(--text)',
-              border:     `2px solid ${c ? 'var(--accent)' : 'transparent'}`,
-              boxShadow:  c ? '0 0 0 3px var(--glow)' : 'none',
+              border:     `2px solid ${c ? 'var(--accent3)' : 'transparent'}`,
+              boxShadow:  c ? '0 0 0 3px rgba(0,122,255,0.15)' : 'none',
             }}
           />
         ))}
@@ -143,7 +143,7 @@ export default function OTPVerification({ email, onSuccess }) {
               Resend in <span className="font-semibold" style={{ color: 'var(--text)' }}>{cd}s</span>
             </p>
           : <button onClick={resend} className="text-sm font-semibold inline-flex items-center gap-1.5"
-              style={{ color: 'var(--accent)' }}>
+              style={{ color: 'var(--accent3)' }}>
               <RefreshCw size={13} /> Resend code
             </button>
         }
