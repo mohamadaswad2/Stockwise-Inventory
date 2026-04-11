@@ -3,40 +3,15 @@ const AppError    = require('../utils/AppError');
 const { success, created } = require('../utils/response');
 
 // ─── Cloudflare Turnstile CAPTCHA verification ────────────────────────────────
-// Uses https module (Node.js built-in) — compatible with ALL Node versions
-// No native fetch required
-const https = require('https');
-
-const verifyCaptchaRequest = (body) => new Promise((resolve, reject) => {
-  const data    = JSON.stringify(body);
-  const options = {
-    hostname: 'challenges.cloudflare.com',
-    path:     '/turnstile/v0/siteverify',
-    method:   'POST',
-    headers:  {
-      'Content-Type':   'application/json',
-      'Content-Length': Buffer.byteLength(data),
-    },
-  };
-  const req = https.request(options, (res) => {
-    let raw = '';
-    res.on('data', chunk => { raw += chunk; });
-    res.on('end', () => {
-      try { resolve(JSON.parse(raw)); }
-      catch (e) { reject(new Error('Invalid Cloudflare response')); }
-    });
-  });
-  req.on('error', reject);
-  req.write(data);
-  req.end();
-});
+// Node v24 — native fetch available
+// IMPORTANT: Cloudflare siteverify requires application/x-www-form-urlencoded
+// NOT application/json — this is the official API spec
 
 const verifyCaptcha = async (token, clientIp) => {
   const secret = process.env.TURNSTILE_SECRET_KEY;
 
-  // Skip if no secret configured (dev/staging without key)
   if (!secret) {
-    console.log('[Captcha] TURNSTILE_SECRET_KEY not set — skipping verification');
+    console.log('[Captcha] TURNSTILE_SECRET_KEY not set — skipping');
     return;
   }
 
@@ -44,14 +19,20 @@ const verifyCaptcha = async (token, clientIp) => {
     throw new AppError('CAPTCHA verification required.', 400);
   }
 
-  const body = { secret, response: token };
-  if (clientIp) body.remoteip = clientIp; // helps accuracy, not required
+  // Build form-encoded body — Cloudflare requires this format
+  const params = new URLSearchParams({ secret, response: token });
+  if (clientIp) params.append('remoteip', clientIp);
 
   let data;
   try {
-    data = await verifyCaptchaRequest(body);
+    const resp = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body:    params.toString(),
+    });
+    data = await resp.json();
   } catch (err) {
-    console.error('[Captcha] Cloudflare request failed:', err.message);
+    console.error('[Captcha] Request to Cloudflare failed:', err.message);
     throw new AppError('CAPTCHA service unavailable. Please try again.', 503);
   }
 
@@ -59,8 +40,7 @@ const verifyCaptcha = async (token, clientIp) => {
 
   if (!data.success) {
     const codes = data['error-codes'] || [];
-    console.error('[Captcha] Failed — error codes:', codes);
-    // timeout-or-duplicate is retriable — tell user to refresh
+    console.error('[Captcha] Verification failed — error-codes:', codes);
     if (codes.includes('timeout-or-duplicate')) {
       throw new AppError('CAPTCHA expired. Please refresh and try again.', 400);
     }
