@@ -4,14 +4,13 @@ import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
-import axios from 'axios';
 import OTPVerification from '../../components/auth/OTPVerification';
 import { useAuth } from '../../contexts/AuthContext';
 
 const noSpaces = v => v.replace(/\s/g, '');
 
 export default function LoginPage() {
-  const { completeVerification } = useAuth();
+  const { login } = useAuth();
   const router   = useRouter();
   const [email,   setEmail]   = useState('');
   const [password,setPassword]= useState('');
@@ -23,12 +22,7 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
-      const res = await axios.post(`${API}/auth/login`, { email, password });
-      const { user, token } = res.data.data;
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-      completeVerification(user, token);
+      await login({ email, password });
       toast.success('Welcome back!');
       router.push('/dashboard');
     } catch (err) {
