@@ -103,12 +103,12 @@ export default function OTPVerification({ email, onSuccess }) {
     <div className="space-y-6 animate-ios-in">
       <div className="text-center">
         <div className="w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-4"
-          style={{ background: 'rgba(0,122,255,0.1)' }}>
-          <ShieldCheck size={28} style={{ color: 'var(--ios-blue)' }} />
+          style={{ background: 'var(--glow)' }}>
+          <ShieldCheck size={28} style={{ color: 'var(--accent)' }} />
         </div>
-        <h2 className="text-lg font-bold mb-1" style={{ color: 'var(--ios-text)' }}>Check your email</h2>
-        <p className="text-sm" style={{ color: 'var(--ios-text2)' }}>
-          Code sent to <strong style={{ color: 'var(--ios-text)' }}>{email}</strong>
+        <h2 className="text-lg font-bold mb-1" style={{ color: 'var(--text)' }}>Check your email</h2>
+        <p className="text-sm" style={{ color: 'var(--text2)' }}>
+          Code sent to <strong style={{ color: 'var(--text)' }}>{email}</strong>
         </p>
       </div>
 
@@ -121,10 +121,10 @@ export default function OTPVerification({ email, onSuccess }) {
             onKeyDown={e => handleKeyDown(e, i)}
             className="w-12 h-14 text-center text-2xl font-bold rounded-2xl outline-none transition-all duration-200"
             style={{
-              background: 'var(--ios-surface2)',
-              color:      'var(--ios-text)',
-              border:     `2px solid ${c ? 'var(--ios-blue)' : 'transparent'}`,
-              boxShadow:  c ? '0 0 0 3px rgba(0,122,255,0.15)' : 'none',
+              background: 'var(--surface2)',
+              color:      'var(--text)',
+              border:     `2px solid ${c ? 'var(--accent)' : 'transparent'}`,
+              boxShadow:  c ? '0 0 0 3px var(--glow)' : 'none',
             }}
           />
         ))}
@@ -139,11 +139,11 @@ export default function OTPVerification({ email, onSuccess }) {
 
       <div className="text-center">
         {cd > 0
-          ? <p className="text-sm" style={{ color: 'var(--ios-text2)' }}>
-              Resend in <span className="font-semibold" style={{ color: 'var(--ios-text)' }}>{cd}s</span>
+          ? <p className="text-sm" style={{ color: 'var(--text2)' }}>
+              Resend in <span className="font-semibold" style={{ color: 'var(--text)' }}>{cd}s</span>
             </p>
           : <button onClick={resend} className="text-sm font-semibold inline-flex items-center gap-1.5"
-              style={{ color: 'var(--ios-blue)' }}>
+              style={{ color: 'var(--accent)' }}>
               <RefreshCw size={13} /> Resend code
             </button>
         }
