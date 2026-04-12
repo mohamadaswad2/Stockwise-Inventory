@@ -2,20 +2,13 @@
  * StockWise Landing Page
  * — Always visible (no auth block)
  * — Authenticated users see a "Go to Dashboard" button in nav
- * — BM/EN auto-detect via navigator.language
+ * — Default language: English
  */
 import Head from 'next/head';
 import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { LogoIcon } from '../components/ui/Logo';
-
-// ─── Language detection — navigator.language, no API ─────────────────────────
-function detectLang() {
-  if (typeof navigator === 'undefined') return 'en';
-  const l = (navigator.language || 'en').toLowerCase();
-  return (l.startsWith('ms') || l.startsWith('id')) ? 'ms' : 'en';
-}
 
 const T = {
   en: {
@@ -185,21 +178,20 @@ function NavBar({ t, user, lang, setLang }) {
             background: 'rgba(255,255,255,0.06)',
             border: '1px solid rgba(255,255,255,0.12)',
             borderRadius: '8px',
-            padding: '7px 12px',
-            fontSize: '13px',
-            fontWeight: 600,
-            color: 'rgba(255,255,255,0.7)',
+            padding: '8px 10px',
+            fontSize: '16px',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
-            gap: '4px',
+            justifyContent: 'center',
             transition: 'all 0.2s',
+            lineHeight: 1,
           }}
-          onMouseEnter={e => { e.currentTarget.style.background='rgba(255,255,255,0.12)'; e.currentTarget.style.color='#fff'; }}
-          onMouseLeave={e => { e.currentTarget.style.background='rgba(255,255,255,0.06)'; e.currentTarget.style.color='rgba(255,255,255,0.7)'; }}
+          onMouseEnter={e => { e.currentTarget.style.background='rgba(255,255,255,0.12)'; e.currentTarget.style.borderColor='rgba(255,255,255,0.2)'; }}
+          onMouseLeave={e => { e.currentTarget.style.background='rgba(255,255,255,0.06)'; e.currentTarget.style.borderColor='rgba(255,255,255,0.12)'; }}
+          title={lang === 'en' ? 'Switch to Bahasa Melayu' : 'Switch to English'}
         >
-          <span>{lang === 'en' ? '🇬🇧' : '🇲🇾'}</span>
-          <span>{lang.toUpperCase()}</span>
+          {lang === 'en' ? '🇬🇧' : '🇲🇾'}
         </button>
 
         {user ? (
@@ -455,9 +447,6 @@ function ReviewCard({ review, index: i }) {
 export default function LandingPage() {
   const { user } = useAuth();
   const [lang, setLang] = useState('en');
-
-  // Detect language on client — no SSR needed
-  useEffect(() => { setLang(detectLang()); }, []);
 
   const t = T[lang];
 

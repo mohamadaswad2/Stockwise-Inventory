@@ -1,6 +1,6 @@
 import Head from 'next/head';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -10,8 +10,15 @@ import { useAuth } from '../../contexts/AuthContext';
 const noSpaces = v => v.replace(/\s/g, '');
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const router   = useRouter();
+
+  // Auth guard: redirect to dashboard if already logged in
+  useEffect(() => {
+    if (user) {
+      router.replace('/dashboard');
+    }
+  }, [user, router]);
   const [email,   setEmail]   = useState('');
   const [password,setPassword]= useState('');
   const [showPw,  setShowPw]  = useState(false);

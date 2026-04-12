@@ -1,8 +1,20 @@
 import Head from 'next/head';
 import Script from 'next/script';
+import { useEffect } from 'react';
+import { useRouter } from 'next/router';
 import RegisterForm from '../../components/auth/RegisterForm';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function RegisterPage() {
+  const { user } = useAuth();
+  const router = useRouter();
+
+  // Auth guard: redirect to dashboard if already logged in
+  useEffect(() => {
+    if (user) {
+      router.replace('/dashboard');
+    }
+  }, [user, router]);
   return (
     <>
       <Head><title>Get Started — StockWise</title></Head>
