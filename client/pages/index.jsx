@@ -170,7 +170,7 @@ function useFadeIn(delay = 0) {
 }
 
 // ─── NavBar ───────────────────────────────────────────────────────────────────
-function NavBar({ t, user }) {
+function NavBar({ t, user, lang, setLang }) {
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 20);
@@ -199,6 +199,30 @@ function NavBar({ t, user }) {
 
       {/* Right side */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        {/* Language Toggle */}
+        <button
+          onClick={() => setLang(lang === 'en' ? 'ms' : 'en')}
+          style={{
+            background: 'rgba(255,255,255,0.06)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: '8px',
+            padding: '7px 12px',
+            fontSize: '13px',
+            fontWeight: 600,
+            color: 'rgba(255,255,255,0.7)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            transition: 'all 0.2s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background='rgba(255,255,255,0.12)'; e.currentTarget.style.color='#fff'; }}
+          onMouseLeave={e => { e.currentTarget.style.background='rgba(255,255,255,0.06)'; e.currentTarget.style.color='rgba(255,255,255,0.7)'; }}
+        >
+          <span>{lang === 'en' ? '🇬🇧' : '🇲🇾'}</span>
+          <span>{lang.toUpperCase()}</span>
+        </button>
+
         {user ? (
           <Link href="/dashboard" style={{
             background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: '#fff',
@@ -212,7 +236,8 @@ function NavBar({ t, user }) {
           <>
             <Link href="/auth/login" style={{ color: 'rgba(255,255,255,0.62)', fontSize: '14px', fontWeight: 500, textDecoration: 'none', padding: '8px 14px', transition: 'color 0.2s' }}
               onMouseEnter={e => e.currentTarget.style.color='#fff'}
-              onMouseLeave={e => e.currentTarget.style.color='rgba(255,255,255,0.62)'}>
+              onMouseLeave={e => e.currentTarget.style.color='rgba(255,255,255,0.62)'}
+            >
               {t.cta2}
             </Link>
             <Link href="/auth/register" style={{
@@ -223,7 +248,8 @@ function NavBar({ t, user }) {
               transition: 'transform 0.15s, box-shadow 0.15s',
             }}
             onMouseEnter={e => { e.currentTarget.style.transform='translateY(-1px)'; e.currentTarget.style.boxShadow='0 6px 20px rgba(99,102,241,0.5)'; }}
-            onMouseLeave={e => { e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='0 4px 14px rgba(99,102,241,0.35)'; }}>
+            onMouseLeave={e => { e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='0 4px 14px rgba(99,102,241,0.35)'; }}
+            >
               {t.startTrial}
             </Link>
           </>
@@ -478,7 +504,7 @@ export default function LandingPage() {
 
       <div style={{ background:'#05050f', minHeight:'100vh', overflowX:'hidden', fontFamily:"'Plus Jakarta Sans','Inter',sans-serif", color:'#fff' }}>
 
-        <NavBar t={t} user={user} />
+        <NavBar t={t} user={user} lang={lang} setLang={setLang} />
 
         {/* ═══ HERO ══════════════════════════════════════════════════════ */}
         <section style={{ position:'relative', paddingTop:'140px', paddingBottom:'80px', overflow:'hidden' }}>
