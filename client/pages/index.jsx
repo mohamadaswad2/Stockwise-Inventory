@@ -616,7 +616,7 @@ export default function LandingPage() {
           <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:'700px', height:'400px', background:'radial-gradient(ellipse,rgba(99,102,241,0.14) 0%,transparent 70%)', pointerEvents:'none' }}/>
           <div ref={ctaRef} style={{ maxWidth:'580px', margin:'0 auto', textAlign:'center', position:'relative', opacity:ctaVisible?1:0, transform:ctaVisible?'none':'translateY(20px)', transition:'opacity 0.6s, transform 0.6s' }}>
             <Link href="/" style={{ display:'inline-block', marginBottom:'22px', textDecoration:'none' }}>
-              <SWLogo size={52} />
+              <LogoIcon size={52} />
             </Link>
             <h2 style={{ fontSize:'clamp(28px,5vw,46px)', fontWeight:800, letterSpacing:'-1.5px', margin:'0 0 18px', color:'#fff', lineHeight:1.08 }}>
               {t.ctaTitle.split(', ')[0]},{' '}
@@ -638,7 +638,7 @@ export default function LandingPage() {
         <footer style={{ borderTop:'1px solid rgba(255,255,255,0.06)', padding:'32px clamp(16px,4vw,32px)', background:'#03030a' }}>
           <div style={{ maxWidth:'1100px', margin:'0 auto', display:'flex', flexWrap:'wrap', justifyContent:'space-between', alignItems:'center', gap:'16px' }}>
             <Link href="/" style={{ display:'flex', alignItems:'center', gap:'9px', textDecoration:'none' }}>
-              <SWLogo size={26} />
+              <LogoIcon size={26} />
               <span style={{ fontWeight:700, color:'#fff', fontSize:'14px' }}>StockWise</span>
               <span style={{ color:'rgba(255,255,255,0.2)', fontSize:'12px', marginLeft:'4px' }}>© 2025</span>
             </Link>
