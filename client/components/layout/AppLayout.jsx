@@ -10,6 +10,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTheme }    from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import TrialBanner from '../ui/TrialBanner';
+import { LogoIcon } from '../ui/Logo';
 
 const NAV = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -68,14 +69,15 @@ export default function AppLayout({ children }) {
         {/* Brand */}
         <div className="flex items-center gap-3 px-4 h-14 flex-shrink-0"
           style={{ borderBottom: '1px solid var(--border)' }}>
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-black text-xs flex-shrink-0"
-            style={{ background: 'linear-gradient(135deg,var(--accent),var(--accent2))', boxShadow: '0 0 16px var(--glow)' }}>
-            SW
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-bold truncate" style={{ color: 'var(--text)' }}>StockWise</p>
-            <p className="text-xs capitalize truncate" style={{ color: 'var(--text3)' }}>{user?.plan} plan</p>
-          </div>
+          <Link href="/" className="flex items-center gap-3 no-underline group">
+            <div className="flex-shrink-0 transition-transform duration-200 group-hover:scale-105">
+              <LogoIcon size={32} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-bold truncate" style={{ color: 'var(--text)' }}>StockWise</p>
+              <p className="text-xs capitalize truncate" style={{ color: 'var(--text3)' }}>{user?.plan} plan</p>
+            </div>
+          </Link>
           <button className="ml-auto lg:hidden btn-ghost p-1 flex-shrink-0" onClick={() => setSideOpen(false)}>
             <X size={17} />
           </button>

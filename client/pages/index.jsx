@@ -8,6 +8,7 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { LogoIcon } from '../components/ui/Logo';
 
 // ─── Language detection — navigator.language, no API ─────────────────────────
 function detectLang() {
@@ -121,28 +122,6 @@ const T = {
   },
 };
 
-// ─── SVG Logo Component ───────────────────────────────────────────────────────
-function SWLogo({ size = 32, style = {} }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style={style}>
-      <defs>
-        <linearGradient id="sw-grad" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#6366f1"/>
-          <stop offset="100%" stopColor="#a855f7"/>
-        </linearGradient>
-      </defs>
-      {/* Rounded square background */}
-      <rect width="32" height="32" rx="9" fill="url(#sw-grad)"/>
-      {/* Abstract S-shape / stock chart bars */}
-      <rect x="6"  y="18" width="5" height="8"  rx="1.5" fill="white" opacity="0.9"/>
-      <rect x="13.5" y="12" width="5" height="14" rx="1.5" fill="white"/>
-      <rect x="21" y="6"  width="5" height="20" rx="1.5" fill="white" opacity="0.7"/>
-      {/* Trend line */}
-      <path d="M8.5 17 L16 11 L23.5 5.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" opacity="0.5"/>
-    </svg>
-  );
-}
-
 // ─── Fade-in hook — fires on mount OR on intersection ────────────────────────
 // FIX: rootMargin '200px' means elements 200px below viewport still fire early
 // FIX: threshold 0 fires as soon as 1px is visible
@@ -191,7 +170,7 @@ function NavBar({ t, user, lang, setLang }) {
     }}>
       {/* Logo — always links to / */}
       <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '9px', textDecoration: 'none' }}>
-        <SWLogo size={32} />
+        <LogoIcon size={32} />
         <span style={{ fontWeight: 700, fontSize: '17px', color: '#fff', letterSpacing: '-0.3px' }}>
           StockWise
         </span>
@@ -496,8 +475,6 @@ export default function LandingPage() {
         <title>StockWise — Inventory Management for Modern Businesses</title>
         <meta name="description" content="Track stock, analyse sales, and grow your business — all in one clean dashboard. Start your 30-day free trial, no credit card needed." />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        {/* Favicon — inline SVG as data URI */}
-        <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='32' y2='32' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0%25' stop-color='%236366f1'/%3E%3Cstop offset='100%25' stop-color='%23a855f7'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='9' fill='url(%23g)'/%3E%3Crect x='6' y='18' width='5' height='8' rx='1.5' fill='white' opacity='.9'/%3E%3Crect x='13.5' y='12' width='5' height='14' rx='1.5' fill='white'/%3E%3Crect x='21' y='6' width='5' height='20' rx='1.5' fill='white' opacity='.7'/%3E%3C/svg%3E" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
       </Head>
