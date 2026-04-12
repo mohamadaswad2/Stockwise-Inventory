@@ -103,6 +103,16 @@ const migrations = [
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_password_token   VARCHAR(255)`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_password_expires TIMESTAMPTZ`,
   `ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS cost_price   NUMERIC(12,2) NOT NULL DEFAULT 0`,
+
+  // Financial precision fixes — run idempotently
+  // 1. Add cost_price to transactions (missing column — root cause of Quick Sell cost = 0)
+  `ALTER TABLE transactions ADD COLUMN IF NOT EXISTS cost_price NUMERIC(12,4) NOT NULL DEFAULT 0`,
+  // 2. Upgrade price/cost precision from 2dp → 4dp to prevent rounding before multiply
+  //    e.g. 0.495 × 20 = 9.90 (correct) vs 0.50 × 20 = 10.00 (wrong)
+  `ALTER TABLE transactions    ALTER COLUMN unit_price  TYPE NUMERIC(12,4)`,
+  `ALTER TABLE transactions    ALTER COLUMN cost_price  TYPE NUMERIC(12,4)`,
+  `ALTER TABLE inventory_items ALTER COLUMN price       TYPE NUMERIC(12,4)`,
+  `ALTER TABLE inventory_items ALTER COLUMN cost_price  TYPE NUMERIC(12,4)`,
 ];
 
 async function run() {

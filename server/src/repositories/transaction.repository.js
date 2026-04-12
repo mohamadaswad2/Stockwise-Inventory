@@ -84,10 +84,7 @@ const findAll = async (userId, { page = 1, limit = 20, type, itemId, dateFrom, d
          t.id, t.user_id, t.item_id, t.type,
          t.quantity, t.unit_price, t.cost_price, t.note, t.created_at,
          (t.quantity * t.unit_price) AS total,
-         CASE WHEN t.unit_price > 0
-           THEN t.quantity * (t.unit_price - t.cost_price)
-           ELSE 0
-         END AS profit,
+         (t.quantity * (t.unit_price - t.cost_price)) AS profit,
          i.name AS item_name, i.sku, i.unit
        FROM transactions t
        JOIN inventory_items i ON i.id = t.item_id
@@ -118,8 +115,7 @@ const getSalesSummary = async (userId, period = '1m', tz = 'UTC') => {
       COUNT(*) FILTER (WHERE type = 'sale')                          AS total_transactions,
       COALESCE(SUM(quantity * unit_price)
         FILTER (WHERE type = 'sale' AND ${filterPeriod}), 0)         AS revenue_period,
-      COALESCE(SUM(CASE WHEN unit_price > 0
-          THEN quantity * (unit_price - cost_price) ELSE 0 END)
+      COALESCE(SUM(quantity * (unit_price - cost_price))
         FILTER (WHERE type = 'sale' AND ${filterPeriod}), 0)         AS profit_period,
       COALESCE(SUM(quantity * cost_price)
         FILTER (WHERE type = 'sale' AND ${filterPeriod}), 0)         AS cost_period,
@@ -164,7 +160,7 @@ const getRevenueTrend = async (userId, period = '1m', tz = 'UTC') => {
       SELECT
         DATE_TRUNC('${truncBy}', created_at AT TIME ZONE '${safeTz}') AS bucket,
         CASE WHEN type = 'sale' THEN quantity * unit_price      ELSE 0 END AS revenue,
-        CASE WHEN type = 'sale' AND unit_price > 0
+        CASE WHEN type = 'sale'
           THEN quantity * (unit_price - cost_price)             ELSE 0 END AS profit,
         CASE WHEN type = 'sale' THEN quantity * cost_price      ELSE 0 END AS cost,
         CASE WHEN type = 'sale' THEN 1                          ELSE 0 END AS tx_count,
@@ -203,7 +199,7 @@ const getRevenueTrend = async (userId, period = '1m', tz = 'UTC') => {
 
     dataMap[key] = {
       revenue:      Math.max(0, parseFloat(row.revenue)      || 0),
-      profit:       Math.max(0, parseFloat(row.profit)       || 0),
+      profit:       parseFloat(row.profit)       || 0,       // allow negative
       cost:         Math.max(0, parseFloat(row.cost)         || 0),
       transactions: Math.max(0, parseInt(row.transactions)   || 0),
       qty_added:    Math.max(0, parseInt(row.qty_added)      || 0),
@@ -291,7 +287,7 @@ const getRevenueTrend = async (userId, period = '1m', tz = 'UTC') => {
       filled.push({
         date:         key,
         revenue:      Math.max(0, parseFloat(row.revenue)    || 0),
-        profit:       Math.max(0, parseFloat(row.profit)     || 0),
+        profit:       parseFloat(row.profit)     || 0,
         cost:         Math.max(0, parseFloat(row.cost)       || 0),
         transactions: Math.max(0, parseInt(row.transactions) || 0),
         qty_added:    Math.max(0, parseInt(row.qty_added)    || 0),
@@ -317,14 +313,10 @@ const getTopItems = async (userId, period = '1m', limit = 20, tz = 'UTC') => {
       SUM(t.quantity)                AS units_sold,
       SUM(t.quantity * t.unit_price) AS revenue,
       SUM(t.quantity * t.cost_price) AS total_cost,
-      SUM(CASE WHEN t.unit_price > 0
-            THEN t.quantity * (t.unit_price - t.cost_price)
-            ELSE 0 END)              AS profit,
+      SUM(t.quantity * (t.unit_price - t.cost_price)) AS profit,
       CASE WHEN SUM(t.quantity * t.unit_price) > 0
         THEN ROUND(
-          SUM(CASE WHEN t.unit_price > 0
-                THEN t.quantity * (t.unit_price - t.cost_price)
-                ELSE 0 END)
+          SUM(t.quantity * (t.unit_price - t.cost_price))
           / SUM(t.quantity * t.unit_price) * 100, 1)
         ELSE 0
       END                            AS margin_pct
@@ -351,9 +343,7 @@ const getItemSalesHistory = async (userId, itemId, period = '1m', tz = 'UTC') =>
     SELECT
       t.id, t.quantity, t.unit_price, t.cost_price,
       (t.quantity * t.unit_price)    AS total,
-      CASE WHEN t.unit_price > 0
-        THEN t.quantity * (t.unit_price - t.cost_price)
-        ELSE 0 END                   AS profit,
+      (t.quantity * (t.unit_price - t.cost_price)) AS profit,
       t.note, t.created_at, i.name AS item_name, i.unit
     FROM transactions t
     JOIN inventory_items i ON i.id = t.item_id
