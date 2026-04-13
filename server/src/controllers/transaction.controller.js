@@ -16,6 +16,12 @@ const record = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+const refund = async (req, res, next) => {
+  try {
+    created(res, await txService.refundTransaction(req.user.id, req.body), 'Refund processed.');
+  } catch (err) { next(err); }
+};
+
 const list = async (req, res, next) => {
   try {
     success(res, await txService.getTransactions(req.user.id, req.query));
@@ -51,4 +57,4 @@ const itemAnalytics = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { record, list, summary, analytics, itemAnalytics };
+module.exports = { record, refund, list, summary, analytics, itemAnalytics };

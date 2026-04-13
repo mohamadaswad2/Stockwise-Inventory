@@ -28,7 +28,7 @@ const RevenueExplainer = ({ summary }) => {
     if (isNegative) {
       return {
         type: 'negative',
-        brief: `Refunds (RM${refunds.toFixed(0)}) exceeded sales this period`,
+        brief: `Refunds (RM${Number(refunds).toLocaleString('en-MY', {maximumFractionDigits: 0})}) exceeded sales this period`,
         action: 'Review recent returns',
         color: 'var(--red)',
         bg: 'rgba(239,68,68,0.06)'
@@ -77,16 +77,20 @@ const RevenueExplainer = ({ summary }) => {
           <div className="grid grid-cols-3 gap-3">
             <div>
               <p style={{ color: 'var(--text3)' }}>Sales</p>
-              <p className="font-medium" style={{ color: 'var(--text)' }}>RM{grossSales.toFixed(2)}</p>
+              <p className="font-medium" style={{ color: 'var(--text)' }}>
+                RM{Number(grossSales).toLocaleString('en-MY', {minimumFractionDigits: 0, maximumFractionDigits: 2})}
+              </p>
             </div>
             <div>
               <p style={{ color: 'var(--text3)' }}>Refunds</p>
-              <p className="font-medium" style={{ color: 'var(--red)' }}>-RM{refunds.toFixed(2)}</p>
+              <p className="font-medium" style={{ color: 'var(--red)' }}>
+                -RM{Number(refunds).toLocaleString('en-MY', {minimumFractionDigits: 0, maximumFractionDigits: 2})}
+              </p>
             </div>
             <div>
               <p style={{ color: 'var(--text3)' }}>Net Result</p>
               <p className="font-medium" style={{ color: revenue < 0 ? 'var(--red)' : 'var(--text)' }}>
-                RM{revenue.toFixed(2)}
+                RM{Number(revenue).toLocaleString('en-MY', {minimumFractionDigits: 0, maximumFractionDigits: 2})}
               </p>
             </div>
           </div>

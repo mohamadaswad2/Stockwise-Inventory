@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { DollarSign, ShoppingBag, TrendingUp, Package, ArrowRight, BarChart2 } from 'lucide-react';
+import { DollarSign, ShoppingBag, TrendingUp, Package, ArrowRight, BarChart2, Receipt } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import ProtectedRoute from '../../components/layout/ProtectedRoute';
 import AppLayout from '../../components/layout/AppLayout';
 import Spinner from '../../components/ui/Spinner';
-import { getSalesSummary } from '../../services/transaction.service';
+import { getSalesSummary, getTransactions } from '../../services/transaction.service';
 import { useCurrency } from '../../contexts/CurrencyContext';
+import TransactionList from '../../components/analytics/TransactionList';
 
 function ChartTooltip({ active, payload, label, formatFn }) {
   if (!active || !payload?.length) return null;
@@ -32,12 +33,28 @@ export default function SalesPage() {
   const { formatFull, format } = useCurrency();
   const [data,    setData]    = useState(null);
   const [loading, setLoading] = useState(true);
+  const [transactions, setTransactions] = useState([]);
+  const [txLoading, setTxLoading] = useState(true);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [summaryRes, txRes] = await Promise.all([
+        getSalesSummary('1m'),
+        getTransactions({ limit: 50 })
+      ]);
+      setData(summaryRes.data.data);
+      setTransactions(txRes.data.data?.transactions || []);
+    } catch {
+      toast.error('Failed to load data.');
+    } finally {
+      setLoading(false);
+      setTxLoading(false);
+    }
+  };
 
   useEffect(() => {
-    getSalesSummary('1m')
-      .then(r => setData(r.data.data))
-      .catch(() => toast.error('Failed to load sales data.'))
-      .finally(() => setLoading(false));
+    loadData();
   }, []);
 
   const s        = data?.sales;
@@ -181,6 +198,29 @@ export default function SalesPage() {
                 <div className="flex items-center justify-center py-10" style={{ color: 'var(--text3)' }}>
                   <p className="text-sm">No sales data yet.</p>
                 </div>
+              )}
+            </div>
+
+            {/* Recent Transactions */}
+            <div className="card overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4"
+                style={{ borderBottom: '1px solid var(--border)' }}>
+                <h3 className="text-sm font-bold" style={{ color: 'var(--text)' }}>
+                  <span className="flex items-center gap-2">
+                    <Receipt size={16} style={{ color: 'var(--accent3)' }} />
+                    Recent Transactions
+                  </span>
+                </h3>
+              </div>
+              {txLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Spinner size="sm" />
+                </div>
+              ) : (
+                <TransactionList
+                  transactions={transactions}
+                  onRefundSuccess={loadData}
+                />
               )}
             </div>
 

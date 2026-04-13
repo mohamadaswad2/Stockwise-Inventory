@@ -44,18 +44,29 @@ export function CurrencyProvider({ children }) {
     localStorage.setItem('sw-currency', code);
   }, []);
 
+  // Helper to strip trailing zeros for cleaner display
+  const stripTrailingZeros = (num) => {
+    const str = num.toString();
+    if (str.indexOf('.') === -1) return str;
+    return str.replace(/\.?0+$/, '');
+  };
+
   const format = useCallback((amountMYR, decimals = 2) => {
     if (amountMYR === null || amountMYR === undefined) return '—';
     const converted = Number(amountMYR) * (rates[currency] || 1);
-    return `${SYMBOLS[currency]}${converted.toFixed(decimals)}`;
+    // Use toFixed then strip trailing zeros for clean display
+    const fixed = converted.toFixed(decimals);
+    return `${SYMBOLS[currency]}${stripTrailingZeros(fixed)}`;
   }, [currency, rates]);
 
   const formatFull = useCallback((amountMYR) => {
     if (amountMYR === null || amountMYR === undefined) return '—';
     const converted = Number(amountMYR) * (rates[currency] || 1);
-    return `${SYMBOLS[currency]}${converted.toLocaleString('en-MY', {
-      minimumFractionDigits: 2, maximumFractionDigits: 2
-    })}`;
+    // Strip trailing zeros while keeping thousand separators
+    const withSeparators = converted.toLocaleString('en-MY', {
+      minimumFractionDigits: 0, maximumFractionDigits: 2
+    });
+    return `${SYMBOLS[currency]}${withSeparators}`;
   }, [currency, rates]);
 
   return (

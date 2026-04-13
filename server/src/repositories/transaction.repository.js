@@ -245,7 +245,8 @@ const getRevenueTrend = async (userId, period = '1m', tz = 'UTC') => {
           WHEN type = 'refund' THEN -1
           ELSE 0 
         END AS tx_count,
-        CASE WHEN type IN ('restock','adjustment') AND quantity > 0
+        -- Net quantity change: includes both positive (restock) and negative (correction) adjustments
+        CASE WHEN type IN ('restock','adjustment')
           THEN quantity                                         ELSE 0 END AS qty_added
       FROM transactions
       WHERE user_id = $1 AND status = 'completed' AND ${filter}
@@ -279,11 +280,11 @@ const getRevenueTrend = async (userId, period = '1m', tz = 'UTC') => {
       : rawStr.slice(0, 10);  // 'YYYY-MM-DD' — 10 chars
 
     dataMap[key] = {
-      revenue:      Math.max(0, parseFloat(row.revenue)      || 0),
-      profit:       parseFloat(row.profit)       || 0,       // allow negative
-      cost:         Math.max(0, parseFloat(row.cost)         || 0),
-      transactions: Math.max(0, parseInt(row.transactions)   || 0),
-      qty_added:    Math.max(0, parseInt(row.qty_added)      || 0),
+      revenue:      parseFloat(row.revenue)       || 0,  // allow negative for accurate net
+      profit:       parseFloat(row.profit)        || 0,  // allow negative
+      cost:         Math.max(0, parseFloat(row.cost)      || 0),  // cost should not be negative
+      transactions: Math.max(0, parseInt(row.transactions) || 0),
+      qty_added:    parseInt(row.qty_added)       || 0,  // allow negative for net quantity changes
     };
   }
 
