@@ -2,6 +2,7 @@ import { Package, Layers, AlertTriangle, DollarSign } from 'lucide-react';
 import StatCard from '../ui/StatCard';
 import Spinner from '../ui/Spinner';
 import { useCurrency } from '../../contexts/CurrencyContext';
+import { getTooltip } from '../../config/tooltips.config';
 
 export default function StatsGrid({ stats, loading }) {
   const { formatFull } = useCurrency();
@@ -19,18 +20,18 @@ export default function StatsGrid({ stats, loading }) {
   return (
     <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
       <StatCard icon={Package}       label="Total Items"     value={stats?.total_items}
-        tooltip="Jumlah jenis barang dalam inventori"
+        tooltip={getTooltip('totalItems')}
         color="blue" />
       <StatCard icon={Layers}        label="Total Stock"     value={stats?.total_quantity}
         sub="units"
-        tooltip="Keseluruhan unit barang sedia ada"
+        tooltip={getTooltip('totalStock')}
         color="green" />
       <StatCard icon={AlertTriangle} label="Low Stock"       value={stats?.low_stock_count}
         sub={`${stats?.out_of_stock_count ?? 0} out of stock`}
-        tooltip="Barang yang hampir habis atau sudah habis"
+        tooltip={getTooltip('lowStock')}
         color="orange" />
       <StatCard icon={DollarSign}    label="Inventory Value" value={formatFull(stats?.total_value)}
-        tooltip="Nilai keseluruhan barang mengikut harga beli"
+        tooltip={getTooltip('inventoryValue')}
         color="purple" />
     </div>
   );

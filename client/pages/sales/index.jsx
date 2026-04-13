@@ -10,6 +10,7 @@ import Spinner from '../../components/ui/Spinner';
 import { getSalesSummary, getTransactions } from '../../services/transaction.service';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import TransactionList from '../../components/analytics/TransactionList';
+import { getTooltip } from '../../config/tooltips.config';
 
 function ChartTooltip({ active, payload, label, formatFn }) {
   if (!active || !payload?.length) return null;
@@ -88,10 +89,10 @@ export default function SalesPage() {
             {/* Stats */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               {[
-                { icon: DollarSign,  label: 'Total Revenue', value: formatFull(totRev),    bg: 'rgba(34,197,94,0.12)',  c: 'var(--green)',  tooltip: 'Jumlah jualan sepanjang masa' },
-                { icon: TrendingUp,  label: 'Last 30 Days',  value: formatFull(totRev30),  bg: 'rgba(99,102,241,0.12)', c: 'var(--accent3)', tooltip: 'Jumlah jualan 30 hari lepas' },
-                { icon: ShoppingBag, label: 'Transactions',  value: totTx,                  bg: 'rgba(245,158,11,0.12)', c: 'var(--orange)', tooltip: 'Jumlah semua transaksi' },
-                { icon: Package,     label: 'Units Sold',    value: totUnits,               bg: 'rgba(168,85,247,0.12)', c: 'var(--purple)', tooltip: 'Jumlah unit yang telah dijual' },
+                { icon: DollarSign,  label: 'Total Revenue', value: formatFull(totRev),    bg: 'rgba(34,197,94,0.12)',  c: 'var(--green)',  tooltip: getTooltip('totalRevenue') },
+                { icon: TrendingUp,  label: 'Last 30 Days',  value: formatFull(totRev30),  bg: 'rgba(99,102,241,0.12)', c: 'var(--accent3)', tooltip: getTooltip('last30Days') },
+                { icon: ShoppingBag, label: 'Transactions',  value: totTx,                  bg: 'rgba(245,158,11,0.12)', c: 'var(--orange)', tooltip: getTooltip('transactions') },
+                { icon: Package,     label: 'Units Sold',    value: totUnits,               bg: 'rgba(168,85,247,0.12)', c: 'var(--purple)', tooltip: getTooltip('unitsSold') },
               ].map(({ icon: Icon, label, value, bg, c, tooltip }) => (
                 <div key={label} className="card p-4">
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-3" style={{ background: bg }}>
@@ -103,7 +104,7 @@ export default function SalesPage() {
                     {tooltip && (
                       <div className="relative group">
                         <HelpCircle size={12} style={{ color: 'var(--text3)', opacity: 0.6 }} />
-                        <div className="absolute z-50 px-3 py-2 text-xs rounded-lg shadow-lg max-w-[180px] hidden group-hover:block"
+                        <div className="absolute z-50 px-3 py-2 text-xs rounded-lg shadow-lg hidden group-hover:block"
                           style={{
                             bottom: 'calc(100% + 6px)',
                             left: '50%',
@@ -111,6 +112,9 @@ export default function SalesPage() {
                             background: 'var(--surface)',
                             border: '1px solid var(--border2)',
                             color: 'var(--text)',
+                            maxWidth: '220px',
+                            wordBreak: 'keep-all',
+                            lineHeight: '1.5',
                           }}>
                           {tooltip}
                         </div>

@@ -29,8 +29,7 @@ export default function MetricTooltip({ description }) {
 
       {show && (
         <div
-          className="absolute z-50 px-3 py-2 text-xs rounded-lg shadow-lg max-w-[200px]
-                     animate-fade-in pointer-events-none"
+          className="absolute z-50 px-3 py-2 text-xs rounded-lg shadow-lg animate-fade-in pointer-events-none"
           style={{
             bottom: 'calc(100% + 6px)',
             left: '50%',
@@ -38,6 +37,9 @@ export default function MetricTooltip({ description }) {
             background: 'var(--surface)',
             border: '1px solid var(--border2)',
             color: 'var(--text)',
+            maxWidth: '220px',
+            wordBreak: 'keep-all',
+            lineHeight: '1.5',
           }}
         >
           {description}

@@ -20,6 +20,7 @@ import { getAnalytics } from '../../services/transaction.service';
 import RevenueExplainer from '../../components/analytics/RevenueExplainer';
 import TransactionTypeLegend from '../../components/analytics/TransactionTypeLegend';
 import toast from 'react-hot-toast';
+import { getTooltip } from '../../config/tooltips.config';
 
 const PERIODS = [
   { key: 'today', label: 'Today', advanced: false },
@@ -193,17 +194,17 @@ export default function AnalyticsPage() {
             {/* Metric cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <MetricCard icon={DollarSign}  label="Revenue"      value={formatFull(s?.revenue_period)}
-                tooltip="Jumlah jualan selepas ditolak refund"
+                tooltip={getTooltip('revenue')}
                 color="green" />
               <MetricCard icon={TrendingUp}  label="Profit"       value={formatFull(s?.profit_period)}
-                tooltip="Revenue tolak cost barang (untung kasar)"
+                tooltip={getTooltip('profit')}
                 color="blue"
                 sub={`${marginPct}% margin`} />
               <MetricCard icon={BarChart2}   label="Cost"         value={formatFull(s?.cost_period)}
-                tooltip="Nilai barang yang dijual (harga beli)"
+                tooltip={getTooltip('cost')}
                 color="orange" />
               <MetricCard icon={ShoppingBag} label="Transactions" value={s?.total_transactions || 0}
-                tooltip="Jumlah semua aktiviti dalam tempoh ini"
+                tooltip={getTooltip('transactions')}
                 color="purple" />
             </div>
 
