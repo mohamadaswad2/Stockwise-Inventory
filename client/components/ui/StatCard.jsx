@@ -1,4 +1,6 @@
-export default function StatCard({ icon: Icon, label, value, sub, color = 'blue' }) {
+import MetricTooltip from './MetricTooltip';
+
+export default function StatCard({ icon: Icon, label, value, sub, color = 'blue', tooltip }) {
   const palette = {
     blue:   { bg: 'rgba(99,102,241,0.12)',  color: 'var(--accent3)' },
     green:  { bg: 'rgba(34,197,94,0.12)',   color: 'var(--green)' },
@@ -16,9 +18,12 @@ export default function StatCard({ icon: Icon, label, value, sub, color = 'blue'
         style={{ background: p.bg }}>
         <Icon size={18} style={{ color: p.color }} />
       </div>
-      <div className="min-w-0">
-        <p className="text-xs font-bold uppercase tracking-wider mb-1"
-          style={{ color: 'var(--text3)' }}>{label}</p>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5 mb-1">
+          <p className="text-xs font-bold uppercase tracking-wider"
+            style={{ color: 'var(--text3)' }}>{label}</p>
+          {tooltip && <MetricTooltip description={tooltip} />}
+        </div>
         <p className="text-2xl font-bold leading-none tabular-nums"
           style={{ color: 'var(--text)' }}>{value ?? '—'}</p>
         {sub && <p className="text-xs mt-1" style={{ color: 'var(--text2)' }}>{sub}</p>}

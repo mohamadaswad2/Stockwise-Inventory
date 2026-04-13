@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { DollarSign, ShoppingBag, TrendingUp, Package, ArrowRight, BarChart2, Receipt } from 'lucide-react';
+import { DollarSign, ShoppingBag, TrendingUp, Package, ArrowRight, BarChart2, Receipt, HelpCircle } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import ProtectedRoute from '../../components/layout/ProtectedRoute';
 import AppLayout from '../../components/layout/AppLayout';
@@ -88,17 +88,35 @@ export default function SalesPage() {
             {/* Stats */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               {[
-                { icon: DollarSign,  label: 'Total Revenue', value: formatFull(totRev),    bg: 'rgba(34,197,94,0.12)',  c: 'var(--green)' },
-                { icon: TrendingUp,  label: 'Last 30 Days',  value: formatFull(totRev30),  bg: 'rgba(99,102,241,0.12)', c: 'var(--accent3)' },
-                { icon: ShoppingBag, label: 'Transactions',  value: totTx,                  bg: 'rgba(245,158,11,0.12)', c: 'var(--orange)' },
-                { icon: Package,     label: 'Units Sold',    value: totUnits,               bg: 'rgba(168,85,247,0.12)', c: 'var(--purple)' },
-              ].map(({ icon: Icon, label, value, bg, c }) => (
+                { icon: DollarSign,  label: 'Total Revenue', value: formatFull(totRev),    bg: 'rgba(34,197,94,0.12)',  c: 'var(--green)',  tooltip: 'Jumlah jualan sepanjang masa' },
+                { icon: TrendingUp,  label: 'Last 30 Days',  value: formatFull(totRev30),  bg: 'rgba(99,102,241,0.12)', c: 'var(--accent3)', tooltip: 'Jumlah jualan 30 hari lepas' },
+                { icon: ShoppingBag, label: 'Transactions',  value: totTx,                  bg: 'rgba(245,158,11,0.12)', c: 'var(--orange)', tooltip: 'Jumlah semua transaksi' },
+                { icon: Package,     label: 'Units Sold',    value: totUnits,               bg: 'rgba(168,85,247,0.12)', c: 'var(--purple)', tooltip: 'Jumlah unit yang telah dijual' },
+              ].map(({ icon: Icon, label, value, bg, c, tooltip }) => (
                 <div key={label} className="card p-4">
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-3" style={{ background: bg }}>
                     <Icon size={17} style={{ color: c }} />
                   </div>
                   <p className="text-2xl font-black tabular-nums" style={{ color: 'var(--text)' }}>{value}</p>
-                  <p className="text-xs mt-1 font-medium" style={{ color: 'var(--text3)' }}>{label}</p>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <p className="text-xs font-medium" style={{ color: 'var(--text3)' }}>{label}</p>
+                    {tooltip && (
+                      <div className="relative group">
+                        <HelpCircle size={12} style={{ color: 'var(--text3)', opacity: 0.6 }} />
+                        <div className="absolute z-50 px-3 py-2 text-xs rounded-lg shadow-lg max-w-[180px] hidden group-hover:block"
+                          style={{
+                            bottom: 'calc(100% + 6px)',
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            background: 'var(--surface)',
+                            border: '1px solid var(--border2)',
+                            color: 'var(--text)',
+                          }}>
+                          {tooltip}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

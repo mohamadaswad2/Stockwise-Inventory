@@ -5,6 +5,7 @@ import {
   TrendingUp, DollarSign, ShoppingBag, BarChart2,
   ArrowUpRight, ArrowDownRight, Lock, Download, Package,
 } from 'lucide-react';
+import MetricTooltip from '../../components/ui/MetricTooltip';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend,
@@ -27,7 +28,7 @@ const PERIODS = [
 ];
 const ADVANCED_PLANS = ['premium', 'deluxe'];
 
-function MetricCard({ icon: Icon, label, value, sub, color }) {
+function MetricCard({ icon: Icon, label, value, sub, color, tooltip }) {
   const p = {
     green:  { bg: 'rgba(34,197,94,0.1)',  c: 'var(--green)' },
     blue:   { bg: 'rgba(99,102,241,0.1)', c: 'var(--accent3)' },
@@ -43,7 +44,10 @@ function MetricCard({ icon: Icon, label, value, sub, color }) {
         </div>
       </div>
       <p className="text-2xl font-black tabular-nums" style={{ color: 'var(--text)' }}>{value}</p>
-      <p className="text-xs font-medium mt-1" style={{ color: 'var(--text3)' }}>{label}</p>
+      <div className="flex items-center gap-1.5 mt-1">
+        <p className="text-xs font-medium" style={{ color: 'var(--text3)' }}>{label}</p>
+        {tooltip && <MetricTooltip description={tooltip} />}
+      </div>
       {sub && <p className="text-xs mt-0.5" style={{ color: 'var(--text2)' }}>{sub}</p>}
     </div>
   );
@@ -188,11 +192,19 @@ export default function AnalyticsPage() {
 
             {/* Metric cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <MetricCard icon={DollarSign}  label="Revenue"      value={formatFull(s?.revenue_period)} color="green" />
-              <MetricCard icon={TrendingUp}  label="Profit"       value={formatFull(s?.profit_period)}  color="blue"
+              <MetricCard icon={DollarSign}  label="Revenue"      value={formatFull(s?.revenue_period)}
+                tooltip="Jumlah jualan selepas ditolak refund"
+                color="green" />
+              <MetricCard icon={TrendingUp}  label="Profit"       value={formatFull(s?.profit_period)}
+                tooltip="Revenue tolak cost barang (untung kasar)"
+                color="blue"
                 sub={`${marginPct}% margin`} />
-              <MetricCard icon={BarChart2}   label="Cost"         value={formatFull(s?.cost_period)}    color="orange" />
-              <MetricCard icon={ShoppingBag} label="Transactions" value={s?.total_transactions || 0}    color="purple" />
+              <MetricCard icon={BarChart2}   label="Cost"         value={formatFull(s?.cost_period)}
+                tooltip="Nilai barang yang dijual (harga beli)"
+                color="orange" />
+              <MetricCard icon={ShoppingBag} label="Transactions" value={s?.total_transactions || 0}
+                tooltip="Jumlah semua aktiviti dalam tempoh ini"
+                color="purple" />
             </div>
 
             {/* Revenue explanation for negative or refund-affected revenue */}
