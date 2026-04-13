@@ -5,9 +5,10 @@ const db = require('../config/database');
 //
 // ARCHITECTURE: Separation of Filtering vs Display
 // 
-// FILTERING (WHERE clauses): Always use UTC to avoid type mismatch errors
+// FILTERING (WHERE clauses): 
+//   - For 'today': Use timezone-aware filter (user's local midnight)
+//   - For other periods: Use UTC-based filtering for consistency
 //   - created_at > NOW() - INTERVAL '7 days'
-//   - Consistent data across all user timezones
 // 
 // DISPLAY/GROUPING (SELECT clauses): Use user timezone for presentation
 //   - DATE_TRUNC('day', created_at AT TIME ZONE tz)
@@ -19,22 +20,26 @@ const db = require('../config/database');
 // ─────────────────────────────────────────────────────────────────────────────
 /**
  * Period Filter for WHERE clauses
- * IMPORTANT: Always returns UTC-based filters to avoid type mismatch errors
- * Timezone conversion should ONLY be used in SELECT (grouping/display), not in WHERE
+ * IMPORTANT: For 'today', uses timezone-aware filtering to ensure consistency
+ * between Chart and Analytics. Other periods use UTC-based filtering.
  * 
  * @param {string} period - 'today', '7d', '1m', '2m', '3m', 'year'
  * @param {string} alias - table alias for column reference
- * @returns {string} UTC-based SQL filter condition
+ * @param {string} tz - IANA timezone string (e.g., 'Asia/Kuala_Lumpur')
+ * @returns {string} SQL filter condition
  */
-const periodFilter = (period, alias = '') => {
+const periodFilter = (period, alias = '', tz = 'UTC') => {
   const col = alias ? `${alias}.created_at` : 'created_at';
+  const safeTz = tz || 'UTC';
 
   if (period === 'today') {
-    // UTC midnight for consistent filtering across all timezones
-    return `${col} >= DATE_TRUNC('day', NOW())`;
+    // TIMEZONE-AWARE: Filter from user's local midnight (00:00)
+    // Converts created_at to local time and checks if it's >= local midnight
+    // This ensures Chart and Analytics both reset at 00:00 in user's timezone
+    return `${col} AT TIME ZONE '${safeTz}' >= DATE_TRUNC('day', NOW() AT TIME ZONE '${safeTz}')`;
   }
 
-  // All periods use UTC-based filtering (no timezone conversion in WHERE)
+  // All other periods use UTC-based filtering (no timezone conversion in WHERE)
   const map = {
     '7d': '7 days', '1m': '30 days',
     '2m': '60 days', '3m': '90 days', 'year': '365 days',
@@ -117,12 +122,15 @@ const findAll = async (userId, { page = 1, limit = 20, type, itemId, dateFrom, d
 // ─────────────────────────────────────────────────────────────────────────────
 // getSalesSummary — single table, no JOIN
 // Note: periodFilter uses UTC-based filtering for data consistency
+// ─────────────────────────────────────────────────────────────────────────────
+// getSalesSummary — single table, no JOIN
+// Note: periodFilter uses UTC-based filtering for data consistency
 // Timezone only used for display/grouping in SELECT, not in WHERE
 // ─────────────────────────────────────────────────────────────────────────────
 const getSalesSummary = async (userId, period = '1m', tz = 'UTC') => {
-  const filterPeriod = periodFilter(period, '');
-  const filter30d    = periodFilter('1m', '');
-  const filter7d     = periodFilter('7d', '');
+  const filterPeriod = periodFilter(period, '', tz);
+  const filter30d    = periodFilter('1m', '', tz);
+  const filter7d     = periodFilter('7d', '', tz);
 
   const { rows } = await db.query(`
     SELECT
@@ -209,8 +217,8 @@ const getRevenueTrend = async (userId, period = '1m', tz = 'UTC') => {
   const isToday = period === 'today';
   const isWeek  = ['2m', '3m', 'year'].includes(period);
   const truncBy = isToday ? 'hour' : isWeek ? 'week' : 'day';
-  // UTC-based filtering for consistent data across all timezones
-  const filter  = periodFilter(period, '');
+  // Timezone-aware filtering for "today", UTC for other periods
+  const filter  = periodFilter(period, '', safeTz);
 
   // All DATE_TRUNC operations use user's timezone
   // bucket is in LOCAL time — TO_CHAR outputs local hour labels
@@ -387,8 +395,8 @@ const getRevenueTrend = async (userId, period = '1m', tz = 'UTC') => {
 // getTopItems — JOIN present → alias 't' required
 // ─────────────────────────────────────────────────────────────────────────────
 const getTopItems = async (userId, period = '1m', limit = 20, tz = 'UTC') => {
-  // UTC-based filtering for consistent data
-  const filter = periodFilter(period, 't');
+  // Timezone-aware filtering for "today", UTC for other periods
+  const filter = periodFilter(period, 't', tz);
 
   const { rows } = await db.query(`
     SELECT
@@ -421,8 +429,8 @@ const getTopItems = async (userId, period = '1m', limit = 20, tz = 'UTC') => {
 // getItemSalesHistory — JOIN present → alias 't' required
 // ─────────────────────────────────────────────────────────────────────────────
 const getItemSalesHistory = async (userId, itemId, period = '1m', tz = 'UTC') => {
-  // UTC-based filtering for consistent data
-  const filter = periodFilter(period, 't');
+  // Timezone-aware filtering for "today", UTC for other periods
+  const filter = periodFilter(period, 't', tz);
 
   const { rows } = await db.query(`
     SELECT
