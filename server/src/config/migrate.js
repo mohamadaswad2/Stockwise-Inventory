@@ -55,10 +55,11 @@ const migrations = [
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id     UUID          NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     item_id     UUID          NOT NULL REFERENCES inventory_items(id) ON DELETE CASCADE,
-    type        VARCHAR(20)   NOT NULL CHECK (type IN ('sale','restock','adjustment','usage')),
+    type        VARCHAR(20)   NOT NULL CHECK (type IN ('sale','refund','cancelled','restock','adjustment','usage')),
     quantity    INTEGER       NOT NULL,
     unit_price  NUMERIC(12,2) NOT NULL DEFAULT 0,
     total       NUMERIC(12,2) GENERATED ALWAYS AS (quantity * unit_price) STORED,
+    status      VARCHAR(20)   NOT NULL DEFAULT 'completed' CHECK (status IN ('pending','completed','cancelled')),
     note        TEXT,
     created_at  TIMESTAMPTZ   NOT NULL DEFAULT NOW()
   )`,
@@ -78,6 +79,19 @@ const migrations = [
     updated_at             TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`,
 
+  /* Monitoring & Anomaly Detection */
+  `CREATE TABLE IF NOT EXISTS anomaly_logs (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         UUID          NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type            VARCHAR(50)   NOT NULL,
+    severity        VARCHAR(20)   NOT NULL CHECK (severity IN ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL')),
+    message         TEXT          NOT NULL,
+    data            JSONB,
+    acknowledged    BOOLEAN       NOT NULL DEFAULT FALSE,
+    acknowledged_at TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+  )`,
+
   `CREATE TABLE IF NOT EXISTS stripe_events (
     id         VARCHAR(255) PRIMARY KEY,
     processed  BOOLEAN     NOT NULL DEFAULT FALSE,
@@ -91,6 +105,17 @@ const migrations = [
   `CREATE INDEX IF NOT EXISTS idx_transactions_user  ON transactions(user_id)`,
   `CREATE INDEX IF NOT EXISTS idx_transactions_item  ON transactions(item_id)`,
   `CREATE INDEX IF NOT EXISTS idx_transactions_date  ON transactions(user_id, created_at DESC)`,
+  
+  // ── Performance optimization for analytics queries ─────────────────────────
+  // Composite index for getSalesSummary, getRevenueTrend, getTopItems
+  // Covers: WHERE user_id = $1 AND type = 'sale' AND status = 'completed' AND created_at > ...
+  `CREATE INDEX IF NOT EXISTS idx_transactions_user_type_status_date 
+    ON transactions(user_id, type, status, created_at DESC)
+    WHERE status = 'completed'`,
+  
+  // Monitoring indexes
+  `CREATE INDEX IF NOT EXISTS idx_anomaly_logs_user ON anomaly_logs(user_id, created_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS idx_anomaly_logs_type ON anomaly_logs(type, severity)`,
 
   /* Alter existing tables safely */
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_email_verified      BOOLEAN     NOT NULL DEFAULT FALSE`,
@@ -121,6 +146,34 @@ const migrations = [
   `ALTER TABLE transactions ALTER COLUMN unit_price TYPE NUMERIC(12,4)`,
   `ALTER TABLE transactions ALTER COLUMN cost_price TYPE NUMERIC(12,4)`,
   `ALTER TABLE transactions ADD COLUMN IF NOT EXISTS total NUMERIC GENERATED ALWAYS AS (quantity * unit_price) STORED`,
+
+  // ── Transaction model enhancements ─────────────────────────────────────────
+  // Step 4: Add status column for soft delete and transaction state tracking
+  `ALTER TABLE transactions ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'completed'`,
+  
+  // Step 5: Update type check constraint to include refund and cancelled
+  // Note: This requires dropping and recreating the constraint
+  `ALTER TABLE transactions DROP CONSTRAINT IF EXISTS transactions_type_check`,
+  `ALTER TABLE transactions ADD CONSTRAINT transactions_type_check CHECK (type IN ('sale','refund','cancelled','restock','adjustment','usage'))`,
+  
+  // Step 6: Add status check constraint
+  `ALTER TABLE transactions DROP CONSTRAINT IF EXISTS transactions_status_check`,
+  `ALTER TABLE transactions ADD CONSTRAINT transactions_status_check CHECK (status IN ('pending','completed','cancelled'))`,
+  
+  // Step 7: Add anomaly_logs table for existing databases
+  `CREATE TABLE IF NOT EXISTS anomaly_logs (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         UUID          NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type            VARCHAR(50)   NOT NULL,
+    severity        VARCHAR(20)   NOT NULL CHECK (severity IN ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL')),
+    message         TEXT          NOT NULL,
+    data            JSONB,
+    acknowledged    BOOLEAN       NOT NULL DEFAULT FALSE,
+    acknowledged_at TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_anomaly_logs_user ON anomaly_logs(user_id, created_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS idx_anomaly_logs_type ON anomaly_logs(type, severity)`,
 ];
 
 async function run() {

@@ -14,7 +14,10 @@ import AppLayout from '../../components/layout/AppLayout';
 import Spinner from '../../components/ui/Spinner';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCurrency } from '../../contexts/CurrencyContext';
+import { safeNumber } from '../../utils/safeNumber';
 import { getAnalytics } from '../../services/transaction.service';
+import RevenueExplainer from '../../components/analytics/RevenueExplainer';
+import TransactionTypeLegend from '../../components/analytics/TransactionTypeLegend';
 import toast from 'react-hot-toast';
 
 const PERIODS = [
@@ -97,8 +100,10 @@ export default function AnalyticsPage() {
   };
 
   const s          = data?.summary;
-  const marginPct  = s?.revenue_period > 0
-    ? ((Number(s.profit_period) / Number(s.revenue_period)) * 100).toFixed(1)
+  const revenuePeriod = safeNumber(s?.revenue_period);
+  const profitPeriod = safeNumber(s?.profit_period);
+  const marginPct  = revenuePeriod > 0
+    ? ((profitPeriod / revenuePeriod) * 100).toFixed(1)
     : 0;
 
   // Chart data — check if any non-zero value exists
@@ -136,11 +141,14 @@ export default function AnalyticsPage() {
             <h1 className="text-xl font-bold" style={{ color: 'var(--text)' }}>Analytics</h1>
             <p className="text-sm mt-0.5" style={{ color: 'var(--text2)' }}>Revenue, profit and sales insights</p>
           </div>
-          {isAdvancedPlan && (
-            <button onClick={exportAnalytics} className="btn-secondary text-sm flex items-center gap-2">
-              <Download size={14} /> Export
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            <TransactionTypeLegend />
+            {isAdvancedPlan && (
+              <button onClick={exportAnalytics} className="btn-secondary text-sm flex items-center gap-2">
+                <Download size={14} /> Export
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Period selector */}
@@ -186,6 +194,9 @@ export default function AnalyticsPage() {
               <MetricCard icon={BarChart2}   label="Cost"         value={formatFull(s?.cost_period)}    color="orange" />
               <MetricCard icon={ShoppingBag} label="Transactions" value={s?.total_transactions || 0}    color="purple" />
             </div>
+
+            {/* Revenue explanation for negative or refund-affected revenue */}
+            <RevenueExplainer summary={s} />
 
             {/* Revenue + Profit + Cost chart */}
             <div className="card p-5">
@@ -337,12 +348,12 @@ export default function AnalyticsPage() {
                         );
                       })}
 
-                      {/* Totals row */}
+                      {/* Totals row — uses summary data for full accuracy */}
                       {data.topItems.length > 1 && (() => {
-                        const tRev    = data.topItems.reduce((s, i) => s + Number(i.revenue), 0);
-                        const tCost   = data.topItems.reduce((s, i) => s + Number(i.total_cost), 0);
-                        const tProfit = data.topItems.reduce((s, i) => s + Number(i.profit), 0);
-                        const tUnits  = data.topItems.reduce((s, i) => s + Number(i.units_sold), 0);
+                        const tRev    = safeNumber(s?.revenue_period);
+                        const tCost   = safeNumber(s?.cost_period);
+                        const tProfit = safeNumber(s?.profit_period);
+                        const tUnits  = safeNumber(s?.units_period);
                         const tMargin = tRev > 0 ? ((tProfit / tRev) * 100).toFixed(1) : 0;
                         return (
                           <tr style={{ borderTop: '2px solid var(--border2)', background: 'var(--surface2)' }}>
@@ -369,11 +380,11 @@ export default function AnalyticsPage() {
               )}
             </div>
 
-            {/* Easy summary */}
-            {data?.topItems?.length > 0 && (() => {
-              const tRev    = data.topItems.reduce((s, i) => s + Number(i.revenue), 0);
-              const tCost   = data.topItems.reduce((s, i) => s + Number(i.total_cost), 0);
-              const tProfit = data.topItems.reduce((s, i) => s + Number(i.profit), 0);
+            {/* Easy summary — uses summary data for full accuracy */}
+            {data?.summary && (() => {
+              const tRev    = safeNumber(s?.revenue_period);
+              const tCost   = safeNumber(s?.cost_period);
+              const tProfit = safeNumber(s?.profit_period);
               const margin  = tRev > 0 ? ((tProfit / tRev) * 100).toFixed(1) : 0;
               return (
                 <div className="card p-5">

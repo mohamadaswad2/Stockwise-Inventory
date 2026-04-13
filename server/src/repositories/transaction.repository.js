@@ -18,17 +18,16 @@ const periodFilter = (period, alias = '', tz = 'UTC') => {
   const safeTz = tz || 'UTC';
 
   if (period === 'today') {
-    // Midnight in user local time, expressed back in UTC for comparison
-    // DATE_TRUNC('day', NOW() AT TIME ZONE tz) gives local midnight as timestamp without tz
-    // AT TIME ZONE tz converts it back to timestamptz for correct comparison with stored UTC
+    // Midnight in user local time, expressed back to UTC for comparison
     return `${col} >= DATE_TRUNC('day', NOW() AT TIME ZONE '${safeTz}') AT TIME ZONE '${safeTz}'`;
   }
 
+  // All periods now use timezone-aware comparison
   const map = {
     '7d': '7 days', '1m': '30 days',
     '2m': '60 days', '3m': '90 days', 'year': '365 days',
   };
-  return `${col} > NOW() - INTERVAL '${map[period] || '30 days'}'`;
+  return `${col} > (NOW() AT TIME ZONE '${safeTz}') - INTERVAL '${map[period] || '30 days'}' AT TIME ZONE '${safeTz}'`;
 };
 
 const periodToDays = (period) => {
@@ -49,7 +48,13 @@ const create = async (userId, { itemId, type, quantity, unitPrice, costPrice, no
        VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
       [userId, itemId, type, quantity, unitPrice || 0, costPrice || 0, note || null]
     );
-    const delta = (type === 'sale' || type === 'usage') ? -Math.abs(quantity) : Math.abs(quantity);
+    // Calculate stock delta:
+    // - sale/usage: decrease stock (-quantity)
+    // - refund: increase stock (+quantity) 
+    // - restock/adjustment: increase stock (+quantity)
+    const delta = (type === 'sale' || type === 'usage') ? -Math.abs(quantity) 
+                : (type === 'refund') ? Math.abs(quantity)
+                : Math.abs(quantity);
     const itemRes = await client.query(
       `UPDATE inventory_items
        SET quantity = GREATEST(0, quantity + $1), updated_at = NOW()
@@ -103,28 +108,75 @@ const findAll = async (userId, { page = 1, limit = 20, type, itemId, dateFrom, d
 // ─────────────────────────────────────────────────────────────────────────────
 const getSalesSummary = async (userId, period = '1m', tz = 'UTC') => {
   const filterPeriod = periodFilter(period, '', tz);
-  const filter30d    = `created_at > NOW() - INTERVAL '30 days'`;
-  const filter7d     = `created_at > NOW() - INTERVAL '7 days'`;
+  const filter30d    = periodFilter('1m', '', tz);
+  const filter7d     = periodFilter('7d', '', tz);
 
   const { rows } = await db.query(`
     SELECT
-      COALESCE(SUM(quantity * unit_price)
-        FILTER (WHERE type = 'sale'), 0)                             AS total_revenue,
+      -- Net revenue: sales - refunds (refunds have negative impact)
+      COALESCE(SUM(
+        CASE 
+          WHEN type = 'sale' THEN quantity * unit_price
+          WHEN type = 'refund' THEN -(quantity * unit_price)
+          ELSE 0
+        END
+      ), 0)                                                            AS total_revenue,
+      
       COALESCE(SUM(quantity)
-        FILTER (WHERE type = 'sale'), 0)                             AS total_units_sold,
-      COUNT(*) FILTER (WHERE type = 'sale')                          AS total_transactions,
+        FILTER (WHERE type = 'sale' AND status = 'completed'), 0)       AS total_units_sold,
+      
+      COUNT(*) FILTER (WHERE type = 'sale' AND status = 'completed')    AS total_transactions,
+      
+      -- Period calculations (net of refunds)
+      -- Gross sales (before refunds)
       COALESCE(SUM(quantity * unit_price)
-        FILTER (WHERE type = 'sale' AND ${filterPeriod}), 0)         AS revenue_period,
-      COALESCE(SUM(quantity * (unit_price - cost_price))
-        FILTER (WHERE type = 'sale' AND ${filterPeriod}), 0)         AS profit_period,
-      COALESCE(SUM(quantity * cost_price)
-        FILTER (WHERE type = 'sale' AND ${filterPeriod}), 0)         AS cost_period,
+        FILTER (WHERE type = 'sale' AND status = 'completed' AND ${filterPeriod}), 0) AS gross_revenue,
+      
+      -- Total refunds in period
       COALESCE(SUM(quantity * unit_price)
-        FILTER (WHERE type = 'sale' AND ${filter30d}), 0)            AS revenue_30d,
+        FILTER (WHERE type = 'refund' AND status = 'completed' AND ${filterPeriod}), 0) AS total_refunds,
+      
+      -- Net revenue (sales - refunds)
+      COALESCE(SUM(
+        CASE 
+          WHEN type = 'sale' AND ${filterPeriod} THEN quantity * unit_price
+          WHEN type = 'refund' AND ${filterPeriod} THEN -(quantity * unit_price)
+          ELSE 0
+        END
+      ), 0)                                                            AS revenue_period,
+      
+      COALESCE(SUM(
+        CASE 
+          WHEN type = 'sale' AND ${filterPeriod} THEN quantity * (unit_price - cost_price)
+          WHEN type = 'refund' AND ${filterPeriod} THEN -(quantity * (unit_price - cost_price))
+          ELSE 0
+        END
+      ), 0)                                                            AS profit_period,
+      
+      COALESCE(SUM(
+        CASE 
+          WHEN type = 'sale' AND ${filterPeriod} THEN quantity * cost_price
+          WHEN type = 'refund' AND ${filterPeriod} THEN -(quantity * cost_price)
+          ELSE 0
+        END
+      ), 0)                                                            AS cost_period,
+      
+      COALESCE(SUM(
+        CASE 
+          WHEN type = 'sale' AND ${filterPeriod} THEN quantity
+          WHEN type = 'refund' AND ${filterPeriod} THEN -quantity
+          ELSE 0
+        END
+      ), 0)                                                            AS units_period,
+      
       COALESCE(SUM(quantity * unit_price)
-        FILTER (WHERE type = 'sale' AND ${filter7d}), 0)             AS revenue_7d
+        FILTER (WHERE type = 'sale' AND ${filter30d} AND status = 'completed'), 0) AS revenue_30d,
+      
+      COALESCE(SUM(quantity * unit_price)
+        FILTER (WHERE type = 'sale' AND ${filter7d} AND status = 'completed'), 0)  AS revenue_7d
     FROM transactions
     WHERE user_id = $1
+      AND status = 'completed'
   `, [userId]);
 
   return rows[0];
@@ -159,15 +211,30 @@ const getRevenueTrend = async (userId, period = '1m', tz = 'UTC') => {
     FROM (
       SELECT
         DATE_TRUNC('${truncBy}', created_at AT TIME ZONE '${safeTz}') AS bucket,
-        CASE WHEN type = 'sale' THEN quantity * unit_price      ELSE 0 END AS revenue,
-        CASE WHEN type = 'sale'
-          THEN quantity * (unit_price - cost_price)             ELSE 0 END AS profit,
-        CASE WHEN type = 'sale' THEN quantity * cost_price      ELSE 0 END AS cost,
-        CASE WHEN type = 'sale' THEN 1                          ELSE 0 END AS tx_count,
+        -- Net revenue: sales - refunds
+        CASE 
+          WHEN type = 'sale' THEN quantity * unit_price
+          WHEN type = 'refund' THEN -(quantity * unit_price)
+          ELSE 0 
+        END AS revenue,
+        CASE 
+          WHEN type = 'sale' THEN quantity * (unit_price - cost_price)
+          WHEN type = 'refund' THEN -(quantity * (unit_price - cost_price))
+          ELSE 0 
+        END AS profit,
+        CASE 
+          WHEN type = 'sale' THEN quantity * cost_price
+          WHEN type = 'refund' THEN -(quantity * cost_price)
+          ELSE 0 
+        END AS cost,
+        CASE WHEN type = 'sale' THEN 1
+          WHEN type = 'refund' THEN -1
+          ELSE 0 
+        END AS tx_count,
         CASE WHEN type IN ('restock','adjustment') AND quantity > 0
           THEN quantity                                         ELSE 0 END AS qty_added
       FROM transactions
-      WHERE user_id = $1 AND ${filter}
+      WHERE user_id = $1 AND status = 'completed' AND ${filter}
     ) sub
     GROUP BY bucket
     ORDER BY bucket ASC
@@ -324,6 +391,7 @@ const getTopItems = async (userId, period = '1m', limit = 20, tz = 'UTC') => {
     JOIN inventory_items i ON i.id = t.item_id
     WHERE t.user_id = $1
       AND t.type = 'sale'
+      AND t.status = 'completed'
       AND ${filter}
     GROUP BY i.id, i.name, i.sku, i.unit, i.price, i.cost_price
     ORDER BY revenue DESC
