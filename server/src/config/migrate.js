@@ -106,14 +106,7 @@ const migrations = [
   `CREATE INDEX IF NOT EXISTS idx_transactions_item  ON transactions(item_id)`,
   `CREATE INDEX IF NOT EXISTS idx_transactions_date  ON transactions(user_id, created_at DESC)`,
   
-  // ── Performance optimization for analytics queries ─────────────────────────
-  // Composite index for getSalesSummary, getRevenueTrend, getTopItems
-  // Covers: WHERE user_id = $1 AND type = 'sale' AND status = 'completed' AND created_at > ...
-  `CREATE INDEX IF NOT EXISTS idx_transactions_user_type_status_date 
-    ON transactions(user_id, type, status, created_at DESC)
-    WHERE status = 'completed'`,
-  
-  // Monitoring indexes
+  // Monitoring indexes (no dependencies)
   `CREATE INDEX IF NOT EXISTS idx_anomaly_logs_user ON anomaly_logs(user_id, created_at DESC)`,
   `CREATE INDEX IF NOT EXISTS idx_anomaly_logs_type ON anomaly_logs(type, severity)`,
 
@@ -160,7 +153,16 @@ const migrations = [
   `ALTER TABLE transactions DROP CONSTRAINT IF EXISTS transactions_status_check`,
   `ALTER TABLE transactions ADD CONSTRAINT transactions_status_check CHECK (status IN ('pending','completed','cancelled'))`,
   
-  // Step 7: Add anomaly_logs table for existing databases
+  // Step 7: Create indexes that depend on 'status' column (MUST be after ADD COLUMN)
+  // This index requires status column to exist first
+  // ── Performance optimization for analytics queries ─────────────────────────
+  // Composite index for getSalesSummary, getRevenueTrend, getTopItems
+  // Covers: WHERE user_id = $1 AND type = 'sale' AND status = 'completed' AND created_at > ...
+  `CREATE INDEX IF NOT EXISTS idx_transactions_user_type_status_date 
+    ON transactions(user_id, type, status, created_at DESC)
+    WHERE status = 'completed'`,
+  
+  // Step 8: Add anomaly_logs table for existing databases
   `CREATE TABLE IF NOT EXISTS anomaly_logs (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id         UUID          NOT NULL REFERENCES users(id) ON DELETE CASCADE,
