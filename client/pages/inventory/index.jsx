@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import Head from 'next/head';
 import toast from 'react-hot-toast';
-import { Plus, Download, Lock } from 'lucide-react';
+import { Plus, Download, Lock, RefreshCw, AlertCircle } from 'lucide-react';
 import ProtectedRoute from '../../components/layout/ProtectedRoute';
 import AppLayout from '../../components/layout/AppLayout';
 import ItemTable from '../../components/inventory/ItemTable';
@@ -19,7 +19,7 @@ const EXPORT_PLANS = ['starter', 'premium', 'deluxe'];
 
 export default function InventoryPage() {
   const { user } = useAuth();
-  const { items, total, loading, filters, setFilters, refetch, deleteItem } = useInventory();
+  const { items, total, loading, error, filters, setFilters, refetch, deleteItem } = useInventory();
   const { categories } = useCategories();
 
   const [createOpen,    setCreateOpen]    = useState(false);
@@ -109,20 +109,37 @@ export default function InventoryPage() {
           </div>
         )}
 
+        {/* Error State */}
+        {error && !loading && (
+          <div className="mb-4 p-4 rounded-xl text-center"
+            style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
+            <AlertCircle size={32} style={{ color: 'var(--red)', margin: '0 auto 12px' }} />
+            <p className="text-sm font-medium mb-3" style={{ color: 'var(--text)' }}>{error}</p>
+            <button 
+              onClick={refetch}
+              className="btn-secondary text-sm inline-flex items-center gap-2"
+              style={{ color: 'var(--accent)' }}>
+              <RefreshCw size={14} /> Try Again
+            </button>
+          </div>
+        )}
+
         {/* Filters */}
         <div className="mb-4">
           <InventoryFilters filters={filters} setFilters={setFilters} categories={categories} />
         </div>
 
         {/* Table */}
-        <ItemTable
-          items={items} total={total} loading={loading}
-          filters={filters} setFilters={setFilters}
-          onEdit={setEditItem}
-          onDelete={deleteItem}
-          onQuickSell={setQuickSellItem}
-          onRestock={setRestockItem}
-        />
+        {!error && (
+          <ItemTable
+            items={items} total={total} loading={loading}
+            filters={filters} setFilters={setFilters}
+            onEdit={setEditItem}
+            onDelete={deleteItem}
+            onQuickSell={setQuickSellItem}
+            onRestock={setRestockItem}
+          />
+        )}
 
         {/* Create modal */}
         <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Add New Item" size="lg">

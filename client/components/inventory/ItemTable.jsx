@@ -25,7 +25,9 @@ export default function ItemTable({
     finally { setDelLoading(false); setDelItem(null); }
   };
 
-  if (loading) return (
+  // Note: Don't unmount on loading - use overlay instead to preserve scroll position
+  // Full loading state only for initial load (no items yet)
+  if (loading && !items.length) return (
     <div className="card flex items-center justify-center py-24"><Spinner size="lg" /></div>
   );
 
@@ -42,9 +44,24 @@ export default function ItemTable({
 
   return (
     <>
-      <div className="card overflow-hidden">
+      <div className="card overflow-hidden" style={{ position: 'relative' }}>
+        {/* Subtle loading overlay - preserves scroll position */}
+        {loading && items.length > 0 && (
+          <div style={{
+            position: 'absolute',
+            top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(255,255,255,0.7)',
+            backdropFilter: 'blur(2px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10,
+          }}>
+            <Spinner size="md" />
+          </div>
+        )}
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm" style={{ opacity: loading ? 0.6 : 1 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface2)' }}>
                 {['Item','Category','Stock','Price','Cost','Margin','Status','Actions'].map(h => (
