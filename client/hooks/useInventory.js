@@ -74,5 +74,5 @@ export function useInventory(initialFilters = {}) {
     fetch();
   };
 
-  return { items, total, loading, filters, setFilters, refetch: fetch, deleteItem };
+  return { items, total, loading, error, filters, setFilters, refetch: fetch, deleteItem };
 }

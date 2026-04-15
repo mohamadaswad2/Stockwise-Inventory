@@ -63,7 +63,7 @@ export const TOOLTIPS = {
  * @param {string} lang - Language code ('ms' or 'en'), defaults to 'ms'
  * @returns {string} Tooltip text or empty string if not found
  */
-export const getTooltip = (key, lang = 'ms') => {
+export const getTooltip = (key, lang = 'en') => {
   const tooltip = TOOLTIPS[key];
   if (!tooltip) {
     console.warn(`Tooltip key "${key}" not found`);
@@ -77,7 +77,7 @@ export const getTooltip = (key, lang = 'ms') => {
  * @param {string} lang - Language code ('ms' or 'en')
  * @returns {Object} Object with all tooltips for the language
  */
-export const getTooltipsByLanguage = (lang = 'ms') => {
+export const getTooltipsByLanguage = (lang = 'en') => {
   const result = {};
   Object.keys(TOOLTIPS).forEach((key) => {
     result[key] = TOOLTIPS[key][lang] || TOOLTIPS[key]['ms'];

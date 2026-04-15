@@ -11,9 +11,7 @@ const userRoutes        = require('./routes/user.routes');
 const adminRoutes       = require('./routes/admin.routes');
 const transactionRoutes = require('./routes/transaction.routes');
 const stripeRoutes      = require('./routes/stripe.routes');
-const { authenticate }  = require('./middlewares/auth.middleware');
-const appUpdateService  = require('./services/appUpdate.service');
-const { success }       = require('./utils/response');
+const monitoringRoutes  = require('./routes/monitoring.routes');
 const { notFound, errorHandler } = require('./middlewares/error.middleware');
 
 const app = express();
@@ -25,7 +23,7 @@ app.use(cors({
   origin: (o, cb) => (!o || allowed.includes(o)) ? cb(null, true) : cb(new Error(`CORS: ${o}`)),
   credentials: true,
 }));
-// Stripe webhook needs raw body — MUST be before json middleware
+// Stripe webhook needs raw body for signature verification — MUST be before json()
 app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -34,12 +32,6 @@ app.use('/api', rateLimit({ windowMs: 15*60*1000, max: 200, standardHeaders: tru
 
 app.get('/health', (_req, res) => res.json({ success: true, message: 'API is running', ts: new Date() }));
 
-// Public route — all users (including unauthenticated) can read updates
-app.get('/api/updates', async (req, res, next) => {
-  try { success(res, await appUpdateService.getUpdates(req.query)); }
-  catch(e) { next(e); }
-});
-
 app.use('/api/auth',         authRoutes);
 app.use('/api/inventory',    inventoryRoutes);
 app.use('/api/dashboard',    dashboardRoutes);
@@ -47,6 +39,7 @@ app.use('/api/users',        userRoutes);
 app.use('/api/admin',        adminRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/stripe',       stripeRoutes);
+app.use('/api/monitoring',   monitoringRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

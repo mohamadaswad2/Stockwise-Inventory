@@ -3,7 +3,7 @@
  * Detects revenue anomalies, negative values, and unusual transaction patterns
  */
 
-const db = require('../config/db');
+const db = require('../config/database');
 
 // Anomaly detection thresholds
 const THRESHOLDS = {
