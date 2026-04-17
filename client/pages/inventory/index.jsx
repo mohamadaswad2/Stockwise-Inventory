@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import Head from 'next/head';
 import toast from 'react-hot-toast';
-import { Plus, Download, Lock, RefreshCw, AlertCircle } from 'lucide-react';
+import { Plus, Download, Lock, RefreshCw, AlertCircle, Search, SlidersHorizontal } from 'lucide-react';
 import ProtectedRoute from '../../components/layout/ProtectedRoute';
 import AppLayout from '../../components/layout/AppLayout';
 import ItemTable from '../../components/inventory/ItemTable';
@@ -18,7 +18,7 @@ import * as inventoryService from '../../services/inventory.service';
 const EXPORT_PLANS = ['starter', 'premium', 'deluxe'];
 
 export default function InventoryPage() {
-  const { user } = useAuth();
+  const { user }  = useAuth();
   const { items, total, loading, error, filters, setFilters, refetch, deleteItem } = useInventory();
   const { categories } = useCategories();
 
@@ -28,6 +28,7 @@ export default function InventoryPage() {
   const [restockItem,   setRestockItem]   = useState(null);
   const [saving,        setSaving]        = useState(false);
   const [exporting,     setExporting]     = useState(false);
+  const [showFilters,   setShowFilters]   = useState(false);
 
   const canExport = EXPORT_PLANS.includes(user?.plan);
 
@@ -47,7 +48,7 @@ export default function InventoryPage() {
     setSaving(true);
     try {
       await inventoryService.updateItem(editItem.id, data);
-      toast.success('Item updated!');
+      toast.success('Updated!');
       setEditItem(null);
       refetch();
     } catch (err) {
@@ -56,10 +57,7 @@ export default function InventoryPage() {
   };
 
   const handleExportCSV = async () => {
-    if (!canExport) {
-      toast.error('CSV export requires Starter plan or above.');
-      return;
-    }
+    if (!canExport) { toast.error('CSV export requires Starter plan or above.'); return; }
     setExporting(true);
     try {
       const res  = await inventoryService.exportCSV();
@@ -67,9 +65,7 @@ export default function InventoryPage() {
       const link = document.createElement('a');
       link.href  = url;
       link.setAttribute('download', `stockwise-${new Date().toISOString().slice(0,10)}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      document.body.appendChild(link); link.click(); link.remove();
       window.URL.revokeObjectURL(url);
       toast.success('CSV exported!');
     } catch (err) {
@@ -82,71 +78,105 @@ export default function InventoryPage() {
       <AppLayout>
         <Head><title>Inventory — StockWise</title></Head>
 
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4 gap-3">
-          <div>
-            <h1 className="text-xl font-bold" style={{ color: 'var(--text)' }}>Inventory</h1>
-            <p className="text-sm mt-0.5" style={{ color: 'var(--text2)' }}>{total} item{total !== 1 ? 's' : ''}</p>
+        {/* ── Sticky header bar ──────────────────────────────────────── */}
+        <div className="sticky-bar" style={{ paddingBottom: 0 }}>
+          {/* Top row: title + CTA buttons */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 12 }}>
+            <div>
+              <h1 className="page-title">Inventory</h1>
+              <p className="page-subtitle">{total} item{total !== 1 ? 's' : ''}</p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+              {/* Export — icon only on mobile */}
+              <button onClick={handleExportCSV} disabled={exporting}
+                className="btn-secondary"
+                style={{ padding: '0 12px', height: 36, fontSize: 13 }}
+                title={canExport ? 'Export CSV' : 'Upgrade to export CSV'}>
+                {canExport ? <Download size={14} /> : <Lock size={14} />}
+                <span className="hidden sm:inline">{exporting ? 'Exporting…' : 'Export'}</span>
+              </button>
+              {/* Filter toggle — mobile */}
+              <button
+                onClick={() => setShowFilters(v => !v)}
+                className="btn-secondary sm:hidden"
+                style={{ padding: '0 12px', height: 36 }}
+                aria-label="Filters">
+                <SlidersHorizontal size={14} />
+              </button>
+              <button onClick={() => setCreateOpen(true)} className="btn-primary"
+                style={{ height: 36, paddingLeft: 14, paddingRight: 14, fontSize: 13 }}>
+                <Plus size={15} /> <span className="hidden sm:inline">Add Item</span>
+                <span className="sm:hidden">Add</span>
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={handleExportCSV} disabled={exporting}
-              className="btn-secondary text-sm flex items-center gap-2"
-              title={canExport ? 'Export CSV' : 'Upgrade to export CSV'}>
-              {canExport ? <Download size={14} /> : <Lock size={14} />}
-              <span className="hidden sm:inline">{exporting ? 'Exporting…' : 'Export CSV'}</span>
-            </button>
-            <button className="btn-primary" onClick={() => setCreateOpen(true)}>
-              <Plus size={15} /> Add Item
-            </button>
+
+          {/* Search bar — always visible */}
+          <div style={{ position: 'relative' }}>
+            <Search size={14} style={{
+              position: 'absolute', left: 12, top: '50%',
+              transform: 'translateY(-50%)', color: 'var(--text3)',
+              pointerEvents: 'none',
+            }} />
+            <input
+              type="text"
+              className="input"
+              placeholder="Search items, SKU…"
+              value={filters.search || ''}
+              onChange={e => setFilters(f => ({ ...f, search: e.target.value, page: 1 }))}
+              style={{ paddingLeft: 36, height: 38, fontSize: 13 }}
+            />
           </div>
         </div>
 
-        {/* Plan notice */}
+        {/* Upgrade notice */}
         {!canExport && (
-          <div className="mb-3 px-4 py-2.5 rounded-xl text-xs flex items-center gap-2"
-            style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.15)', color: 'var(--orange)' }}>
-            <Lock size={12} /> CSV Export available on Starter plan and above.
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '8px 12px', borderRadius: 'var(--r-md)', marginBottom: 10,
+            background: 'var(--orange-bg)',
+            border: '1px solid rgba(247,107,21,0.2)',
+            fontSize: 12, color: 'var(--orange)', fontWeight: 500,
+          }}>
+            <Lock size={12} /> CSV export available on Starter plan and above.
           </div>
         )}
 
-        {/* Error State */}
-        {error && !loading && (
-          <div className="mb-4 p-4 rounded-xl text-center"
-            style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
-            <AlertCircle size={32} style={{ color: 'var(--red)', margin: '0 auto 12px' }} />
-            <p className="text-sm font-medium mb-3" style={{ color: 'var(--text)' }}>{error}</p>
-            <button 
-              onClick={refetch}
-              className="btn-secondary text-sm inline-flex items-center gap-2"
-              style={{ color: 'var(--accent)' }}>
-              <RefreshCw size={14} /> Try Again
-            </button>
-          </div>
-        )}
-
-        {/* Filters */}
-        <div className="mb-4">
+        {/* Filters — desktop always, mobile collapsible */}
+        <div className={`${showFilters ? 'block' : 'hidden sm:block'} mb-3`}>
           <InventoryFilters filters={filters} setFilters={setFilters} categories={categories} />
         </div>
 
-        {/* Table */}
-        {!error && (
-          <ItemTable
-            items={items} total={total} loading={loading}
-            filters={filters} setFilters={setFilters}
-            onEdit={setEditItem}
-            onDelete={deleteItem}
-            onQuickSell={setQuickSellItem}
-            onRestock={setRestockItem}
-          />
+        {/* Error state */}
+        {error && !loading && (
+          <div className="card" style={{ padding: 24, textAlign: 'center', marginBottom: 12 }}>
+            <AlertCircle size={28} style={{ color: 'var(--red)', margin: '0 auto 10px' }} />
+            <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 12 }}>{error}</p>
+            <button onClick={refetch} className="btn-secondary" style={{ fontSize: 13, gap: 6 }}>
+              <RefreshCw size={13} /> Try Again
+            </button>
+          </div>
         )}
 
-        {/* Create modal */}
+        {/* Table */}
+        {!error && (
+          <div className="animate-ios-in">
+            <ItemTable
+              items={items} total={total} loading={loading}
+              filters={filters} setFilters={setFilters}
+              onEdit={setEditItem}
+              onDelete={deleteItem}
+              onQuickSell={setQuickSellItem}
+              onRestock={setRestockItem}
+            />
+          </div>
+        )}
+
+        {/* Modals */}
         <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Add New Item" size="lg">
           <ItemForm categories={categories} onSubmit={handleCreate} loading={saving} />
         </Modal>
 
-        {/* Edit modal */}
         <Modal open={!!editItem} onClose={() => setEditItem(null)} title="Edit Item" size="lg">
           {editItem && (
             <ItemForm
@@ -165,7 +195,6 @@ export default function InventoryPage() {
           )}
         </Modal>
 
-        {/* Quick Sell modal */}
         {quickSellItem && (
           <QuickSellModal
             item={quickSellItem}
@@ -174,7 +203,6 @@ export default function InventoryPage() {
           />
         )}
 
-        {/* Restock modal */}
         {restockItem && (
           <RestockModal
             item={restockItem}

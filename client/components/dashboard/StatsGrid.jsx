@@ -8,9 +8,9 @@ export default function StatsGrid({ stats, loading }) {
   const { formatFull } = useCurrency();
 
   if (loading) return (
-    <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-      {[...Array(4)].map((_, i) => (
-        <div key={i} className="card p-4 h-24 flex items-center justify-center">
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 10 }}>
+      {[...Array(4)].map((_,i) => (
+        <div key={i} className="card" style={{ padding: 16, minHeight: 88, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Spinner />
         </div>
       ))}
@@ -18,21 +18,16 @@ export default function StatsGrid({ stats, loading }) {
   );
 
   return (
-    <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 10 }}>
       <StatCard icon={Package}       label="Total Items"     value={stats?.total_items}
-        tooltip={getTooltip('totalItems')}
-        color="blue" />
+        tooltip={getTooltip('totalItems')} color="blue" />
       <StatCard icon={Layers}        label="Total Stock"     value={stats?.total_quantity}
-        sub="units"
-        tooltip={getTooltip('totalStock')}
-        color="green" />
+        sub="units" tooltip={getTooltip('totalStock')} color="green" />
       <StatCard icon={AlertTriangle} label="Low Stock"       value={stats?.low_stock_count}
         sub={`${stats?.out_of_stock_count ?? 0} out of stock`}
-        tooltip={getTooltip('lowStock')}
-        color="orange" />
+        tooltip={getTooltip('lowStock')} color="orange" />
       <StatCard icon={DollarSign}    label="Inventory Value" value={formatFull(stats?.total_value)}
-        tooltip={getTooltip('inventoryValue')}
-        color="purple" />
+        tooltip={getTooltip('inventoryValue')} color="purple" />
     </div>
   );
 }
