@@ -1,29 +1,19 @@
-import { useEffect, useRef, useState } from 'react';
-import { Search } from 'lucide-react';
-
+/**
+ * InventoryFilters — category + low stock toggle only.
+ * Search is handled by the sticky search bar in inventory/index.jsx.
+ * Removed duplicate search input to fix competing filter bug.
+ */
 export default function InventoryFilters({ filters, setFilters, categories }) {
-  const [search, setSearch] = useState(filters.search || '');
-  const debounce = useRef(null);
-
-  useEffect(() => {
-    clearTimeout(debounce.current);
-    debounce.current = setTimeout(() => {
-      setFilters(f => ({ ...f, search, page: 1 }));
-    }, 400);
-    return () => clearTimeout(debounce.current);
-  }, [search]);
+  const hasFilters = categories?.length > 0;
+  if (!hasFilters) return null;
 
   return (
-    <div className="flex flex-wrap gap-3">
-      <div className="relative flex-1 min-w-[200px]">
-        <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2"
-          style={{ color: 'var(--text3)' }} />
-        <input className="input pl-9 text-sm" placeholder="Search name or SKU…"
-          value={search} onChange={e => setSearch(e.target.value)} />
-      </div>
-
+    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+      {/* Category */}
       {categories?.length > 0 && (
-        <select className="input w-auto min-w-[160px] text-sm"
+        <select
+          className="input"
+          style={{ width: 'auto', minWidth: 150, height: 36, fontSize: 13 }}
           value={filters.category_id || ''}
           onChange={e => setFilters(f => ({ ...f, category_id: e.target.value || undefined, page: 1 }))}>
           <option value="">All categories</option>
@@ -31,17 +21,33 @@ export default function InventoryFilters({ filters, setFilters, categories }) {
         </select>
       )}
 
-      <label className="flex items-center gap-2 cursor-pointer select-none px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-150"
+      {/* Low stock toggle */}
+      <button
+        onClick={() => setFilters(f => ({ ...f, low_stock: !f.low_stock || undefined, page: 1 }))}
         style={{
-          background: filters.low_stock ? 'rgba(245,158,11,0.1)' : 'var(--surface2)',
-          color: filters.low_stock ? 'var(--orange)' : 'var(--text2)',
-          border: `1px solid ${filters.low_stock ? 'rgba(245,158,11,0.2)' : 'var(--border)'}`,
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+          padding: '0 12px', height: 36, borderRadius: 'var(--r-md)',
+          fontSize: 12, fontWeight: 600, cursor: 'pointer',
+          background: filters.low_stock ? 'var(--orange-bg)' : 'var(--surface2)',
+          color:      filters.low_stock ? 'var(--orange)'    : 'var(--text3)',
+          border: `1px solid ${filters.low_stock ? 'rgba(247,107,21,0.25)' : 'var(--border)'}`,
+          transition: 'all 150ms ease',
         }}>
-        <input type="checkbox" className="w-4 h-4" style={{ accentColor: 'var(--orange)' }}
-          checked={!!filters.low_stock}
-          onChange={e => setFilters(f => ({ ...f, low_stock: e.target.checked || undefined, page: 1 }))} />
-        Low stock only
-      </label>
+        {filters.low_stock ? '⚠️' : '📦'} Low stock only
+      </button>
+
+      {/* Clear filters */}
+      {(filters.category_id || filters.low_stock) && (
+        <button
+          onClick={() => setFilters(f => ({ ...f, category_id: undefined, low_stock: undefined, page: 1 }))}
+          style={{
+            fontSize: 12, fontWeight: 600, color: 'var(--text3)',
+            background: 'none', border: 'none', cursor: 'pointer',
+            padding: '0 4px', textDecoration: 'underline',
+          }}>
+          Clear
+        </button>
+      )}
     </div>
   );
 }
