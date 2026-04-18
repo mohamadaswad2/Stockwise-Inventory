@@ -696,6 +696,17 @@
   }
 
   /* Utility overrides */
+
+  /* Skeleton shimmer */
+  @keyframes shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+  .shimmer {
+    background: linear-gradient(90deg, var(--surface2) 25%, var(--surface3) 50%, var(--surface2) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s ease-in-out infinite;
+  }
   .tabular-nums { font-variant-numeric: tabular-nums; }
   .truncate-2 {
     display: -webkit-box;
