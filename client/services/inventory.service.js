@@ -8,6 +8,7 @@ export const deleteItem    = (id)     => api.delete(`/inventory/${id}`);
 export const exportCSV     = ()       => api.get('/inventory/export/csv', { responseType: 'text' });
 export const quickSell     = (id, d)  => api.post(`/inventory/${id}/quick-sell`, d);
 export const restock       = (id, d)  => api.post(`/inventory/${id}/restock`, d);
+export const restockItem   = (id, d)  => api.post(`/inventory/${id}/restock`, d); // alias for RestockModal
 export const getCategories = ()       => api.get('/inventory/categories');
 export const createCategory= (data)   => api.post('/inventory/categories', data);
 export const deleteCategory= (id)     => api.delete(`/inventory/categories/${id}`);

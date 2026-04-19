@@ -116,66 +116,77 @@ function ChartTooltip({ active, payload, label, formatFn }) {
   );
 }
 
-/* ── Mobile item row (replaces table on phone) ───────────────────────────────── */
+/* ── Mobile item card — shows ALL columns in 2-row layout ───────────────────── */
 function MobileItemRow({ item, idx, formatFull }) {
   const profit    = Number(item.profit);
+  const cost      = Number(item.total_cost);
+  const revenue   = Number(item.revenue);
   const isProfit  = profit >= 0;
   const margin    = Number(item.margin_pct);
-  const rankColor = idx < 3
-    ? ['#f59e0b', '#94a3b8', '#b45309'][idx]
-    : 'var(--text3)';
+  const rankColors = ['#f59e0b', '#94a3b8', '#b45309'];
+  const rankColor  = idx < 3 ? rankColors[idx] : 'var(--text3)';
 
   return (
-    <div style={{
-      padding: '12px 16px',
-      borderBottom: '1px solid var(--border)',
-      display: 'flex', alignItems: 'center', gap: 12,
-    }}>
-      {/* Rank */}
-      <div style={{
-        width: 26, height: 26, borderRadius: 7, flexShrink: 0,
-        background: idx < 3 ? `${rankColor}18` : 'var(--surface2)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 11, fontWeight: 800, color: rankColor,
-      }}>{idx + 1}</div>
+    <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)' }}>
 
-      {/* Item info */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ fontWeight: 600, fontSize: 13, color: 'var(--text)', marginBottom: 3 }} className="truncate">
+      {/* Row 1 — rank + name + margin badge */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+        <div style={{
+          width: 24, height: 24, borderRadius: 6, flexShrink: 0,
+          background: idx < 3 ? `${rankColor}18` : 'var(--surface2)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 10, fontWeight: 800, color: rankColor,
+        }}>{idx + 1}</div>
+
+        <p style={{ fontWeight: 600, fontSize: 13, color: 'var(--text)', flex: 1, minWidth: 0 }} className="truncate">
           {item.name}
+          {item.sku && <span style={{ fontSize: 10, color: 'var(--text3)', marginLeft: 6, fontFamily: 'monospace' }}>{item.sku}</span>}
         </p>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 11, color: 'var(--text3)' }}>{item.units_sold} units</span>
-          <span style={{ fontSize: 11, color: 'var(--green)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-            {formatFull(item.revenue)}
-          </span>
-          <span style={{
-            fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 99,
-            background: isProfit ? 'var(--green-bg)' : 'var(--red-bg)',
-            color: isProfit ? 'var(--green)' : 'var(--red)',
-          }}>
-            {isProfit ? '+' : ''}{formatFull(profit)}
-          </span>
-        </div>
+
+        {/* Margin badge */}
+        <span style={{
+          fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 99, flexShrink: 0,
+          background: margin >= 30 ? 'var(--green-bg)' : margin >= 10 ? 'var(--orange-bg)' : 'var(--red-bg)',
+          color: margin >= 30 ? 'var(--green)' : margin >= 10 ? 'var(--orange)' : 'var(--red)',
+        }}>{margin}%</span>
       </div>
 
-      {/* Margin pill */}
-      <div style={{
-        textAlign: 'right', flexShrink: 0,
-        display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4,
-      }}>
-        <span style={{
-          fontSize: 12, fontWeight: 700,
-          color: margin >= 30 ? 'var(--green)' : margin >= 10 ? 'var(--orange)' : 'var(--red)',
+      {/* Row 2 — 4 stat boxes: Units / Revenue / Cost / Profit */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+        {/* Units */}
+        <div style={{ background: 'var(--surface2)', borderRadius: 8, padding: '6px 8px', textAlign: 'center' }}>
+          <p style={{ fontSize: 9, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 3 }}>Units</p>
+          <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+            {item.units_sold}
+          </p>
+          <p style={{ fontSize: 9, color: 'var(--text3)', marginTop: 2 }}>{item.unit}</p>
+        </div>
+
+        {/* Revenue */}
+        <div style={{ background: 'var(--green-bg)', borderRadius: 8, padding: '6px 8px', textAlign: 'center' }}>
+          <p style={{ fontSize: 9, color: 'var(--green)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 3 }}>Revenue</p>
+          <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--green)', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+            {formatFull(revenue)}
+          </p>
+        </div>
+
+        {/* Cost */}
+        <div style={{ background: 'var(--orange-bg)', borderRadius: 8, padding: '6px 8px', textAlign: 'center' }}>
+          <p style={{ fontSize: 9, color: 'var(--orange)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 3 }}>Cost</p>
+          <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--orange)', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+            {formatFull(cost)}
+          </p>
+        </div>
+
+        {/* Profit */}
+        <div style={{
+          background: isProfit ? 'var(--accent-bg)' : 'var(--red-bg)',
+          borderRadius: 8, padding: '6px 8px', textAlign: 'center',
         }}>
-          {margin}%
-        </span>
-        <div style={{ width: 40, height: 3, borderRadius: 99, background: 'var(--surface2)', overflow: 'hidden' }}>
-          <div style={{
-            height: '100%', width: `${Math.min(100, Math.max(0, margin))}%`,
-            background: margin >= 30 ? 'var(--green)' : margin >= 10 ? 'var(--orange)' : 'var(--red)',
-            borderRadius: 99,
-          }} />
+          <p style={{ fontSize: 9, color: isProfit ? 'var(--accent3)' : 'var(--red)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 3 }}>Profit</p>
+          <p style={{ fontSize: 11, fontWeight: 700, color: isProfit ? 'var(--accent3)' : 'var(--red)', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+            {isProfit ? '+' : ''}{formatFull(profit)}
+          </p>
         </div>
       </div>
     </div>

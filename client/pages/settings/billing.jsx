@@ -3,84 +3,345 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import toast from 'react-hot-toast';
-import { Check, Zap, Star, Crown, Loader2, Settings } from 'lucide-react';
+import {
+  Check, X, Zap, Star, Crown, Loader2, Settings,
+  Shield, CreditCard, RefreshCw, Clock, ChevronDown, ChevronUp,
+} from 'lucide-react';
 import ProtectedRoute from '../../components/layout/ProtectedRoute';
 import AppLayout from '../../components/layout/AppLayout';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { createCheckoutSession, createPortalSession } from '../../services/stripe.service';
 
+/* ── Plan definitions ─────────────────────────────────────────────────────── */
 const PLANS = [
   {
-    key:   'starter',
-    name:  'Starter',
-    icon:  Zap,
-    price: { MYR: 19, USD: 4 },
-    color: 'var(--green)',
-    colorBg: 'rgba(34,197,94,0.1)',
-    description: 'Perfect for small businesses just getting started.',
+    key:         'starter',
+    name:        'Starter',
+    icon:        Zap,
+    price:       { MYR: 19, USD: 4 },
+    accentColor: '#18a349',
+    accentBg:    'rgba(24,163,73,0.1)',
+    accentBorder:'rgba(24,163,73,0.2)',
+    tagline:     'For businesses just getting started',
     features: [
-      'Up to 500 inventory items',
-      'CSV export (3× per month)',
-      'Low stock email alerts',
-      'Sales tracking & reports',
-      'Dashboard analytics',
+      { label: 'Inventory items',       value: 'Up to 500',    included: true  },
+      { label: 'CSV export',            value: '3× per month', included: true  },
+      { label: 'Low stock email alerts',value: 'Included',     included: true  },
+      { label: 'Sales analytics',       value: 'Basic',        included: true  },
+      { label: 'Profit tracking',       value: null,           included: false },
+      { label: 'Advanced analytics (3M)',value: null,          included: false },
+      { label: 'Priority support',      value: null,           included: false },
     ],
   },
   {
-    key:     'premium',
-    name:    'Premium',
-    icon:    Star,
-    price:   { MYR: 39, USD: 8 },
-    color:   'var(--purple)',
-    colorBg: 'rgba(168,85,247,0.1)',
-    popular: true,
-    description: 'For growing businesses that need more power.',
+    key:         'premium',
+    name:        'Premium',
+    icon:        Star,
+    price:       { MYR: 39, USD: 8 },
+    accentColor: '#8e4ec6',
+    accentBg:    'rgba(142,78,198,0.1)',
+    accentBorder:'rgba(142,78,198,0.25)',
+    tagline:     'Most popular for growing businesses',
+    popular:     true,
     features: [
-      'Unlimited inventory items',
-      'CSV export (6× per month)',
-      'Low stock email alerts',
-      'Advanced sales analytics',
-      'Profit & cost tracking',
-      'Priority email support',
+      { label: 'Inventory items',       value: 'Unlimited',    included: true },
+      { label: 'CSV export',            value: '6× per month', included: true },
+      { label: 'Low stock email alerts',value: 'Included',     included: true },
+      { label: 'Sales analytics',       value: 'Advanced',     included: true },
+      { label: 'Profit tracking',       value: 'Full details', included: true },
+      { label: 'Advanced analytics (3M)',value: 'Unlocked',    included: false },
+      { label: 'Priority support',      value: 'Email',        included: true },
     ],
   },
   {
-    key:     'deluxe',
-    name:    'Deluxe',
-    icon:    Crown,
-    price:   { MYR: 69, USD: 15 },
-    color:   'var(--accent3)',
-    colorBg: 'rgba(99,102,241,0.1)',
-    description: 'Everything you need to scale your business.',
+    key:         'deluxe',
+    name:        'Deluxe',
+    icon:        Crown,
+    price:       { MYR: 69, USD: 15 },
+    accentColor: '#5b5bd6',
+    accentBg:    'rgba(91,91,214,0.1)',
+    accentBorder:'rgba(91,91,214,0.25)',
+    tagline:     'Everything you need to scale',
     features: [
-      'Unlimited inventory items',
-      'Unlimited CSV exports',
-      'Full analytics suite (3M history)',
-      'Profit & cost tracking',
-      'Priority support',
-      'Early access to new features',
+      { label: 'Inventory items',       value: 'Unlimited',    included: true },
+      { label: 'CSV export',            value: 'Unlimited',    included: true },
+      { label: 'Low stock email alerts',value: 'Included',     included: true },
+      { label: 'Sales analytics',       value: 'Full suite',   included: true },
+      { label: 'Profit tracking',       value: 'Full details', included: true },
+      { label: 'Advanced analytics (3M)',value: '3 months',    included: true },
+      { label: 'Priority support',      value: 'Top priority', included: true },
     ],
   },
 ];
 
+/* ── Trial countdown ──────────────────────────────────────────────────────── */
+function TrialCountdown({ trialEndsAt }) {
+  if (!trialEndsAt) return null;
+  const daysLeft = Math.ceil((new Date(trialEndsAt) - new Date()) / 86400000);
+  if (daysLeft <= 0) return null;
+
+  const urgent = daysLeft <= 3;
+  const warn   = daysLeft <= 7;
+
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 10,
+      padding: '12px 16px', borderRadius: 12, marginBottom: 20,
+      background: urgent ? 'var(--red-bg)'    : warn ? 'var(--orange-bg)' : 'var(--accent-bg)',
+      border:    `1px solid ${urgent ? 'rgba(229,72,77,0.25)' : warn ? 'rgba(255,139,62,0.25)' : 'rgba(91,91,214,0.2)'}`,
+    }}>
+      <Clock size={16} style={{ color: urgent ? 'var(--red)' : warn ? 'var(--orange)' : 'var(--accent3)', flexShrink: 0 }} />
+      <div style={{ flex: 1 }}>
+        <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>
+          {daysLeft === 1 ? 'Trial ends tomorrow!' : `${daysLeft} days left in your free trial`}
+        </p>
+        <p style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
+          Upgrade now to keep your data and full access after the trial ends.
+        </p>
+      </div>
+      {urgent && (
+        <span style={{
+          fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 99,
+          background: 'var(--red)', color: '#fff', flexShrink: 0,
+        }}>Urgent</span>
+      )}
+    </div>
+  );
+}
+
+/* ── FAQ ──────────────────────────────────────────────────────────────────── */
+const FAQS = [
+  {
+    q: 'Can I cancel anytime?',
+    a: 'Yes. You can cancel your subscription at any time from the billing portal. Your access continues until the end of the billing period.',
+  },
+  {
+    q: 'What happens after my trial ends?',
+    a: 'Your data is locked but never deleted. You can upgrade at any time to restore full access immediately.',
+  },
+  {
+    q: 'Can I switch plans?',
+    a: 'Yes. Upgrade instantly — effective immediately. To downgrade, use the billing portal and changes take effect at your next billing cycle.',
+  },
+  {
+    q: 'Is my payment secure?',
+    a: 'All payments are processed by Stripe, the same payment infrastructure used by Amazon, Google and Shopify. We never store your card details.',
+  },
+];
+
+function FAQ() {
+  const [open, setOpen] = useState(null);
+  return (
+    <div style={{ marginTop: 32 }}>
+      <p style={{ fontWeight: 700, fontSize: 15, color: 'var(--text)', marginBottom: 12, letterSpacing: '-0.2px' }}>
+        Frequently Asked Questions
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {FAQS.map((faq, i) => (
+          <div key={i} className="card" style={{ overflow: 'hidden', borderRadius: 10 }}>
+            <button
+              onClick={() => setOpen(open === i ? null : i)}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '13px 16px', background: 'none', border: 'none', cursor: 'pointer',
+                textAlign: 'left', gap: 12,
+              }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{faq.q}</span>
+              {open === i
+                ? <ChevronUp size={15} style={{ color: 'var(--text3)', flexShrink: 0 }} />
+                : <ChevronDown size={15} style={{ color: 'var(--text3)', flexShrink: 0 }} />}
+            </button>
+            {open === i && (
+              <div style={{ padding: '0 16px 14px', fontSize: 13, color: 'var(--text2)', lineHeight: 1.65 }}>
+                {faq.a}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── Plan card ────────────────────────────────────────────────────────────── */
+function PlanCard({ plan, current, hasActiveSub, currentPlan, loadingPlan, onUpgrade, onManage, currency }) {
+  const Icon     = plan.icon;
+  const price    = plan.price[currency] || plan.price.MYR;
+  const symbol   = currency === 'USD' ? '$' : 'RM';
+  const isCurrent = current;
+  const planOrder = ['starter', 'premium', 'deluxe'];
+  const isDowngrade = planOrder.indexOf(plan.key) < planOrder.indexOf(currentPlan);
+  const isLoading   = loadingPlan === plan.key;
+
+  const handleClick = () => {
+    if (isCurrent || loadingPlan) return;
+    if (isDowngrade && hasActiveSub) { onManage(); return; }
+    onUpgrade(plan.key);
+  };
+
+  const btnLabel = () => {
+    if (isLoading) return <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Redirecting…</>;
+    if (isCurrent) return hasActiveSub ? '✓ Current Plan' : '✓ Active (Trial)';
+    if (isDowngrade && hasActiveSub) return 'Downgrade via Portal';
+    if (isDowngrade) return 'Downgrade';
+    return `Upgrade to ${plan.name}`;
+  };
+
+  return (
+    <div style={{
+      position: 'relative',
+      background: plan.popular ? `linear-gradient(160deg, ${plan.accentBg}, var(--surface))` : 'var(--surface)',
+      border: isCurrent ? `2px solid ${plan.accentColor}` : plan.popular ? `2px solid ${plan.accentBorder}` : '1px solid var(--border)',
+      borderRadius: 18,
+      overflow: 'hidden',
+      display: 'flex', flexDirection: 'column',
+      boxShadow: plan.popular ? `0 0 32px ${plan.accentColor}18` : 'var(--shadow-sm)',
+      transition: 'transform 200ms ease, box-shadow 200ms ease',
+    }}
+    onMouseEnter={e => {
+      if (!isCurrent) {
+        e.currentTarget.style.transform = 'translateY(-3px)';
+        e.currentTarget.style.boxShadow = `0 8px 32px ${plan.accentColor}28`;
+      }
+    }}
+    onMouseLeave={e => {
+      e.currentTarget.style.transform = 'translateY(0)';
+      e.currentTarget.style.boxShadow = plan.popular ? `0 0 32px ${plan.accentColor}18` : 'var(--shadow-sm)';
+    }}>
+
+      {/* Popular ribbon */}
+      {plan.popular && (
+        <div style={{
+          background: `linear-gradient(135deg, ${plan.accentColor}, ${plan.accentColor}cc)`,
+          color: '#fff', fontSize: 10, fontWeight: 700,
+          padding: '5px 14px', textAlign: 'center',
+          letterSpacing: '0.08em', textTransform: 'uppercase',
+        }}>
+          ⭐ Most Popular
+        </div>
+      )}
+
+      {/* Current indicator */}
+      {isCurrent && !plan.popular && (
+        <div style={{
+          background: plan.accentBg, color: plan.accentColor,
+          fontSize: 10, fontWeight: 700, padding: '5px 14px',
+          textAlign: 'center', letterSpacing: '0.06em', textTransform: 'uppercase',
+          borderBottom: `1px solid ${plan.accentBorder}`,
+        }}>
+          ✓ Your Current Plan
+        </div>
+      )}
+      {isCurrent && plan.popular && (
+        <div style={{
+          position: 'absolute', top: 28, right: 12,
+          background: plan.accentBg, color: plan.accentColor,
+          fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 99,
+          border: `1px solid ${plan.accentBorder}`,
+        }}>✓ CURRENT</div>
+      )}
+
+      <div style={{ padding: '20px 20px 16px', flex: 1 }}>
+        {/* Plan header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: 12,
+            background: plan.accentBg, border: `1px solid ${plan.accentBorder}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          }}>
+            <Icon size={19} style={{ color: plan.accentColor }} />
+          </div>
+          <div>
+            <p style={{ fontWeight: 800, fontSize: 16, color: 'var(--text)', letterSpacing: '-0.3px' }}>{plan.name}</p>
+            <p style={{ fontSize: 11, color: 'var(--text3)', marginTop: 1 }}>{plan.tagline}</p>
+          </div>
+        </div>
+
+        {/* Price */}
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 18 }}>
+          <span style={{ fontSize: 34, fontWeight: 900, color: 'var(--text)', letterSpacing: '-1.5px', lineHeight: 1 }}>
+            {symbol}{price}
+          </span>
+          <span style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 2 }}>/month</span>
+        </div>
+
+        {/* Feature list */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {plan.features.map((f, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 9 }}>
+              <div style={{
+                width: 18, height: 18, borderRadius: '50%', flexShrink: 0, marginTop: 1,
+                background: f.included ? plan.accentBg : 'var(--surface2)',
+                border: `1px solid ${f.included ? plan.accentBorder : 'var(--border)'}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {f.included
+                  ? <Check size={10} style={{ color: plan.accentColor }} />
+                  : <X size={9} style={{ color: 'var(--text3)', opacity: 0.5 }} />}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <span style={{
+                  fontSize: 12, color: f.included ? 'var(--text2)' : 'var(--text3)',
+                  opacity: f.included ? 1 : 0.55,
+                  textDecoration: f.included ? 'none' : 'none',
+                }}>{f.label}</span>
+                {f.included && f.value && (
+                  <span style={{
+                    fontSize: 11, fontWeight: 600, marginLeft: 6,
+                    color: plan.accentColor,
+                  }}>— {f.value}</span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* CTA button */}
+      <div style={{ padding: '0 20px 20px' }}>
+        <button
+          onClick={handleClick}
+          disabled={isCurrent || !!loadingPlan}
+          style={{
+            width: '100%', padding: '12px', borderRadius: 12, fontSize: 13, fontWeight: 700,
+            cursor: isCurrent || loadingPlan ? 'not-allowed' : 'pointer',
+            background: isCurrent
+              ? plan.accentBg
+              : `linear-gradient(135deg, ${plan.accentColor}, ${plan.accentColor}cc)`,
+            color: isCurrent ? plan.accentColor : '#fff',
+            border: isCurrent ? `1px solid ${plan.accentBorder}` : 'none',
+            opacity: loadingPlan && !isLoading ? 0.55 : 1,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+            transition: 'opacity 150ms, transform 150ms',
+            boxShadow: !isCurrent ? `0 4px 14px ${plan.accentColor}35` : 'none',
+          }}
+          onMouseEnter={e => { if (!isCurrent && !loadingPlan) e.currentTarget.style.opacity = '0.88'; }}
+          onMouseLeave={e => { e.currentTarget.style.opacity = (loadingPlan && !isLoading) ? '0.55' : '1'; }}>
+          {btnLabel()}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── Main page ────────────────────────────────────────────────────────────── */
 export default function BillingPage() {
   const { user, refreshUser } = useAuth();
   const { currency }          = useCurrency();
   const router                = useRouter();
-  const [loadingPlan, setLoadingPlan] = useState(null);
+  const [loadingPlan,   setLoadingPlan]   = useState(null);
   const [portalLoading, setPortalLoading] = useState(false);
 
-  const currentPlan = user?.plan || 'free';
+  const currentPlan  = user?.plan || 'free';
   const hasActiveSub = !!user?.stripe_subscription_id;
+  const trialEndsAt  = user?.trial_ends_at;
 
-  // Handle redirect back from Stripe
   useEffect(() => {
     if (router.query.success) {
       const plan = router.query.plan;
-      toast.success(`🎉 Upgrade successful! Welcome to ${plan ? plan.charAt(0).toUpperCase() + plan.slice(1) : 'your new plan'}!`, { duration: 6000 });
+      toast.success(`🎉 Welcome to ${plan ? plan.charAt(0).toUpperCase() + plan.slice(1) : 'your new plan'}!`, { duration: 6000 });
       refreshUser?.();
-      // Clean URL
       router.replace('/settings/billing', undefined, { shallow: true });
     }
     if (router.query.cancelled) {
@@ -94,7 +355,7 @@ export default function BillingPage() {
     setLoadingPlan(plan);
     try {
       const { url } = await createCheckoutSession(plan);
-      window.location.href = url; // redirect to Stripe Checkout
+      window.location.href = url;
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to start checkout. Please try again.');
       setLoadingPlan(null);
@@ -112,154 +373,119 @@ export default function BillingPage() {
     }
   };
 
-  const getButtonLabel = (plan) => {
-    if (loadingPlan === plan) return <><Loader2 size={14} className="animate-spin" /> Redirecting…</>;
-    if (currentPlan === plan) return hasActiveSub ? 'Current Plan' : 'Active (Trial)';
-    if (['starter','premium','deluxe'].indexOf(plan) < ['starter','premium','deluxe'].indexOf(currentPlan))
-      return 'Downgrade';
-    return 'Upgrade Now';
-  };
-
-  const isCurrentPlan = (plan) => currentPlan === plan;
-
   return (
     <ProtectedRoute>
       <AppLayout>
-        <Head><title>Upgrade Plan — StockWise</title></Head>
+        <Head><title>Billing & Plans — StockWise</title></Head>
 
-        <div className="mb-6">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h1 className="text-xl font-bold" style={{ color: 'var(--text)' }}>Upgrade Plan</h1>
-              <p className="text-sm mt-0.5" style={{ color: 'var(--text2)' }}>
-                Choose the plan that fits your business
-              </p>
-            </div>
-            {hasActiveSub && (
-              <button onClick={handleManage} disabled={portalLoading}
-                className="btn-secondary text-sm flex items-center gap-2">
-                {portalLoading
-                  ? <><Loader2 size={14} className="animate-spin" /> Opening…</>
-                  : <><Settings size={14} /> Manage Subscription</>}
-              </button>
-            )}
+        {/* ── Page header ──────────────────────────────────────────── */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 20 }}>
+          <div>
+            <h1 className="page-title">Billing & Plans</h1>
+            <p className="page-subtitle">Choose the plan that fits your business</p>
           </div>
+          {hasActiveSub && (
+            <button onClick={handleManage} disabled={portalLoading}
+              className="btn-secondary"
+              style={{ height: 36, paddingLeft: 12, paddingRight: 12, fontSize: 13, gap: 6, flexShrink: 0 }}>
+              {portalLoading
+                ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Opening…</>
+                : <><Settings size={13} /> Manage</>}
+            </button>
+          )}
+        </div>
 
-          {/* Current plan banner */}
-          <div className="mt-4 px-4 py-3 rounded-xl flex items-center justify-between"
-            style={{ background: 'var(--surface2)', border: '1px solid var(--border)' }}>
-            <span className="text-sm" style={{ color: 'var(--text2)' }}>
+        {/* ── Trial countdown (when on trial) ─────────────────────── */}
+        {trialEndsAt && !hasActiveSub && <TrialCountdown trialEndsAt={trialEndsAt} />}
+
+        {/* ── Current plan status bar ──────────────────────────────── */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '12px 16px', borderRadius: 12, marginBottom: 24, gap: 12,
+          background: 'var(--surface2)', border: '1px solid var(--border)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 8, height: 8, borderRadius: '50%',
+              background: hasActiveSub ? 'var(--green)' : trialEndsAt ? 'var(--orange)' : 'var(--text3)',
+              boxShadow: hasActiveSub ? '0 0 6px var(--green)' : 'none',
+            }} />
+            <p style={{ fontSize: 13, color: 'var(--text2)' }}>
               Current plan:{' '}
-              <strong style={{ color: 'var(--text)' }}>
-                {currentPlan.charAt(0).toUpperCase() + currentPlan.slice(1)}
-              </strong>
-              {hasActiveSub && <span className="ml-2 text-xs" style={{ color: 'var(--green)' }}>● Active</span>}
-              {user?.trial_ends_at && !hasActiveSub && (
-                <span className="ml-2 text-xs" style={{ color: 'var(--orange)' }}>
-                  Trial ends {new Date(user.trial_ends_at).toLocaleDateString('en-MY')}
+              <strong style={{ color: 'var(--text)', textTransform: 'capitalize' }}>{currentPlan}</strong>
+              {hasActiveSub && (
+                <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--green)', fontWeight: 600 }}>Active</span>
+              )}
+              {trialEndsAt && !hasActiveSub && (
+                <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--orange)', fontWeight: 600 }}>
+                  Trial · {Math.max(0, Math.ceil((new Date(trialEndsAt) - new Date()) / 86400000))}d left
                 </span>
               )}
-            </span>
-            <Link href="/settings" className="text-xs font-semibold" style={{ color: 'var(--accent3)' }}>
-              View Settings →
-            </Link>
+            </p>
           </div>
+          <Link href="/settings"
+            style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent3)', textDecoration: 'none', flexShrink: 0 }}>
+            Account Settings →
+          </Link>
         </div>
 
-        {/* Plan cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {PLANS.map((plan) => {
-            const Icon    = plan.icon;
-            const price   = plan.price[currency] || plan.price.MYR;
-            const symbol  = currency === 'USD' ? '$' : 'RM';
-            const current = isCurrentPlan(plan.key);
-
-            return (
-              <div key={plan.key}
-                className="card overflow-hidden relative flex flex-col transition-all duration-200"
-                style={{
-                  border: current
-                    ? `2px solid ${plan.color}`
-                    : plan.popular
-                      ? '2px solid var(--border2)'
-                      : '1px solid var(--border)',
-                }}
-                onMouseEnter={e => { if (!current) e.currentTarget.style.borderColor = plan.color; }}
-                onMouseLeave={e => { if (!current) e.currentTarget.style.borderColor = plan.popular ? 'var(--border2)' : 'var(--border)'; }}>
-
-                {/* Popular badge */}
-                {plan.popular && (
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-px">
-                    <div className="px-3 py-0.5 rounded-b-lg text-xs font-bold text-white"
-                      style={{ background: plan.color }}>
-                      Most Popular
-                    </div>
-                  </div>
-                )}
-
-                <div className="p-5 pt-6 flex-1">
-                  {/* Header */}
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                      style={{ background: plan.colorBg }}>
-                      <Icon size={20} style={{ color: plan.color }} />
-                    </div>
-                    <div>
-                      <h3 className="font-bold" style={{ color: 'var(--text)' }}>{plan.name}</h3>
-                      <p className="text-xs" style={{ color: 'var(--text3)' }}>{plan.description}</p>
-                    </div>
-                  </div>
-
-                  {/* Price */}
-                  <div className="mb-4">
-                    <span className="text-3xl font-black" style={{ color: 'var(--text)' }}>
-                      {symbol}{price}
-                    </span>
-                    <span className="text-sm ml-1" style={{ color: 'var(--text3)' }}>/month</span>
-                  </div>
-
-                  {/* Features */}
-                  <ul className="space-y-2 mb-5">
-                    {plan.features.map(f => (
-                      <li key={f} className="flex items-start gap-2 text-sm">
-                        <Check size={14} className="flex-shrink-0 mt-0.5" style={{ color: plan.color }} />
-                        <span style={{ color: 'var(--text2)' }}>{f}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                {/* CTA */}
-                <div className="px-5 pb-5">
-                  <button
-                    onClick={() => !current && handleUpgrade(plan.key)}
-                    disabled={current || !!loadingPlan}
-                    className="w-full py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all"
-                    style={{
-                      background: current
-                        ? plan.colorBg
-                        : `linear-gradient(135deg, ${plan.color}, ${plan.color}cc)`,
-                      color: current ? plan.color : '#fff',
-                      opacity: loadingPlan && loadingPlan !== plan.key ? 0.5 : 1,
-                      cursor: current || loadingPlan ? 'not-allowed' : 'pointer',
-                    }}>
-                    {getButtonLabel(plan.key)}
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+        {/* ── Plan cards ───────────────────────────────────────────── */}
+        {/* Mobile: horizontal scroll snap | Desktop: 3-col grid */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: 14,
+        }} className="billing-grid">
+          {PLANS.map(plan => (
+            <PlanCard
+              key={plan.key}
+              plan={plan}
+              current={currentPlan === plan.key}
+              hasActiveSub={hasActiveSub}
+              currentPlan={currentPlan}
+              loadingPlan={loadingPlan}
+              onUpgrade={handleUpgrade}
+              onManage={handleManage}
+              currency={currency}
+            />
+          ))}
         </div>
 
-        {/* Payment info */}
-        <div className="mt-6 text-center space-y-1">
-          <p className="text-xs" style={{ color: 'var(--text3)' }}>
-            🔒 Secure payment powered by Stripe. Cancel anytime from your billing portal.
-          </p>
-          <p className="text-xs" style={{ color: 'var(--text3)' }}>
-            All prices in {currency === 'USD' ? 'USD' : 'MYR (Malaysian Ringgit)'}. Billed monthly.
-          </p>
+        {/* ── Trust strip ──────────────────────────────────────────── */}
+        <div style={{
+          display: 'flex', gap: 20, justifyContent: 'center', flexWrap: 'wrap',
+          marginTop: 24, padding: '16px 20px', borderRadius: 12,
+          background: 'var(--surface2)', border: '1px solid var(--border)',
+        }}>
+          {[
+            { icon: Shield,      text: 'Secure payments via Stripe' },
+            { icon: RefreshCw,   text: 'Cancel anytime, no lock-in' },
+            { icon: CreditCard,  text: 'MYR local pricing' },
+          ].map(({ icon: Icon, text }) => (
+            <span key={text} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: 'var(--text3)' }}>
+              <Icon size={13} style={{ color: 'var(--accent3)' }} /> {text}
+            </span>
+          ))}
         </div>
+
+        {/* ── FAQ ──────────────────────────────────────────────────── */}
+        <FAQ />
+
+        {/* Responsive CSS */}
+        <style>{`
+          @media (max-width: 640px) {
+            .billing-grid {
+              grid-template-columns: 1fr !important;
+              gap: 12px !important;
+            }
+          }
+          @media (min-width: 641px) and (max-width: 900px) {
+            .billing-grid {
+              grid-template-columns: 1fr 1fr !important;
+            }
+          }
+          @keyframes spin { to { transform: rotate(360deg); } }
+        `}</style>
       </AppLayout>
     </ProtectedRoute>
   );
