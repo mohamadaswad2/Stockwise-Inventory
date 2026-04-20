@@ -697,6 +697,44 @@
 
   /* Utility overrides */
 
+
+  /* Auth pages */
+  .auth-panel-left {
+    background: linear-gradient(145deg, #0d0d1a 0%, #1a1030 40%, #0d1a2e 100%);
+    position: relative;
+    overflow: hidden;
+  }
+  .auth-form-wrap {
+    animation: authFormIn 0.5s cubic-bezier(0.16,1,0.3,1) forwards;
+  }
+  @keyframes authFormIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .auth-badge {
+    animation: badgeFloat 3s ease-in-out infinite;
+  }
+  .auth-badge:nth-child(2) { animation-delay: 0.8s; }
+  .auth-badge:nth-child(3) { animation-delay: 1.6s; }
+  @keyframes badgeFloat {
+    0%, 100% { transform: translateY(0); }
+    50%       { transform: translateY(-5px); }
+  }
+  .auth-stat {
+    animation: statIn 0.6s cubic-bezier(0.16,1,0.3,1) both;
+  }
+  .auth-stat:nth-child(1) { animation-delay: 0.3s; }
+  .auth-stat:nth-child(2) { animation-delay: 0.45s; }
+  .auth-stat:nth-child(3) { animation-delay: 0.6s; }
+  @keyframes statIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .input-focus-ring:focus {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 3px var(--accent-bg) !important;
+  }
+
   /* Skeleton shimmer */
   @keyframes shimmer {
     0%   { background-position: 200% 0; }
