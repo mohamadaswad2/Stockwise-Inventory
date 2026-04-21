@@ -17,7 +17,51 @@ const signToken = (user) => jwt.sign(
 
 const generateOTP = () => String(Math.floor(100000 + Math.random() * 900000));
 
+// ── Disposable / temp email domains to block ──────────────────────────────
+const BLOCKED_EMAIL_DOMAINS = new Set([
+  'mailinator.com','guerrillamail.com','10minutemail.com','temp-mail.org',
+  'throwaway.email','yopmail.com','trashmail.com','fakeinbox.com',
+  'sharklasers.com','guerrillamailblock.com','grr.la','guerrillamail.info',
+  'guerrillamail.biz','guerrillamail.de','guerrillamail.net','guerrillamail.org',
+  'spam4.me','trashmail.at','trashmail.io','trashmail.me','trashmail.net',
+  'dispostable.com','mailnull.com','spamgourmet.com','spamgourmet.net',
+  'tempmail.com','tempail.com','tempr.email','discard.email',
+  'getairmail.com','filzmail.com','throwam.com','owlpic.com',
+  'maildrop.cc','spamfree24.org','trashmail.xyz','mailtemp.info',
+  'anonymbox.com','mailnesia.com','receivemail.com','mailseal.de',
+  'wegwerfmail.de','wegwerfmail.net','wegwerfmail.org','mailboxy.fun',
+  'moakt.ws','moakt.com','tempinbox.com','tempinbox.co.uk',
+  'spambox.us','inboxbear.com','spamdecoy.net','mt2015.com',
+]);
+
+const isDisposableEmail = (email) => {
+  const domain = email.split('@')[1]?.toLowerCase();
+  if (!domain) return true;
+  return BLOCKED_EMAIL_DOMAINS.has(domain);
+};
+
+// ── Server-side password strength check ───────────────────────────────────
+const isStrongPassword = (pw) => {
+  return (
+    pw.length >= 8 &&
+    /[A-Z]/.test(pw) &&
+    /[a-z]/.test(pw) &&
+    /[0-9]/.test(pw) &&
+    /[^A-Za-z0-9]/.test(pw)
+  );
+};
+
 const register = async ({ name, email, password }) => {
+  // Validate password strength server-side (defense against API bypass)
+  if (!isStrongPassword(password)) {
+    throw new AppError('Password must be at least 8 characters with uppercase, lowercase, number and special character.', 400);
+  }
+
+  // Block disposable / temp email providers
+  if (isDisposableEmail(email)) {
+    throw new AppError('Please use a real email address. Temporary email services are not allowed.', 400);
+  }
+
   const existing = await userRepository.findByEmail(email);
   if (existing) throw new AppError('An account with that email already exists.', 409);
 

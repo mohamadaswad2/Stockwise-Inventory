@@ -56,15 +56,19 @@ function PasswordStrength({ password }) {
 export default function RegisterForm() {
   const router = useRouter();
   const [form,    setForm]    = useState({ name: '', email: '', password: '' });
+  const [confirm, setConfirm] = useState('');
   const [showPw,  setShowPw]  = useState(false);
   const [loading, setLoading] = useState(false);
   const [step,    setStep]    = useState('register');
 
-  const isStrong = CHECKS.every(c => c.test(form.password));
+  const isStrong   = CHECKS.every(c => c.test(form.password));
+  const isMatching = form.password === confirm && confirm.length > 0;
+  const canSubmit  = isStrong && isMatching;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!isStrong) { toast.error('Please meet all password requirements.'); return; }
+    if (!isMatching) { toast.error('Passwords do not match.'); return; }
     setLoading(true);
     try {
       await authService.register(form);
@@ -133,6 +137,34 @@ export default function RegisterForm() {
         <PasswordStrength password={form.password} />
       </div>
 
+      {/* Confirm Password */}
+      <div>
+        <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text2)', marginBottom: 6 }}>
+          Confirm Password
+        </label>
+        <div style={{ position: 'relative' }}>
+          <input
+            type="password" required
+            className="input input-focus-ring"
+            placeholder="Repeat your password"
+            value={confirm}
+            onChange={e => setConfirm(e.target.value)}
+            autoComplete="new-password"
+            style={{ height: 44, paddingRight: 44,
+              borderColor: confirm.length > 0 ? (isMatching ? 'var(--green)' : 'var(--red)') : undefined
+            }}
+          />
+          {confirm.length > 0 && (
+            <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 14 }}>
+              {isMatching ? '✓' : '✗'}
+            </span>
+          )}
+        </div>
+        {confirm.length > 0 && !isMatching && (
+          <p style={{ fontSize: 11, color: 'var(--red)', marginTop: 5 }}>Passwords do not match</p>
+        )}
+      </div>
+
       {/* Trial badge */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 9,
@@ -147,23 +179,23 @@ export default function RegisterForm() {
       </div>
 
       {/* Submit */}
-      <button type="submit" disabled={loading || !isStrong}
+      <button type="submit" disabled={loading || !canSubmit}
         style={{
           height: 46, borderRadius: 12, fontSize: 14, fontWeight: 700,
-          background: !isStrong ? 'var(--surface2)' : loading ? 'var(--accent-bg)' : 'var(--accent)',
-          color: !isStrong ? 'var(--text3)' : loading ? 'var(--accent3)' : '#fff',
-          border: !isStrong ? '1px solid var(--border)' : 'none',
-          cursor: loading || !isStrong ? 'not-allowed' : 'pointer',
+          background: !canSubmit ? 'var(--surface2)' : loading ? 'var(--accent-bg)' : 'var(--accent)',
+          color: !canSubmit ? 'var(--text3)' : loading ? 'var(--accent3)' : '#fff',
+          border: !canSubmit ? '1px solid var(--border)' : 'none',
+          cursor: loading || !canSubmit ? 'not-allowed' : 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           transition: 'all 250ms ease',
-          boxShadow: isStrong && !loading ? '0 4px 16px rgba(91,91,214,0.35)' : 'none',
+          boxShadow: canSubmit && !loading ? '0 4px 16px rgba(91,91,214,0.35)' : 'none',
         }}>
         {loading ? (
           <>
             <span style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid var(--accent3)', borderTopColor: 'transparent', animation: 'spin 0.7s linear infinite' }} />
             Creating account…
           </>
-        ) : isStrong ? 'Create Account →' : 'Meet password requirements'}
+        ) : canSubmit ? 'Create Account →' : !isStrong ? 'Meet password requirements' : 'Passwords do not match'}
       </button>
 
       <p style={{ textAlign: 'center', fontSize: 13, color: 'var(--text3)' }}>

@@ -1,10 +1,5 @@
-/**
- * QuickSellModal — simplified one-click sell.
- * User just enters quantity. No type selection needed.
- * Stock auto-deducts immediately.
- */
 import { useState } from 'react';
-import { ShoppingCart, Minus, Plus, Zap } from 'lucide-react';
+import { ShoppingCart, Minus, Plus, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { quickSell } from '../../services/inventory.service';
 import { useCurrency } from '../../contexts/CurrencyContext';
@@ -16,14 +11,20 @@ export default function QuickSellModal({ item, onClose, onSuccess }) {
 
   const maxQty    = item?.quantity || 0;
   const unitPrice = Number(item?.price || 0);
-  const total     = format(qty * unitPrice);
-  const profit    = format((unitPrice - Number(item?.cost_price || 0)) * qty);
-  const canSell   = qty > 0 && qty <= maxQty;
+  const costPrice = Number(item?.cost_price || 0);
+  const total     = qty * unitPrice;
+  const profit    = (unitPrice - costPrice) * qty;
+  const canSell   = qty >= 1 && qty <= maxQty;
+
+  const adjust = (delta) => {
+    setQty(v => Math.min(maxQty, Math.max(1, v + delta)));
+  };
 
   const handleSell = async () => {
-    if (!canSell) return;
+    if (!canSell || loading) return;
     setLoading(true);
     try {
+      // quickSell(id, qty) → service wraps as { quantity: qty }
       await quickSell(item.id, qty);
       toast.success(`✅ Sold ${qty} × ${item.name}!`, { duration: 3000 });
       onSuccess?.();
@@ -34,132 +35,138 @@ export default function QuickSellModal({ item, onClose, onSuccess }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      <div className="absolute inset-0"
-        style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
+    /* Backdrop */
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 50,
+      display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+    }}
+    className="sm:items-center">
+      {/* Blur overlay */}
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)' }}
         onClick={onClose} />
 
-      <div className="relative w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl overflow-hidden animate-slide-up"
-        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+      {/* Modal panel — bottom sheet on mobile, centered on desktop */}
+      <div className="animate-slide-up" style={{
+        position: 'relative', width: '100%', maxWidth: 380,
+        background: 'var(--surface)',
+        border: '1px solid var(--border)',
+        borderRadius: '20px 20px 0 0',
+        overflow: 'hidden',
+      }}
+      // On desktop: full rounded
+      >
+        <style>{`
+          @media (min-width: 640px) {
+            .qs-panel { border-radius: 20px !important; }
+          }
+          @keyframes spin { to { transform: rotate(360deg); } }
+        `}</style>
 
-        {/* Handle */}
-        <div className="flex justify-center pt-3 pb-1 sm:hidden">
-          <div className="w-10 h-1 rounded-full" style={{ background: 'var(--surface3)' }} />
+        {/* Mobile handle */}
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 4px' }}
+          className="sm:hidden">
+          <div style={{ width: 36, height: 4, borderRadius: 99, background: 'var(--surface3)' }} />
         </div>
 
         {/* Header */}
-        <div className="px-5 pt-4 pb-3">
-          <div className="flex items-center gap-3 mb-1">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-              style={{ background: 'rgba(99,102,241,0.12)' }}>
-              <ShoppingCart size={18} style={{ color: 'var(--accent3)' }} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px 12px', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--accent-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ShoppingCart size={17} style={{ color: 'var(--accent3)' }} />
             </div>
             <div>
-              <h2 className="text-sm font-bold" style={{ color: 'var(--text)' }}>Quick Sell</h2>
-              <p className="text-xs" style={{ color: 'var(--text2)' }}>{item?.name}</p>
+              <p style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>Quick Sell</p>
+              <p style={{ fontSize: 12, color: 'var(--text3)', maxWidth: 220 }} className="truncate">{item?.name}</p>
             </div>
           </div>
+          <button onClick={onClose}
+            style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--surface2)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text3)' }}>
+            <X size={14} />
+          </button>
         </div>
 
-        <div className="px-5 pb-5 space-y-4" style={{ borderTop: '1px solid var(--border)' }}>
+        <div style={{ padding: '18px 20px 20px' }}>
           {/* Stock info */}
-          <div className="flex items-center justify-between pt-4">
-            <span className="text-xs font-medium" style={{ color: 'var(--text2)' }}>
-              Available stock
-            </span>
-            <span className="text-sm font-bold" style={{ color: maxQty === 0 ? 'var(--red)' : 'var(--green)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, padding: '10px 14px', borderRadius: 10, background: 'var(--surface2)', border: '1px solid var(--border)' }}>
+            <span style={{ fontSize: 12, color: 'var(--text3)' }}>Available stock</span>
+            <span style={{ fontWeight: 700, fontSize: 14, color: maxQty <= item?.low_stock_threshold ? 'var(--orange)' : 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>
               {maxQty} {item?.unit}
             </span>
           </div>
 
           {/* Quantity selector */}
-          <div>
-            <label className="label">How many did you sell?</label>
-            <div className="flex items-center gap-3">
-              <button type="button"
-                onClick={() => setQty(q => Math.max(1, q - 1))}
-                disabled={qty <= 1}
-                className="w-11 h-11 rounded-xl flex items-center justify-center font-bold transition-all"
-                style={{ background: 'var(--surface2)', color: 'var(--text)', border: '1px solid var(--border)' }}>
-                <Minus size={16} />
+          <div style={{ marginBottom: 16 }}>
+            <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', marginBottom: 10 }}>Quantity to sell</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <button onClick={() => adjust(-1)} disabled={qty <= 1}
+                style={{ width: 42, height: 42, borderRadius: 10, background: 'var(--surface2)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: qty <= 1 ? 'not-allowed' : 'pointer', opacity: qty <= 1 ? 0.4 : 1, flexShrink: 0, transition: 'all 150ms' }}>
+                <Minus size={16} style={{ color: 'var(--text2)' }} />
               </button>
 
-              <input type="number" min="1" max={maxQty}
+              <input
+                type="number"
+                min={1}
+                max={maxQty}
                 value={qty}
-                onChange={e => setQty(Math.max(1, Math.min(maxQty, Number(e.target.value) || 1)))}
-                className="flex-1 text-center text-2xl font-black input py-2.5"
-                style={{ color: 'var(--text)' }} />
+                onChange={e => {
+                  const v = parseInt(e.target.value) || 1;
+                  setQty(Math.min(maxQty, Math.max(1, v)));
+                }}
+                style={{ flex: 1, height: 42, textAlign: 'center', borderRadius: 10, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 20, fontWeight: 800, letterSpacing: '-0.5px', outline: 'none', fontVariantNumeric: 'tabular-nums' }}
+                onFocus={e => e.target.style.borderColor = 'var(--accent)'}
+                onBlur={e => e.target.style.borderColor = 'var(--border)'}
+              />
 
-              <button type="button"
-                onClick={() => setQty(q => Math.min(maxQty, q + 1))}
-                disabled={qty >= maxQty}
-                className="w-11 h-11 rounded-xl flex items-center justify-center font-bold transition-all"
-                style={{ background: 'var(--surface2)', color: 'var(--text)', border: '1px solid var(--border)' }}>
-                <Plus size={16} />
+              <button onClick={() => adjust(1)} disabled={qty >= maxQty}
+                style={{ width: 42, height: 42, borderRadius: 10, background: 'var(--surface2)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: qty >= maxQty ? 'not-allowed' : 'pointer', opacity: qty >= maxQty ? 0.4 : 1, flexShrink: 0, transition: 'all 150ms' }}>
+                <Plus size={16} style={{ color: 'var(--text2)' }} />
               </button>
             </div>
-
-            {/* Quick qty buttons */}
-            {maxQty > 1 && (
-              <div className="flex gap-2 mt-2">
-                {[1, 5, 10, maxQty].filter((v, i, a) => a.indexOf(v) === i && v <= maxQty).map(v => (
-                  <button key={v} type="button"
-                    onClick={() => setQty(v)}
-                    className="flex-1 py-1.5 text-xs font-bold rounded-lg transition-all"
-                    style={{
-                      background: qty === v ? 'var(--accent)' : 'var(--surface2)',
-                      color: qty === v ? 'white' : 'var(--text2)',
-                    }}>
-                    {v === maxQty ? 'All' : v}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
 
-          {/* Summary */}
-          <div className="rounded-xl p-4 space-y-2"
-            style={{ background: 'var(--surface2)', border: '1px solid var(--border)' }}>
-            <div className="flex justify-between text-sm">
-              <span style={{ color: 'var(--text2)' }}>Unit price</span>
-              <span style={{ color: 'var(--text)' }}>{format(unitPrice)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span style={{ color: 'var(--text2)' }}>Quantity</span>
-              <span style={{ color: 'var(--text)' }}>× {qty}</span>
-            </div>
-            <div className="h-px" style={{ background: 'var(--border)' }} />
-            <div className="flex justify-between">
-              <span className="font-bold" style={{ color: 'var(--text)' }}>Total Revenue</span>
-              <span className="text-lg font-black" style={{ color: 'var(--green)' }}>{total}</span>
-            </div>
-            {Number(item?.cost_price) > 0 && (
-              <div className="flex justify-between text-xs">
-                <span style={{ color: 'var(--text3)' }}>Est. Profit</span>
-                <span style={{ color: 'var(--accent3)' }}>{profit}</span>
+          {/* Sale summary */}
+          <div style={{ marginBottom: 18, padding: '12px 14px', borderRadius: 10, background: 'var(--surface2)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {[
+              { label: 'Unit price',  value: format(unitPrice),  color: 'var(--text)' },
+              { label: 'Total',       value: format(total),      color: 'var(--green)', bold: true },
+              ...(costPrice > 0 ? [{ label: 'Est. profit', value: format(profit), color: profit >= 0 ? 'var(--accent3)' : 'var(--red)' }] : []),
+            ].map(({ label, value, color, bold }) => (
+              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 12, color: 'var(--text3)' }}>{label}</span>
+                <span style={{ fontSize: bold ? 15 : 13, fontWeight: bold ? 800 : 600, color, fontVariantNumeric: 'tabular-nums' }}>
+                  {value}
+                </span>
               </div>
-            )}
+            ))}
           </div>
 
-          {maxQty === 0 && (
-            <div className="p-3 rounded-xl text-xs text-center"
-              style={{ background: 'rgba(239,68,68,0.08)', color: 'var(--red)', border: '1px solid rgba(239,68,68,0.15)' }}>
-              ⚠️ Out of stock — please restock first.
-            </div>
-          )}
-
-          {/* Actions */}
-          <div className="flex gap-3">
-            <button type="button" onClick={onClose} className="btn-secondary flex-1">
+          {/* Action buttons */}
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={onClose}
+              style={{ flex: 1, height: 44, borderRadius: 11, background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 150ms' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--surface3)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'var(--surface2)'}>
               Cancel
             </button>
-            <button type="button" onClick={handleSell}
-              disabled={loading || !canSell}
-              className="flex-1 btn text-white font-bold py-2.5 rounded-xl gap-2"
-              style={{ background: canSell ? 'linear-gradient(135deg,var(--accent),var(--accent2))' : 'var(--surface3)',
-                       boxShadow: canSell ? '0 0 20px var(--glow)' : 'none' }}>
-              <Zap size={15} />
-              {loading ? 'Processing…' : 'Confirm Sale'}
+            <button onClick={handleSell} disabled={!canSell || loading}
+              style={{
+                flex: 2, height: 44, borderRadius: 11, fontSize: 13, fontWeight: 700,
+                background: !canSell ? 'var(--surface2)' : 'var(--accent)',
+                color: !canSell ? 'var(--text3)' : '#fff',
+                border: !canSell ? '1px solid var(--border)' : 'none',
+                cursor: !canSell || loading ? 'not-allowed' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                boxShadow: canSell && !loading ? '0 4px 14px rgba(91,91,214,0.35)' : 'none',
+                transition: 'all 200ms ease',
+              }}>
+              {loading ? (
+                <>
+                  <span style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', animation: 'spin 0.7s linear infinite' }} />
+                  Recording…
+                </>
+              ) : (
+                <><ShoppingCart size={15} /> Confirm Sale</>
+              )}
             </button>
           </div>
         </div>
