@@ -7,6 +7,7 @@ import {
   Megaphone, Plus, Trash2, Zap, Wrench, Star, X,
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import PremiumAreaChart from '../../components/charts/PremiumAreaChart';
 import ProtectedRoute from '../../components/layout/ProtectedRoute';
 import AppLayout from '../../components/layout/AppLayout';
 import Spinner from '../../components/ui/Spinner';
@@ -159,24 +160,14 @@ export default function AdminPage() {
             {/* Signup trend */}
             <div className="card p-5">
               <h3 className="text-sm font-bold mb-4" style={{ color: 'var(--text)' }}>Signups — Last 30 Days</h3>
-              {trend?.length > 0 ? (
-                <ResponsiveContainer width="100%" height={160}>
-                  <AreaChart data={trend} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="adminG" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%"  stopColor="#8b5cf6" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid stroke="var(--surface3)" strokeDasharray="3 3" />
-                    <XAxis dataKey="date" tick={{ fill: 'var(--text3)', fontSize: 10 }}
-                      tickFormatter={d => d?.slice(5)} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: 'var(--text3)', fontSize: 10 }} axisLine={false} tickLine={false} allowDecimals={false} />
-                    <Tooltip content={<ChartTooltip />} />
-                    <Area type="monotone" dataKey="count" name="Signups" stroke="#8b5cf6" strokeWidth={2} fill="url(#adminG)" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              ) : <p className="text-sm text-center py-8" style={{ color: 'var(--text3)' }}>No data yet.</p>}
+              <PremiumAreaChart
+                data={trend || []}
+                series={[{ key: 'count', name: 'Signups', color: 'var(--purple)' }]}
+                formatY={v => String(Math.round(v))}
+                height={160}
+                chartKey="admin-signups"
+                showLegend={false}
+              />
             </div>
 
             {/* Tabs: Users | Updates */}
