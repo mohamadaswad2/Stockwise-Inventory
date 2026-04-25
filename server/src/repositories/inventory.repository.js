@@ -283,3 +283,44 @@ module.exports = {
   quickSell, restock,
   getDashboardStats, getLowStockItems, getStockTrend, getCategoryBreakdown
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Stock trend — items added/quantity per day (last 30 days)
+// ─────────────────────────────────────────────────────────────────────────────
+const getStockTrend = async (userId) => {
+  const result = await db.query(
+    `SELECT
+       DATE(created_at)     AS date,
+       COUNT(*)             AS items_added,
+       SUM(quantity)        AS total_quantity
+     FROM inventory_items
+     WHERE user_id = $1
+       AND is_active = TRUE
+       AND created_at > NOW() - INTERVAL '30 days'
+     GROUP BY DATE(created_at)
+     ORDER BY date ASC`,
+    [userId]
+  );
+  return result.rows;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Category breakdown — stock distribution across categories
+// ─────────────────────────────────────────────────────────────────────────────
+const getCategoryBreakdown = async (userId) => {
+  const result = await db.query(
+    `SELECT
+       COALESCE(c.name, 'Uncategorized') AS name,
+       COUNT(i.id)                       AS item_count,
+       COALESCE(SUM(i.quantity), 0)      AS total_quantity
+     FROM inventory_items i
+     LEFT JOIN categories c ON c.id = i.category_id
+     WHERE i.user_id = $1 AND i.is_active = TRUE
+     GROUP BY c.name
+     ORDER BY total_quantity DESC
+     LIMIT 6`,
+    [userId]
+  );
+  return result.rows;
+};
+

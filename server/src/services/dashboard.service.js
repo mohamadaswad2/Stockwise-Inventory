@@ -1,10 +1,14 @@
-const inventoryRepo = require('../repositories/inventory.repository');
+/**
+ * Dashboard service — aggregated stats + stock trend + categories.
+ */
+const inventoryRepository = require('../repositories/inventory.repository');
 
 const getStats = async (userId) => {
-  const [stats, lowStockItems, categoryBreakdown] = await Promise.all([
-    inventoryRepo.getDashboardStats(userId),
-    inventoryRepo.getLowStockItems(userId, 10),
-    inventoryRepo.getCategoryBreakdown(userId),
+  const [stats, lowStockItems, stockTrend, categoryBreakdown] = await Promise.all([
+    inventoryRepository.getDashboardStats(userId),
+    inventoryRepository.getLowStockItems(userId, 10),
+    inventoryRepository.getStockTrend(userId),
+    inventoryRepository.getCategoryBreakdown(userId),
   ]);
 
   return {
@@ -14,6 +18,7 @@ const getStats = async (userId) => {
     low_stock_count:    parseInt(stats.low_stock_count   || 0),
     out_of_stock_count: parseInt(stats.out_of_stock_count|| 0),
     low_stock_items:    lowStockItems,
+    stock_trend:        stockTrend,
     category_breakdown: categoryBreakdown,
   };
 };
