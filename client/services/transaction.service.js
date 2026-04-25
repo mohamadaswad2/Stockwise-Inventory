@@ -1,7 +1,6 @@
 import api from './api';
 
 // Auto-detect user's timezone once — browser Intl API, no library needed
-// Returns IANA string e.g. 'Asia/Kuala_Lumpur'
 const getUserTz = () => {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';

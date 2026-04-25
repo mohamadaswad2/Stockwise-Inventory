@@ -2,10 +2,8 @@ const txService = require('../services/transaction.service');
 const { success, created } = require('../utils/response');
 
 // Validate IANA timezone string — prevent SQL injection
-// Only allow format like 'Asia/Kuala_Lumpur', 'UTC', 'America/New_York'
 const sanitizeTz = (tz) => {
   if (!tz || typeof tz !== 'string') return 'UTC';
-  // IANA timezone: letters, digits, underscore, slash, hyphen only
   if (/^[A-Za-z0-9_/+-]{1,50}$/.test(tz)) return tz;
   return 'UTC';
 };

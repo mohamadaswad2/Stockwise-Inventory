@@ -1,201 +1,249 @@
 /**
- * RefundModal - Modal for processing refunds on sale transactions
- * Creates a new refund transaction and restores inventory
+ * RefundModal — process a refund for a sale transaction
+ *
+ * Props:
+ *   transaction  — the original sale tx object from TransactionList
+ *   isOpen       — boolean
+ *   onClose      — fn()
+ *   onSuccess    — fn() called after successful refund
  */
-import { useState, useEffect, useCallback } from 'react';
-import { X, RotateCcw, AlertCircle } from 'lucide-react';
+import { useState } from 'react';
+import { RotateCcw, X, AlertTriangle, CheckCircle2, Minus, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { refundTransaction } from '../../services/transaction.service';
 import { useCurrency } from '../../contexts/CurrencyContext';
 
 export default function RefundModal({ transaction, isOpen, onClose, onSuccess }) {
   const { format } = useCurrency();
-  const [quantity, setQuantity] = useState(1);
-  const [reason, setReason] = useState('');
+  const [qty,     setQty]     = useState(1);
+  const [reason,  setReason]  = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  // Reset form when modal opens
-  useEffect(() => {
-    if (isOpen && transaction) {
-      setQuantity(transaction.quantity || 1);
-      setReason('');
-      setError(null);
-    }
-  }, [isOpen, transaction]);
-
-  // Handle escape key
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') onClose();
-    };
-    if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-      return () => document.removeEventListener('keydown', handleKeyDown);
-    }
-  }, [isOpen, onClose]);
-
-  const handleSubmit = useCallback(async (e) => {
-    e.preventDefault();
-    if (!transaction) return;
-
-    // Validation
-    if (quantity < 1) {
-      setError('Refund quantity must be at least 1');
-      return;
-    }
-    if (quantity > transaction.quantity) {
-      setError(`Cannot refund more than original quantity (${transaction.quantity})`);
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      await refundTransaction({
-        originalTransactionId: transaction.id,
-        itemId: transaction.item_id,
-        quantity: quantity,
-        unitPrice: transaction.unit_price,
-        costPrice: transaction.cost_price,
-        reason: reason || 'Customer refund',
-      });
-
-      toast.success(`✅ Refunded ${quantity} × ${transaction.item_name}`);
-      onSuccess?.();
-      onClose();
-    } catch (err) {
-      const msg = err.response?.data?.message || 'Failed to process refund';
-      setError(msg);
-      toast.error(msg);
-    } finally {
-      setLoading(false);
-    }
-  }, [transaction, quantity, reason, onSuccess, onClose]);
+  const [done,    setDone]    = useState(false);
 
   if (!isOpen || !transaction) return null;
 
-  const maxQty = transaction.quantity || 0;
-  const refundTotal = quantity * (transaction.unit_price || 0);
+  const maxQty       = Number(transaction.quantity || 0);
+  const unitPrice    = Number(transaction.unit_price || 0);
+  const refundAmount = qty * unitPrice;
+  const canSubmit    = qty >= 1 && qty <= maxQty && !loading;
+
+  const adjust = (delta) =>
+    setQty(v => Math.min(maxQty, Math.max(1, v + delta)));
+
+  const handleSubmit = async () => {
+    if (!canSubmit) return;
+    setLoading(true);
+    try {
+      await refundTransaction({
+        originalTransactionId: transaction.id,
+        itemId:                transaction.item_id,
+        quantity:              qty,
+        unitPrice:             Number(transaction.unit_price || 0),
+        costPrice:             Number(transaction.cost_price || 0),
+        reason:                reason.trim() || 'Customer refund',
+      });
+      setDone(true);
+      toast.success(`✅ Refunded ${qty} × ${transaction.item_name}`, { duration: 4000 });
+      setTimeout(() => {
+        onSuccess?.();
+        onClose();
+        setDone(false);
+        setQty(1);
+        setReason('');
+      }, 1200);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Refund failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-         style={{ background: 'rgba(0,0,0,0.5)' }}>
-      <div className="card w-full max-w-md p-6 relative" style={{ maxHeight: '90vh', overflowY: 'auto' }}>
+    /* Backdrop */
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 50,
+      display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+    }} className="sm:items-center">
+      {/* Blur overlay */}
+      <div
+        style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)' }}
+        onClick={onClose}
+      />
+
+      {/* Panel — bottom sheet mobile, centered desktop */}
+      <div className="animate-slide-up" style={{
+        position: 'relative', zIndex: 1,
+        width: '100%', maxWidth: 400,
+        background: 'var(--surface)',
+        border: '1px solid var(--border)',
+        borderRadius: '20px 20px 0 0',
+        overflow: 'hidden',
+      }}>
+        <style>{`
+          @media (min-width: 640px) { .refund-panel { border-radius: 20px !important; } }
+          @keyframes spin { to { transform: rotate(360deg); } }
+        `}</style>
+
+        {/* Drag handle — mobile */}
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 2px' }}
+          className="sm:hidden">
+          <div style={{ width: 36, height: 4, borderRadius: 99, background: 'var(--surface3)' }} />
+        </div>
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center"
-                 style={{ background: 'rgba(239,68,68,0.1)' }}>
-              <RotateCcw size={20} style={{ color: 'var(--red)' }} />
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '14px 20px 12px', borderBottom: '1px solid var(--border)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--red-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <RotateCcw size={16} style={{ color: 'var(--red)' }} />
             </div>
             <div>
-              <h2 className="text-lg font-bold" style={{ color: 'var(--text)' }}>Process Refund</h2>
-              <p className="text-xs" style={{ color: 'var(--text3)' }}>{transaction.item_name}</p>
+              <p style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>Process Refund</p>
+              <p style={{ fontSize: 12, color: 'var(--text3)', maxWidth: 220 }} className="truncate">
+                {transaction.item_name}
+              </p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
-                  style={{ color: 'var(--text2)' }}>
-            <X size={20} />
+          <button onClick={onClose}
+            style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--surface2)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text3)' }}>
+            <X size={14} />
           </button>
         </div>
 
-        {/* Original Transaction Info */}
-        <div className="mb-6 p-3 rounded-lg" style={{ background: 'var(--surface2)' }}>
-          <p className="text-xs font-medium mb-2 uppercase tracking-wide" style={{ color: 'var(--text3)' }}>
-            Original Sale
-          </p>
-          <div className="flex justify-between text-sm mb-1">
-            <span style={{ color: 'var(--text2)' }}>Quantity:</span>
-            <span style={{ color: 'var(--text)' }}>{transaction.quantity} {transaction.unit}</span>
-          </div>
-          <div className="flex justify-between text-sm mb-1">
-            <span style={{ color: 'var(--text2)' }}>Unit Price:</span>
-            <span style={{ color: 'var(--text)' }}>{format(transaction.unit_price)}</span>
-          </div>
-          <div className="flex justify-between text-sm font-medium">
-            <span style={{ color: 'var(--text)' }}>Total:</span>
-            <span style={{ color: 'var(--text)' }}>{format(transaction.quantity * transaction.unit_price)}</span>
-          </div>
-        </div>
+        <div style={{ padding: '18px 20px 20px' }}>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit}>
-
-          {/* Quantity */}
-          <div className="mb-4">
-            <label className="label flex items-center justify-between">
-              <span>Refund Quantity *</span>
-              <span className="text-xs font-normal" style={{ color: 'var(--text3)' }}>
-                Max: {maxQty}
-              </span>
-            </label>
-            <input
-              type="number"
-              min="1"
-              max={maxQty}
-              value={quantity}
-              onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-              className="input"
-              required
-            />
-          </div>
-
-          {/* Reason */}
-          <div className="mb-4">
-            <label className="label">Reason (Optional)</label>
-            <input
-              type="text"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              className="input"
-              placeholder="e.g., Defective item, Customer request..."
-            />
-          </div>
-
-          {/* Refund Preview */}
-          <div className="mb-4 p-3 rounded-lg border-l-4"
-               style={{ background: 'rgba(239,68,68,0.05)', borderColor: 'var(--red)' }}>
-            <p className="text-xs font-medium mb-1" style={{ color: 'var(--red)' }}>Refund Amount</p>
-            <p className="text-xl font-bold" style={{ color: 'var(--red)' }}>
-              -{format(refundTotal)}
-            </p>
-            <p className="text-xs mt-1" style={{ color: 'var(--text3)' }}>
-              {quantity} {transaction.unit} × {format(transaction.unit_price)}
-            </p>
-          </div>
-
-          {/* Error */}
-          {error && (
-            <div className="mb-4 p-3 rounded-lg flex items-start gap-2"
-                 style={{ background: 'rgba(239,68,68,0.1)' }}>
-              <AlertCircle size={16} style={{ color: 'var(--red)', flexShrink: 0, marginTop: 2 }} />
-              <p className="text-sm" style={{ color: 'var(--red)' }}>{error}</p>
+          {done ? (
+            /* Success state */
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 0', gap: 10 }}>
+              <CheckCircle2 size={44} style={{ color: 'var(--green)' }} />
+              <p style={{ fontWeight: 700, fontSize: 15, color: 'var(--text)' }}>Refund Processed!</p>
+              <p style={{ fontSize: 13, color: 'var(--text3)' }}>
+                {qty} × {transaction.item_name} — {format(refundAmount)} refunded
+              </p>
             </div>
-          )}
+          ) : (
+            <>
+              {/* Original sale info */}
+              <div style={{
+                padding: '10px 14px', borderRadius: 10,
+                background: 'var(--surface2)', border: '1px solid var(--border)',
+                marginBottom: 16,
+              }}>
+                <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
+                  Original Sale
+                </p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>
+                      {transaction.quantity} × {transaction.item_name}
+                    </p>
+                    <p style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>
+                      @ {format(unitPrice)} each
+                    </p>
+                  </div>
+                  <p style={{ fontSize: 14, fontWeight: 800, color: 'var(--green)', fontVariantNumeric: 'tabular-nums' }}>
+                    {format(transaction.quantity * unitPrice)}
+                  </p>
+                </div>
+              </div>
 
-          {/* Actions */}
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="btn-secondary flex-1"
-              disabled={loading}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="btn-primary flex-1"
-              style={{ background: 'var(--red)', borderColor: 'var(--red)' }}
-              disabled={loading}
-            >
-              {loading ? 'Processing...' : `Refund ${format(refundTotal)}`}
-            </button>
-          </div>
-        </form>
+              {/* Warning */}
+              <div style={{
+                display: 'flex', alignItems: 'flex-start', gap: 8,
+                padding: '9px 12px', borderRadius: 9, marginBottom: 16,
+                background: 'var(--orange-bg)', border: '1px solid rgba(247,107,21,0.2)',
+              }}>
+                <AlertTriangle size={13} style={{ color: 'var(--orange)', flexShrink: 0, marginTop: 1 }} />
+                <p style={{ fontSize: 12, color: 'var(--orange)', lineHeight: 1.5 }}>
+                  Refund will restore stock and record a deduction in revenue. This cannot be undone.
+                </p>
+              </div>
+
+              {/* Qty selector */}
+              <div style={{ marginBottom: 14 }}>
+                <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', marginBottom: 8 }}>
+                  Quantity to refund
+                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <button onClick={() => adjust(-1)} disabled={qty <= 1}
+                    style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--surface2)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: qty <= 1 ? 'not-allowed' : 'pointer', opacity: qty <= 1 ? 0.4 : 1, flexShrink: 0 }}>
+                    <Minus size={15} style={{ color: 'var(--text2)' }} />
+                  </button>
+                  <input
+                    type="number" min={1} max={maxQty}
+                    value={qty}
+                    onChange={e => setQty(Math.min(maxQty, Math.max(1, parseInt(e.target.value) || 1)))}
+                    style={{ flex: 1, height: 40, textAlign: 'center', borderRadius: 10, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 18, fontWeight: 800, outline: 'none', fontVariantNumeric: 'tabular-nums' }}
+                    onFocus={e => e.target.style.borderColor = 'var(--red)'}
+                    onBlur={e => e.target.style.borderColor = 'var(--border)'}
+                  />
+                  <button onClick={() => adjust(1)} disabled={qty >= maxQty}
+                    style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--surface2)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: qty >= maxQty ? 'not-allowed' : 'pointer', opacity: qty >= maxQty ? 0.4 : 1, flexShrink: 0 }}>
+                    <Plus size={15} style={{ color: 'var(--text2)' }} />
+                  </button>
+                </div>
+                <p style={{ fontSize: 11, color: 'var(--text3)', marginTop: 5, textAlign: 'center' }}>
+                  Max refundable: {maxQty} {transaction.unit}
+                </p>
+              </div>
+
+              {/* Reason */}
+              <div style={{ marginBottom: 16 }}>
+                <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', marginBottom: 6 }}>
+                  Reason <span style={{ fontWeight: 400, color: 'var(--text3)' }}>(optional)</span>
+                </p>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="e.g. Wrong item, customer request…"
+                  value={reason}
+                  onChange={e => setReason(e.target.value)}
+                  maxLength={120}
+                  style={{ height: 38, fontSize: 13 }}
+                />
+              </div>
+
+              {/* Refund summary */}
+              <div style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '10px 14px', borderRadius: 10, marginBottom: 16,
+                background: 'var(--red-bg)', border: '1px solid rgba(242,85,90,0.2)',
+              }}>
+                <span style={{ fontSize: 12, color: 'var(--text3)' }}>Refund amount</span>
+                <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--red)', fontVariantNumeric: 'tabular-nums' }}>
+                  {format(refundAmount)}
+                </span>
+              </div>
+
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={onClose}
+                  style={{ flex: 1, height: 44, borderRadius: 11, background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 150ms' }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--surface3)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'var(--surface2)'}>
+                  Cancel
+                </button>
+                <button onClick={handleSubmit} disabled={!canSubmit}
+                  style={{
+                    flex: 2, height: 44, borderRadius: 11, fontSize: 13, fontWeight: 700,
+                    background: canSubmit ? 'var(--red)' : 'var(--surface2)',
+                    color: canSubmit ? '#fff' : 'var(--text3)',
+                    border: canSubmit ? 'none' : '1px solid var(--border)',
+                    cursor: canSubmit ? 'pointer' : 'not-allowed',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    transition: 'all 200ms ease',
+                    boxShadow: canSubmit ? '0 4px 14px rgba(242,85,90,0.35)' : 'none',
+                  }}>
+                  {loading
+                    ? <><span style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', animation: 'spin 0.7s linear infinite' }} /> Processing…</>
+                    : <><RotateCcw size={14} /> Confirm Refund</>}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

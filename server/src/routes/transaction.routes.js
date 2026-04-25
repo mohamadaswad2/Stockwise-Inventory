@@ -4,10 +4,10 @@ const { authenticate } = require('../middlewares/auth.middleware');
 
 router.use(authenticate);
 router.post('/',                 c.record);
-router.post('/refund',           c.refund);
 router.get('/',                  c.list);
 router.get('/summary',           c.summary);
 router.get('/analytics',         c.analytics);
 router.get('/analytics/:itemId', c.itemAnalytics);
+router.post('/refund',             c.refund);
 
 module.exports = router;

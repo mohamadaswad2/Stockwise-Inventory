@@ -3,7 +3,6 @@ const inventoryRepo   = require('../repositories/inventory.repository');
 const AppError = require('../utils/AppError');
 
 const ANALYTICS_PLANS  = ['premium', 'deluxe'];
-// '1m' kept for backward compat (sales page summary endpoint)
 const VALID_PERIODS    = ['today','7d','1m','3m'];
 const ADVANCED_PERIODS = ['3m'];
 
@@ -27,16 +26,13 @@ const recordTransaction = async (userId, data) => {
 const refundTransaction = async (userId, data) => {
   const { originalTransactionId, itemId, quantity, unitPrice, costPrice, reason } = data;
 
-  // Verify item exists
   const item = await inventoryRepo.findById(itemId, userId);
   if (!item) throw new AppError('Item not found.', 404);
 
-  // Create refund transaction (type: 'refund')
-  // This will restore inventory stock automatically
   return transactionRepo.create(userId, {
     itemId,
     type: 'refund',
-    quantity: quantity,  // Will be stored as positive, but inventory will increase
+    quantity,
     unitPrice: unitPrice || 0,
     costPrice: costPrice || 0,
     note: reason || 'Refund',
