@@ -4,25 +4,27 @@ const { query, testConnection } = require('./database');
 const migrations = [
   `CREATE EXTENSION IF NOT EXISTS pgcrypto`,
 
+  // Users table — with email verification + subscription fields
   `CREATE TABLE IF NOT EXISTS users (
-    id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    email                  VARCHAR(255) UNIQUE NOT NULL,
-    password               VARCHAR(255) NOT NULL,
-    name                   VARCHAR(255) NOT NULL,
-    role                   VARCHAR(50)  NOT NULL DEFAULT 'owner',
-    plan                   VARCHAR(50)  NOT NULL DEFAULT 'free',
-    is_active              BOOLEAN      NOT NULL DEFAULT TRUE,
-    is_locked              BOOLEAN      NOT NULL DEFAULT FALSE,
-    is_email_verified      BOOLEAN      NOT NULL DEFAULT FALSE,
-    email_verify_token     VARCHAR(255),
-    email_verify_expires   TIMESTAMPTZ,
-    trial_ends_at          TIMESTAMPTZ,
-    stripe_customer_id     VARCHAR(255),
+    id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email                 VARCHAR(255) UNIQUE NOT NULL,
+    password              VARCHAR(255) NOT NULL,
+    name                  VARCHAR(255) NOT NULL,
+    role                  VARCHAR(50)  NOT NULL DEFAULT 'owner',
+    plan                  VARCHAR(50)  NOT NULL DEFAULT 'free',
+    is_active             BOOLEAN      NOT NULL DEFAULT TRUE,
+    is_locked             BOOLEAN      NOT NULL DEFAULT FALSE,
+    is_email_verified     BOOLEAN      NOT NULL DEFAULT FALSE,
+    email_verify_token    VARCHAR(255),
+    email_verify_expires  TIMESTAMPTZ,
+    trial_ends_at         TIMESTAMPTZ,
+    stripe_customer_id    VARCHAR(255),
     stripe_subscription_id VARCHAR(255),
-    created_at             TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-    updated_at             TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    created_at            TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    updated_at            TIMESTAMPTZ  NOT NULL DEFAULT NOW()
   )`,
 
+  // Categories
   `CREATE TABLE IF NOT EXISTS categories (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -32,160 +34,95 @@ const migrations = [
     UNIQUE(user_id, name)
   )`,
 
+  // Inventory items
   `CREATE TABLE IF NOT EXISTS inventory_items (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id             UUID          NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    category_id         UUID          REFERENCES categories(id) ON DELETE SET NULL,
-    name                VARCHAR(255)  NOT NULL,
-    sku                 VARCHAR(100),
-    description         TEXT,
-    quantity            INTEGER       NOT NULL DEFAULT 0,
-    unit                VARCHAR(50)   NOT NULL DEFAULT 'unit',
-    price               NUMERIC(12,2) NOT NULL DEFAULT 0,
-    cost_price          NUMERIC(12,2) NOT NULL DEFAULT 0,
-    low_stock_threshold INTEGER       NOT NULL DEFAULT 5,
-    is_active           BOOLEAN       NOT NULL DEFAULT TRUE,
-    created_at          TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
-    updated_at          TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+    id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id              UUID          NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    category_id          UUID          REFERENCES categories(id) ON DELETE SET NULL,
+    name                 VARCHAR(255)  NOT NULL,
+    sku                  VARCHAR(100),
+    description          TEXT,
+    quantity             INTEGER       NOT NULL DEFAULT 0,
+    unit                 VARCHAR(50)   NOT NULL DEFAULT 'unit',
+    price                NUMERIC(12,2) NOT NULL DEFAULT 0,
+    cost_price           NUMERIC(12,2) NOT NULL DEFAULT 0,
+    low_stock_threshold  INTEGER       NOT NULL DEFAULT 5,
+    is_active            BOOLEAN       NOT NULL DEFAULT TRUE,
+    created_at           TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+    updated_at           TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
     UNIQUE(user_id, sku)
   )`,
 
-  /* Sprint 2: Transactions table */
-  `CREATE TABLE IF NOT EXISTS transactions (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id     UUID          NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    item_id     UUID          NOT NULL REFERENCES inventory_items(id) ON DELETE CASCADE,
-    type        VARCHAR(20)   NOT NULL CHECK (type IN ('sale','refund','cancelled','restock','adjustment','usage')),
-    quantity    INTEGER       NOT NULL,
-    unit_price  NUMERIC(12,2) NOT NULL DEFAULT 0,
-    total       NUMERIC(12,2) GENERATED ALWAYS AS (quantity * unit_price) STORED,
-    status      VARCHAR(20)   NOT NULL DEFAULT 'completed' CHECK (status IN ('pending','completed','cancelled')),
-    note        TEXT,
-    created_at  TIMESTAMPTZ   NOT NULL DEFAULT NOW()
-  )`,
-
+  // Subscriptions
   `CREATE TABLE IF NOT EXISTS subscriptions (
     id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id                UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    plan                   VARCHAR(50) NOT NULL DEFAULT 'free',
-    status                 VARCHAR(50) NOT NULL DEFAULT 'active',
+    user_id                UUID         NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    plan                   VARCHAR(50)  NOT NULL DEFAULT 'free',
+    status                 VARCHAR(50)  NOT NULL DEFAULT 'active',
     stripe_customer_id     VARCHAR(255),
     stripe_subscription_id VARCHAR(255),
     stripe_price_id        VARCHAR(255),
     current_period_start   TIMESTAMPTZ,
     current_period_end     TIMESTAMPTZ,
-    cancel_at_period_end   BOOLEAN     NOT NULL DEFAULT FALSE,
-    created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at             TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    cancel_at_period_end   BOOLEAN      NOT NULL DEFAULT FALSE,
+    created_at             TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    updated_at             TIMESTAMPTZ  NOT NULL DEFAULT NOW()
   )`,
 
-  /* Monitoring & Anomaly Detection */
-  `CREATE TABLE IF NOT EXISTS anomaly_logs (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id         UUID          NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    type            VARCHAR(50)   NOT NULL,
-    severity        VARCHAR(20)   NOT NULL CHECK (severity IN ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL')),
-    message         TEXT          NOT NULL,
-    data            JSONB,
-    acknowledged    BOOLEAN       NOT NULL DEFAULT FALSE,
-    acknowledged_at TIMESTAMPTZ,
-    created_at      TIMESTAMPTZ   NOT NULL DEFAULT NOW()
-  )`,
-
+  // Stripe webhook events (idempotency)
   `CREATE TABLE IF NOT EXISTS stripe_events (
     id         VARCHAR(255) PRIMARY KEY,
     processed  BOOLEAN     NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`,
 
-  /* Indexes */
-  `CREATE INDEX IF NOT EXISTS idx_inventory_user    ON inventory_items(user_id)`,
-  `CREATE INDEX IF NOT EXISTS idx_categories_user   ON categories(user_id)`,
+  // Indexes
+  `CREATE INDEX IF NOT EXISTS idx_inventory_user_id  ON inventory_items(user_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_categories_user_id ON categories(user_id)`,
   `CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id)`,
-  `CREATE INDEX IF NOT EXISTS idx_transactions_user  ON transactions(user_id)`,
-  `CREATE INDEX IF NOT EXISTS idx_transactions_item  ON transactions(item_id)`,
-  `CREATE INDEX IF NOT EXISTS idx_transactions_date  ON transactions(user_id, created_at DESC)`,
-  
-  // Monitoring indexes (no dependencies)
-  `CREATE INDEX IF NOT EXISTS idx_anomaly_logs_user ON anomaly_logs(user_id, created_at DESC)`,
-  `CREATE INDEX IF NOT EXISTS idx_anomaly_logs_type ON anomaly_logs(type, severity)`,
 
-  /* Alter existing tables safely */
-  `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_email_verified      BOOLEAN     NOT NULL DEFAULT FALSE`,
-  `ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verify_token     VARCHAR(255)`,
-  `ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verify_expires   TIMESTAMPTZ`,
-  `ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_ends_at          TIMESTAMPTZ`,
-  `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_locked              BOOLEAN     NOT NULL DEFAULT FALSE`,
-  `ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id     VARCHAR(255)`,
+  // Add missing columns if upgrading existing DB
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_email_verified     BOOLEAN     NOT NULL DEFAULT FALSE`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verify_token    VARCHAR(255)`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verify_expires  TIMESTAMPTZ`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_ends_at         TIMESTAMPTZ`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_locked             BOOLEAN     NOT NULL DEFAULT FALSE`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id    VARCHAR(255)`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_subscription_id VARCHAR(255)`,
-  `ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_password_token   VARCHAR(255)`,
-  `ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_password_expires TIMESTAMPTZ`,
-  `ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS cost_price   NUMERIC(12,2) NOT NULL DEFAULT 0`,
-
-  // ── Financial precision fixes ──────────────────────────────────────────────
-  // Step 1: Add cost_price to transactions (was missing — caused Quick Sell cost = 0)
-  `ALTER TABLE transactions ADD COLUMN IF NOT EXISTS cost_price NUMERIC(12,4) NOT NULL DEFAULT 0`,
-
-  // Step 2: Upgrade inventory_items precision (no dependency, safe to alter directly)
-  `ALTER TABLE inventory_items ALTER COLUMN price      TYPE NUMERIC(12,4)`,
-  `ALTER TABLE inventory_items ALTER COLUMN cost_price TYPE NUMERIC(12,4)`,
-
-  // Step 3: Upgrade transactions precision
-  // PROBLEM: total is a GENERATED ALWAYS AS (quantity * unit_price) STORED column.
-  // PostgreSQL blocks ALTER TYPE on any column referenced by a generated column.
-  // FIX: DROP the generated column → ALTER types → RECREATE the generated column.
-  // Data is NOT lost — total is always computable from quantity * unit_price.
-  `ALTER TABLE transactions DROP COLUMN IF EXISTS total`,
-  `ALTER TABLE transactions ALTER COLUMN unit_price TYPE NUMERIC(12,4)`,
-  `ALTER TABLE transactions ALTER COLUMN cost_price TYPE NUMERIC(12,4)`,
-  `ALTER TABLE transactions ADD COLUMN IF NOT EXISTS total NUMERIC GENERATED ALWAYS AS (quantity * unit_price) STORED`,
-
-  // ── Transaction model enhancements ─────────────────────────────────────────
-  // Step 4: Add status column for soft delete and transaction state tracking
-  `ALTER TABLE transactions ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'completed'`,
-  
-  // Step 5: Update type check constraint to include refund and cancelled
-  // Note: This requires dropping and recreating the constraint
-  `ALTER TABLE transactions DROP CONSTRAINT IF EXISTS transactions_type_check`,
-  `ALTER TABLE transactions ADD CONSTRAINT transactions_type_check CHECK (type IN ('sale','refund','cancelled','restock','adjustment','usage'))`,
-  
-  // Step 6: Add status check constraint
-  `ALTER TABLE transactions DROP CONSTRAINT IF EXISTS transactions_status_check`,
-  `ALTER TABLE transactions ADD CONSTRAINT transactions_status_check CHECK (status IN ('pending','completed','cancelled'))`,
-  
-  // Step 7: Create indexes that depend on 'status' column (MUST be after ADD COLUMN)
-  // This index requires status column to exist first
-  // ── Performance optimization for analytics queries ─────────────────────────
-  // Composite index for getSalesSummary, getRevenueTrend, getTopItems
-  // Covers: WHERE user_id = $1 AND type = 'sale' AND status = 'completed' AND created_at > ...
-  `CREATE INDEX IF NOT EXISTS idx_transactions_user_type_status_date 
-    ON transactions(user_id, type, status, created_at DESC)
-    WHERE status = 'completed'`,
-  
-  // Step 8: Add anomaly_logs table for existing databases
-  `CREATE TABLE IF NOT EXISTS anomaly_logs (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id         UUID          NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    type            VARCHAR(50)   NOT NULL,
-    severity        VARCHAR(20)   NOT NULL CHECK (severity IN ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL')),
-    message         TEXT          NOT NULL,
-    data            JSONB,
-    acknowledged    BOOLEAN       NOT NULL DEFAULT FALSE,
-    acknowledged_at TIMESTAMPTZ,
-    created_at      TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+  `ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS cost_price  NUMERIC(12,2) NOT NULL DEFAULT 0`,
+  // ── App Updates (changelog / announcements) ──────────────────────────────
+  `CREATE TABLE IF NOT EXISTS app_updates (
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    type         VARCHAR(20) NOT NULL DEFAULT 'update'
+                   CHECK (type IN ('feature','update','fix','announcement')),
+    title        VARCHAR(200) NOT NULL,
+    content      TEXT NOT NULL,
+    version      VARCHAR(20),
+    is_published BOOLEAN NOT NULL DEFAULT TRUE,
+    likes        INTEGER NOT NULL DEFAULT 0,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`,
-  `CREATE INDEX IF NOT EXISTS idx_anomaly_logs_user ON anomaly_logs(user_id, created_at DESC)`,
-  `CREATE INDEX IF NOT EXISTS idx_anomaly_logs_type ON anomaly_logs(type, severity)`,
+  `CREATE INDEX IF NOT EXISTS idx_app_updates_created ON app_updates(created_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS idx_app_updates_type    ON app_updates(type)`,
 ];
 
-async function run() {
+async function runMigrations() {
   await testConnection();
   console.log('[Migration] Running...');
   for (const sql of migrations) {
-    try { await query(sql); }
-    catch (e) { if (!e.message.includes('already exists')) throw e; }
+    try {
+      await query(sql);
+    } catch (err) {
+      // Skip duplicate column errors gracefully
+      if (!err.message.includes('already exists')) throw err;
+    }
   }
-  console.log('[Migration] Done ✓');
+  console.log('[Migration] All done!');
   process.exit(0);
 }
-run().catch(e => { console.error('[Migration] FAILED:', e.message); process.exit(1); });
+
+runMigrations().catch((err) => {
+  console.error('[Migration] FAILED:', err.message);
+  process.exit(1);
+});

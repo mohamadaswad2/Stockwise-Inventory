@@ -13,7 +13,7 @@ import AppLayout from '../../components/layout/AppLayout';
 import Spinner from '../../components/ui/Spinner';
 import { useAuth } from '../../contexts/AuthContext';
 import * as adminService from '../../services/admin.service';
-import { createUpdate, deleteUpdate, getUpdates } from '../../services/updates.service';
+import { getAdminUpdates, createUpdate, updateUpdate, deleteUpdate } from '../../services/updates.service';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';

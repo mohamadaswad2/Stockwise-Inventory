@@ -7,6 +7,9 @@ const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 export const getUpdates = (params) =>
   axios.get(`${BASE}/updates`, { params });
 
-// Admin only
-export const createUpdate = (data) => api.post('/admin/updates', data);
-export const deleteUpdate = (id)   => api.delete(`/admin/updates/${id}`);
+// Admin only — routes under /updates/admin
+export const getAdminUpdates = (params) => api.get('/updates/admin', { params });
+export const createUpdate    = (data)   => api.post('/updates/admin', data);
+export const updateUpdate    = (id, d)  => api.put(`/updates/admin/${id}`, d);
+export const deleteUpdate    = (id)     => api.delete(`/updates/admin/${id}`);
+export const likeUpdate      = (id)     => api.post(`/updates/${id}/like`);
