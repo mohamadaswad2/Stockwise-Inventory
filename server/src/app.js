@@ -9,6 +9,7 @@ const inventoryRoutes = require('./routes/inventory.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
 const userRoutes      = require('./routes/user.routes');
 const adminRoutes     = require('./routes/admin.routes');
+const transactionRoutes  = require('./routes/transaction.routes');
 const updatesRoutes      = require('./routes/updates.routes');
 const { notFound, errorHandler } = require('./middlewares/error.middleware');
 
@@ -33,7 +34,8 @@ app.use('/api', rateLimit({ windowMs: 15 * 60 * 1000, max: 100, standardHeaders:
 app.get('/health', (_req, res) => res.json({ success: true, message: 'API is running', ts: new Date().toISOString() }));
 
 app.use('/api/auth',      authRoutes);
-app.use('/api/inventory', inventoryRoutes);
+app.use('/api/inventory',    inventoryRoutes);
+app.use('/api/transactions', transactionRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/users',     userRoutes);
 app.use('/api/admin',     adminRoutes);
